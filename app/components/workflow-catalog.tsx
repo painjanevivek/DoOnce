@@ -131,12 +131,12 @@ function isDisableResponse(value: unknown): value is { workflowId: string; disab
   return isUuid(record.workflowId) && typeof record.disabledVersion === "number" && Number.isInteger(record.disabledVersion) && record.disabledVersion > 0;
 }
 
-function isSupportReportResponse(value: unknown): value is { report: { id: string; category: SupportReportCategory; createdAt: string } } {
+function isSupportReportResponse(value: unknown): value is { report: { id: string; category: SupportReportCategory; createdAt: string; diagnosticIncluded: boolean } } {
   if (typeof value !== "object" || value === null) return false;
   const report = (value as Record<string, unknown>).report;
   if (typeof report !== "object" || report === null) return false;
   const record = report as Record<string, unknown>;
-  return isUuid(record.id) && supportReportCategories.some((category) => category.value === record.category) && isTimestamp(record.createdAt);
+  return isUuid(record.id) && supportReportCategories.some((category) => category.value === record.category) && isTimestamp(record.createdAt) && typeof record.diagnosticIncluded === "boolean";
 }
 
 export default function WorkflowCatalog() {
@@ -418,7 +418,7 @@ export default function WorkflowCatalog() {
         return;
       }
       if (!response.ok || !isSupportReportResponse(body)) throw new Error("Support report was not accepted.");
-      setMessage(`Problem report received. Reference ${body.report.id.slice(0, 8)} was recorded${includeSupportRunHealth ? " with a server-derived run-health summary" : ""}, without page content or sensitive values.`);
+      setMessage(`Problem report received. Reference ${body.report.id.slice(0, 8)} was recorded${body.report.diagnosticIncluded ? " with a server-derived run-health summary" : ""}, without page content or sensitive values.`);
     } catch {
       setMessage("Your problem report could not be sent. No browser content or sensitive values were uploaded.");
     } finally {
