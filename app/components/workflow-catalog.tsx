@@ -10,6 +10,7 @@ type WorkflowReview = WorkflowVersion & { status: "draft"; allowedDomains: strin
 type SafeCaptureSummary = { origin: string; path?: string; eventKind: "click" | "change" | "input"; selector: string };
 type LocalReceipt = { id: string; origin: string; outcome: "completed" | "paused"; pauseReason?: string; finishedAt: string };
 type StoredReceipt = { id: string; outcome: "completed" | "paused"; pauseReason?: string; workflowVersion: number; finishedAt: string };
+type WorkflowAuditEvent = { id: string; version: number; eventType: "workflow.draft_created" | "workflow.policy_previewed" | "workflow.published"; createdAt: string };
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:4000";
 
@@ -88,6 +89,15 @@ function isReceiptHistory(value: unknown): value is { receipts: StoredReceipt[] 
   return typeof value === "object" && value !== null && Array.isArray((value as Record<string, unknown>).receipts) && (value as { receipts: unknown[] }).receipts.every(isStoredReceipt);
 }
 
+function isWorkflowAuditHistory(value: unknown): value is { events: WorkflowAuditEvent[] } {
+  if (typeof value !== "object" || value === null || !Array.isArray((value as Record<string, unknown>).events)) return false;
+  return (value as { events: unknown[] }).events.every((event) => {
+    if (typeof event !== "object" || event === null) return false;
+    const item = event as Record<string, unknown>;
+    return isUuid(item.id) && typeof item.version === "number" && Number.isInteger(item.version) && item.version > 0 && ["workflow.draft_created", "workflow.policy_previewed", "workflow.published"].includes(item.eventType as string) && isTimestamp(item.createdAt);
+  });
+}
+
 export default function WorkflowCatalog() {
   const [state, setState] = useState<CatalogState>("loading");
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
@@ -102,6 +112,9 @@ export default function WorkflowCatalog() {
   const [historyWorkflowId, setHistoryWorkflowId] = useState("");
   const [receiptHistory, setReceiptHistory] = useState<StoredReceipt[] | null>(null);
   const [historyState, setHistoryState] = useState<"idle" | "loading">("idle");
+  const [auditWorkflowId, setAuditWorkflowId] = useState("");
+  const [auditEvents, setAuditEvents] = useState<WorkflowAuditEvent[] | null>(null);
+  const [auditState, setAuditState] = useState<"idle" | "loading">("idle");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -256,6 +269,24 @@ export default function WorkflowCatalog() {
     }
   }
 
+  async function loadAuditHistory() {
+    if (!auditWorkflowId) return;
+    setAuditState("loading");
+    setMessage("");
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/v1/workflows/${auditWorkflowId}/audit-events`, { credentials: "include", headers: { Accept: "application/json" } });
+      const body: unknown = await response.json();
+      if (response.status === 401) return setState("signed-out");
+      if (!response.ok || !isWorkflowAuditHistory(body)) throw new Error("Audit history was not confirmed.");
+      setAuditEvents(body.events);
+      setMessage(body.events.length ? "Workflow history loaded from the selected workflow." : "No lifecycle events are available for the selected workflow.");
+    } catch {
+      setMessage("Workflow history could not be verified.");
+    } finally {
+      setAuditState("idle");
+    }
+  }
+
   if (state === "loading") return <section className="workflow-panel" aria-live="polite"><p className="eyebrow">Workflow catalog</p><h2>Checking your workspace…</h2></section>;
   if (state === "signed-out") return <section className="workflow-panel"><p className="eyebrow">Workflow catalog</p><h2>Sign in to view a workspace.</h2><p>Workflow drafts are never shown until the server confirms your tenant session.</p><Link className="primary-link" href="/sign-up">Create workspace or sign in</Link></section>;
   if (state === "unavailable") return <section className="workflow-panel workflow-panel--error" role="alert"><p className="eyebrow">Workflow catalog</p><h2>Workspace service unavailable.</h2><p>No workflow details are shown while the account or workflow service cannot be verified.</p></section>;
@@ -269,6 +300,12 @@ export default function WorkflowCatalog() {
       <p className="workflow-copy">The only template available in this phase downloads a report from the DoOnce demo domain. It cannot submit, delete, pay, enter credentials, or run on another domain.</p>
       <label className="workflow-import">Import a local capture for review<input type="file" accept="application/json" onChange={(event) => void importCapture(event.target.files?.[0])} /><small>Optional. This reads a local extension export in your browser; it is not uploaded until you create a draft.</small></label>
       <label className="workflow-import">Import a local run receipt<input type="file" accept="application/json" onChange={(event) => void importReceipt(event.target.files?.[0])} /><small>Receipts remain local until you select an active workflow and confirm saving.</small></label>
+      <div className="workflow-review" aria-label="Workflow version history">
+        <strong>Review workflow history</strong>
+        <label>Workflow<select value={auditWorkflowId} onChange={(event) => { setAuditWorkflowId(event.target.value); setAuditEvents(null); }}><option value="">Choose a workflow</option>{workflows.map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title}</option>)}</select></label>
+        <button disabled={!auditWorkflowId || auditState === "loading"} onClick={() => void loadAuditHistory()} type="button">{auditState === "loading" ? "Loading historyâ€¦" : "Load workflow history"}</button>
+        {auditEvents && (auditEvents.length ? <ol className="workflow-list">{auditEvents.map((event) => <li key={event.id}><span><strong>{event.eventType.replace("workflow.", "").replaceAll("_", " ")}</strong><small>Version {event.version} Â· {new Date(event.createdAt).toLocaleString()}</small></span><b>Recorded</b></li>)}</ol> : <p className="workflow-empty">No lifecycle history for this workflow yet.</p>)}
+      </div>
       {receipt && <div className="workflow-review"><strong>Receipt ready for confirmation</strong><span>{receipt.outcome} · {new Date(receipt.finishedAt).toLocaleString()}</span><label>Active workflow<select value={receiptWorkflowId} onChange={(event) => setReceiptWorkflowId(event.target.value)}><option value="">Choose an active workflow</option>{workflows.filter((workflow) => workflow.activeVersion).map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title}</option>)}</select></label><button className="workflow-create" disabled={!receiptWorkflowId || state === "creating"} onClick={() => void saveReceipt()} type="button">Save confirmed receipt</button></div>}
       <div className="workflow-review" aria-label="Saved run receipt history">
         <strong>Review saved receipts</strong>
