@@ -24,8 +24,8 @@ const supportReportCategories: Array<{ value: SupportReportCategory; label: stri
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:4000";
 
-function isValidWorkflowDomain(value: string): boolean {
-  return value === "localhost" || value === "127.0.0.1" || /^(?:[a-z0-9-]+\.)+[a-z]{2,63}$/.test(value);
+function isSupportedDemoTarget(domain: string, path: string): boolean {
+  return (domain === "localhost" || domain === "127.0.0.1") && path === "/demo/reports";
 }
 
 function isSafeCapturePath(value: unknown): value is string {
@@ -149,9 +149,9 @@ export default function WorkflowCatalog() {
   const [draft, setDraft] = useState<WorkflowReview | null>(null);
   const [message, setMessage] = useState("");
   const [previewState, setPreviewState] = useState<"idle" | "running" | "passed">("idle");
-  const [title, setTitle] = useState("Download weekly sales report");
-  const [domain, setDomain] = useState("reports.example.test");
-  const [path, setPath] = useState("/weekly-report");
+  const [title, setTitle] = useState("Download local demo report");
+  const [domain, setDomain] = useState("127.0.0.1");
+  const [path, setPath] = useState("/demo/reports");
   const [receipt, setReceipt] = useState<LocalReceipt | null>(null);
   const [resumeDraftId, setResumeDraftId] = useState("");
   const [resumeState, setResumeState] = useState<"idle" | "loading">("idle");
@@ -196,9 +196,9 @@ export default function WorkflowCatalog() {
     event?.preventDefault();
     const normalizedDomain = domain.trim().toLowerCase();
     const normalizedPath = path.trim();
-    if (!title.trim() || !isValidWorkflowDomain(normalizedDomain) || !normalizedPath.startsWith("/") || normalizedPath.startsWith("//")) {
+    if (!title.trim() || !isSupportedDemoTarget(normalizedDomain, normalizedPath)) {
       setState("error");
-      setMessage("Enter a title, a valid domain, and a path beginning with one slash.");
+      setMessage("This pilot can create drafts only for localhost or 127.0.0.1 at /demo/reports.");
       return;
     }
     setState("creating");
@@ -262,7 +262,7 @@ export default function WorkflowCatalog() {
         setMessage("Recognized the safe local report-download pattern. Its domain and path are ready for review before creating a draft.");
       } else {
         setTitle(`Review captured report from ${origin.hostname}`);
-        setMessage(`${payload.summaries.length} local, value-free event summaries imported. This capture is review-only until it matches a supported workflow pattern.`);
+        setMessage(`${payload.summaries.length} local, value-free event summaries imported. This capture is review-only and cannot create a runnable pilot draft until it matches the supported workflow pattern.`);
       }
     } catch {
       setState("error");
@@ -536,6 +536,7 @@ export default function WorkflowCatalog() {
         <label>Workflow name<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={120} required /></label>
         <label>Approved domain<input value={domain} onChange={(event) => setDomain(event.target.value)} inputMode="url" autoCapitalize="none" maxLength={253} required /></label>
         <label>Report path<input value={path} onChange={(event) => setPath(event.target.value)} maxLength={2048} required /></label>
+        <small>This pilot creates runnable drafts only for the local demo at <code>localhost</code> or <code>127.0.0.1</code> with <code>/demo/reports</code>.</small>
         <button className="workflow-create" disabled={state === "creating" || state === "publishing"} type="submit">{state === "creating" ? "Creating draft…" : "Create reviewed draft"}</button>
       </form>
       {draft && <aside className="workflow-review" aria-label="Draft review"><strong>Server-confirmed draft · version {draft.version}</strong><span>{draft.title}</span><div className="workflow-review-details"><p><b>Approved domain:</b> {draft.allowedDomains.join(", ")}</p><ol>{draft.steps.map((step) => <li key={step.id}><b>{step.kind}</b> — {step.name}<small>{step.domain}{step.path} · {step.expectedOutcome}</small></li>)}</ol><p>{previewState === "passed" ? "Policy preview passed." : "Run a server policy preview before publishing."}</p><p>{draft.testRunVerified ? "A completed local test receipt is confirmed for this version." : "Import and confirm one completed local test receipt before publishing."}</p></div><div className="workflow-review-actions"><button disabled={previewState === "running" || state === "publishing"} onClick={() => void previewDraft()} type="button">{previewState === "running" ? "Checking policy…" : "Run policy preview"}</button><button disabled={previewState !== "passed" || !draft.testRunVerified || state === "publishing"} onClick={() => void publishDraft()} type="button">Publish reviewed draft</button></div></aside>}

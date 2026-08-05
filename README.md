@@ -31,6 +31,7 @@ npm run build
 - The extension can consent only HTTPS sites or the explicit local HTTP demo hosts; other URL schemes and public HTTP pages are rejected.
 - A local extension receipt remains in the browser until the user explicitly chooses an active workflow and saves it. Saved histories are loaded only for the selected tenant workflow and contain no page content or action values.
 - Before a draft can be published, the dashboard requires a completed local receipt to be confirmed for that exact draft version after its policy preview. A paused receipt never unlocks publication.
+- The runnable pilot draft creator accepts only the local demo report target: `localhost` or `127.0.0.1` at `/demo/reports`. Other imported captures remain review-only until their workflow pattern is implemented and independently reviewed.
 - Unpublished drafts can be resumed after a refresh from a tenant-scoped summary. The dashboard restores only server-derived policy-preview and completed-test status; it never treats local browser state as publication proof.
 - Imported paused receipts accept only the stable `changed-page`, `slow-network`, or `unknown` reason codes; malformed review files are rejected before they reach the API.
 - Reconfirming an already-saved receipt does not create another record; the dashboard reports that it is already saved.
