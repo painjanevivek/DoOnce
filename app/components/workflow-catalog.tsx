@@ -290,12 +290,18 @@ export default function WorkflowCatalog() {
   }
 
   async function importReceipt(file: File | undefined) {
-    if (!file || file.size > 128_000) return setMessage("Choose a small local receipt file.");
+    setReceipt(null);
+    if (!file || file.size > 128_000) {
+      setState("error");
+      setMessage("Choose a small local receipt file.");
+      return;
+    }
     try {
       const payload: unknown = JSON.parse(await file.text());
       if (!isLocalReceiptFile(payload)) throw new Error("Invalid receipt.");
       const latest = payload.receipts.at(-1)!;
       setReceipt(latest);
+      setState("ready");
       setMessage(`Local ${latest.outcome} receipt ready for explicit dashboard confirmation.`);
     } catch { setState("error"); setMessage("That file is not a valid local receipt export."); }
   }
