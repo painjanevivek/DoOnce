@@ -1,9 +1,12 @@
 /* global chrome */
 
 chrome.runtime.onInstalled.addListener(async () => {
-  const stored = await chrome.storage.local.get("doonce.consentedOrigins");
+  const stored = await chrome.storage.local.get(["doonce.consentedOrigins", "doonce.recordingOrigins"]);
   if (!Array.isArray(stored["doonce.consentedOrigins"])) {
     await chrome.storage.local.set({ "doonce.consentedOrigins": [] });
+  }
+  if (!Array.isArray(stored["doonce.recordingOrigins"])) {
+    await chrome.storage.local.set({ "doonce.recordingOrigins": [] });
   }
 });
 
@@ -12,22 +15,41 @@ chrome.runtime.onMessage.addListener((message, sender) => {
   void storeCaptureSummary(message, new URL(sender.url).origin);
 });
 
-chrome.runtime.onMessage.addListener((message) => {
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type !== "doonce.start-capture" || !Number.isInteger(message.tabId) || typeof message.origin !== "string") return;
-  void startCapture(message.tabId, message.origin);
+  void setRecording(message.tabId, message.origin, true).then(
+    (updated) => sendResponse({ updated }),
+    () => sendResponse({ updated: false }),
+  );
+  return true;
 });
 
-async function startCapture(tabId, origin) {
-  const stored = await chrome.storage.local.get("doonce.consentedOrigins");
-  if (!(stored["doonce.consentedOrigins"] ?? []).includes(origin)) return;
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type !== "doonce.set-recording" || !Number.isInteger(message.tabId) || typeof message.origin !== "string" || typeof message.enabled !== "boolean") return;
+  void setRecording(message.tabId, message.origin, message.enabled).then(
+    (updated) => sendResponse({ updated }),
+    () => sendResponse({ updated: false }),
+  );
+  return true;
+});
+
+async function setRecording(tabId, origin, enabled) {
+  const stored = await chrome.storage.local.get(["doonce.consentedOrigins", "doonce.recordingOrigins"]);
+  if (!(stored["doonce.consentedOrigins"] ?? []).includes(origin)) return false;
   const tab = await chrome.tabs.get(tabId);
-  if (!tab.url || new URL(tab.url).origin !== origin) return;
+  if (!tab.url || new URL(tab.url).origin !== origin) return false;
   try {
-    await chrome.tabs.sendMessage(tabId, { type: "doonce.start-capture" });
+    await chrome.tabs.sendMessage(tabId, { type: enabled ? "doonce.start-capture" : "doonce.stop-capture" });
   } catch {
+    if (!enabled) return false;
     await chrome.scripting.executeScript({ target: { tabId }, files: ["capture-policy.js", "content-capture.js"] });
     await chrome.tabs.sendMessage(tabId, { type: "doonce.start-capture" });
   }
+  const recordingOrigins = new Set(stored["doonce.recordingOrigins"] ?? []);
+  if (enabled) recordingOrigins.add(origin);
+  else recordingOrigins.delete(origin);
+  await chrome.storage.local.set({ "doonce.recordingOrigins": [...recordingOrigins] });
+  return true;
 }
 
 async function storeCaptureSummary(message, senderOrigin) {

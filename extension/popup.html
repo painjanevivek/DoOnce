@@ -16,12 +16,14 @@
       <p class="boundary"><strong>Never captured:</strong> passwords, OTPs, payment details, or hidden page content.</p>
       <div class="actions">
         <button id="consent" type="button" disabled>Allow this site for future recording</button>
+        <button id="recording" type="button" class="secondary" disabled>Pause recording</button>
         <button id="revoke" type="button" class="secondary" disabled>Remove consent</button>
         <button id="export" type="button" class="secondary" disabled>Export local capture for review</button>
       </div>
       <p id="capture-count" class="capture-count">No local events ready for review.</p>
       <p id="status" class="status" role="status" aria-live="polite"></p>
     </main>
+    <script src="recording-state.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

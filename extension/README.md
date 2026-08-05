@@ -9,6 +9,7 @@ This Manifest V3 extension implements only consent-first onboarding. Load this f
 - It does not request broad host permissions.
 - After explicit consent, it injects a recorder into the current tab only. It stores at most 50 local summaries containing an approved origin, event kind, and selector—never a typed value or page content.
 - It accepts HTTPS origins and the local DoOnce demo (`localhost`/`127.0.0.1`) only.
+- Recording can be paused or resumed explicitly from the popup; a paused site produces no new capture summaries until the user resumes it.
 
 `capture-policy.js` is the fail-closed capture boundary for the next alpha increment. It permits only field metadata for explicitly safe controls and rejects passwords, OTP/security-code, payment, hidden, and file fields. Event summaries contain an event kind and selector only—never a typed value.
 

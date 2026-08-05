@@ -1,12 +1,14 @@
 /* global chrome */
 
 const consentButton = document.querySelector("#consent");
+const recordingButton = document.querySelector("#recording");
 const revokeButton = document.querySelector("#revoke");
 const exportButton = document.querySelector("#export");
 const originElement = document.querySelector("#origin");
 const statusElement = document.querySelector("#status");
 const captureCountElement = document.querySelector("#capture-count");
 let currentOrigin;
+let recording = false;
 
 function recordableOrigin(url) {
   const parsed = new URL(url);
@@ -34,11 +36,14 @@ async function loadCurrentOrigin() {
 
   currentOrigin = new URL(tab.url).origin;
   originElement.textContent = currentOrigin;
-  const stored = await chrome.storage.local.get("doonce.consentedOrigins");
+  const stored = await chrome.storage.local.get(["doonce.consentedOrigins", "doonce.recordingOrigins"]);
   const allowedOrigins = stored["doonce.consentedOrigins"] ?? [];
+  recording = DoOnceRecordingState.isRecording(stored["doonce.recordingOrigins"], currentOrigin);
   consentButton.disabled = false;
+  recordingButton.disabled = !allowedOrigins.includes(currentOrigin);
+  recordingButton.textContent = recording ? "Pause recording" : "Resume recording";
   revokeButton.disabled = !allowedOrigins.includes(currentOrigin);
-  displayStatus(allowedOrigins.includes(currentOrigin) ? "This site is approved for future recording." : "This site is not approved.");
+  displayStatus(allowedOrigins.includes(currentOrigin) ? (recording ? "This site is approved and recording is active for this tab." : "This site is approved; recording is paused.") : "This site is not approved.");
   await updateCaptureCount();
 }
 
@@ -49,24 +54,46 @@ consentButton.addEventListener("click", async () => {
   allowedOrigins.add(currentOrigin);
   await chrome.storage.local.set({ "doonce.consentedOrigins": [...allowedOrigins] });
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (tab?.id) await chrome.runtime.sendMessage({ type: "doonce.start-capture", origin: currentOrigin, tabId: tab.id });
+  const response = tab?.id ? await chrome.runtime.sendMessage({ type: "doonce.start-capture", origin: currentOrigin, tabId: tab.id }) : undefined;
+  recording = response?.updated === true;
+  recordingButton.disabled = !recording;
+  recordingButton.textContent = recording ? "Pause recording" : "Resume recording";
   revokeButton.disabled = false;
-  displayStatus("Consent saved locally. Safe, value-free capture is active for this tab only.");
+  displayStatus(recording ? "Consent saved locally. Safe, value-free capture is active for this tab only." : "Consent was saved, but recording could not start for this tab.");
   await updateCaptureCount();
+});
+
+recordingButton.addEventListener("click", async () => {
+  if (!currentOrigin) return;
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) return;
+  const enabled = !recording;
+  const response = await chrome.runtime.sendMessage({ type: "doonce.set-recording", origin: currentOrigin, tabId: tab.id, enabled });
+  if (response?.updated !== true) {
+    displayStatus("Recording state could not be changed for this tab.");
+    return;
+  }
+  recording = enabled;
+  recordingButton.textContent = recording ? "Pause recording" : "Resume recording";
+  displayStatus(recording ? "Recording resumed for this tab. Sensitive values remain excluded." : "Recording paused. Nothing new will be captured until you resume.");
 });
 
 revokeButton.addEventListener("click", async () => {
   if (!currentOrigin) return;
   const stored = await chrome.storage.local.get("doonce.consentedOrigins");
   const allowedOrigins = (stored["doonce.consentedOrigins"] ?? []).filter((origin) => origin !== currentOrigin);
-  const captures = await chrome.storage.local.get("doonce.capturedSummaries");
+  const [captures, recordingOrigins] = await Promise.all([chrome.storage.local.get("doonce.capturedSummaries"), chrome.storage.local.get("doonce.recordingOrigins")]);
   await chrome.storage.local.set({
     "doonce.consentedOrigins": allowedOrigins,
     "doonce.capturedSummaries": (captures["doonce.capturedSummaries"] ?? []).filter((summary) => summary.origin !== currentOrigin),
+    "doonce.recordingOrigins": DoOnceRecordingState.setRecording(recordingOrigins["doonce.recordingOrigins"], currentOrigin, false),
   });
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (tab?.id) await chrome.tabs.sendMessage(tab.id, { type: "doonce.stop-capture" }).catch(() => undefined);
   revokeButton.disabled = true;
+  recording = false;
+  recordingButton.disabled = true;
+  recordingButton.textContent = "Pause recording";
   displayStatus("Consent removed. Capture is off for this site.");
   await updateCaptureCount();
 });
