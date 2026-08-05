@@ -15,11 +15,6 @@ let currentOrigin;
 let currentTab;
 let recording = false;
 
-function recordableOrigin(url) {
-  const parsed = new URL(url);
-  return parsed.protocol === "https:" || parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
-}
-
 function displayStatus(message) {
   statusElement.textContent = message;
 }
@@ -52,7 +47,7 @@ async function isCurrentTabRecording(tab) {
 async function loadCurrentOrigin() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   currentTab = tab;
-  if (!tab?.url || !recordableOrigin(tab.url)) {
+  if (!tab?.url || !DoOnceRunPolicy.isConsentableWebOrigin(tab.url)) {
     originElement.textContent = "Open an HTTPS website or the local DoOnce demo to continue.";
     displayStatus("No site has been approved.");
     return;
