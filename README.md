@@ -1,6 +1,6 @@
 # DoOnce dashboard
 
-The DoOnce dashboard is the user-facing control plane for safe, reviewable browser workflows. It lets users inspect workflow versions, approvals and redacted receipts without hiding actions or granting unsafe defaults.
+The DoOnce dashboard is the user-facing control plane for safe, reviewable browser workflows. It lets users inspect workflow versions, approvals and redacted receipts without hiding actions or granting unsafe defaults. The accompanying extension records only value-free summaries after per-site consent and offers one verified local report-download run.
 
 ## Phase 1 foundation
 
