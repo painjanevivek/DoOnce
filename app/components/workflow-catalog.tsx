@@ -99,8 +99,14 @@ function isWorkflowAuditHistory(value: unknown): value is { events: WorkflowAudi
   return (value as { events: unknown[] }).events.every((event) => {
     if (typeof event !== "object" || event === null) return false;
     const item = event as Record<string, unknown>;
-    return isUuid(item.id) && typeof item.version === "number" && Number.isInteger(item.version) && item.version > 0 && ["workflow.draft_created", "workflow.policy_previewed", "workflow.published"].includes(item.eventType as string) && isTimestamp(item.createdAt);
+    return isUuid(item.id) && typeof item.version === "number" && Number.isInteger(item.version) && item.version > 0 && ["workflow.draft_created", "workflow.policy_previewed", "workflow.published", "workflow.disabled"].includes(item.eventType as string) && isTimestamp(item.createdAt);
   });
+}
+
+function isDisableResponse(value: unknown): value is { workflowId: string; disabledVersion: number } {
+  if (typeof value !== "object" || value === null) return false;
+  const record = value as Record<string, unknown>;
+  return isUuid(record.workflowId) && typeof record.disabledVersion === "number" && Number.isInteger(record.disabledVersion) && record.disabledVersion > 0;
 }
 
 export default function WorkflowCatalog() {
@@ -120,6 +126,8 @@ export default function WorkflowCatalog() {
   const [auditWorkflowId, setAuditWorkflowId] = useState("");
   const [auditEvents, setAuditEvents] = useState<WorkflowAuditEvent[] | null>(null);
   const [auditState, setAuditState] = useState<"idle" | "loading">("idle");
+  const [disableWorkflowId, setDisableWorkflowId] = useState("");
+  const [disableState, setDisableState] = useState<"idle" | "disabling">("idle");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -292,6 +300,27 @@ export default function WorkflowCatalog() {
     }
   }
 
+  async function disableActiveWorkflow() {
+    if (!disableWorkflowId || !window.confirm("Disable this workflow immediately? It will stop accepting new runs, and you can create a new reviewed version later.")) return;
+    setDisableState("disabling");
+    setMessage("");
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/v1/workflows/${disableWorkflowId}/disable`, { method: "POST", credentials: "include", headers: { Accept: "application/json" } });
+      const body: unknown = await response.json();
+      if (response.status === 401) return setState("signed-out");
+      if (!response.ok || !isDisableResponse(body) || body.workflowId !== disableWorkflowId) throw new Error("Workflow was not disabled.");
+      setWorkflows((current) => current.map((workflow) => workflow.id === disableWorkflowId ? { ...workflow, activeVersion: null, updatedAt: new Date().toISOString() } : workflow));
+      setReceiptWorkflowId((current) => current === disableWorkflowId ? "" : current);
+      setHistoryWorkflowId((current) => current === disableWorkflowId ? "" : current);
+      setDisableWorkflowId("");
+      setMessage(`Workflow version ${body.disabledVersion} was disabled immediately. Its audit history remains available.`);
+    } catch {
+      setMessage("This workflow could not be disabled. It may already be inactive, or your role does not allow it.");
+    } finally {
+      setDisableState("idle");
+    }
+  }
+
   if (state === "loading") return <section className="workflow-panel" aria-live="polite"><p className="eyebrow">Workflow catalog</p><h2>Checking your workspace…</h2></section>;
   if (state === "signed-out") return <section className="workflow-panel"><p className="eyebrow">Workflow catalog</p><h2>Sign in to view a workspace.</h2><p>Workflow drafts are never shown until the server confirms your tenant session.</p><Link className="primary-link" href="/sign-up">Create workspace or sign in</Link></section>;
   if (state === "unavailable") return <section className="workflow-panel workflow-panel--error" role="alert"><p className="eyebrow">Workflow catalog</p><h2>Workspace service unavailable.</h2><p>No workflow details are shown while the account or workflow service cannot be verified.</p></section>;
@@ -305,6 +334,12 @@ export default function WorkflowCatalog() {
       <p className="workflow-copy">The only template available in this phase downloads a report from the DoOnce demo domain. It cannot submit, delete, pay, enter credentials, or run on another domain.</p>
       <label className="workflow-import">Import a local capture for review<input type="file" accept="application/json" onChange={(event) => void importCapture(event.target.files?.[0])} /><small>Optional. This reads a local extension export in your browser; it is not uploaded until you create a draft.</small></label>
       <label className="workflow-import">Import a local run receipt<input type="file" accept="application/json" onChange={(event) => void importReceipt(event.target.files?.[0])} /><small>Receipts remain local until you select an active workflow and confirm saving.</small></label>
+      <div className="workflow-review workflow-review--danger" aria-label="Emergency workflow disable">
+        <strong>Disable an active workflow</strong>
+        <label>Active workflow<select value={disableWorkflowId} onChange={(event) => setDisableWorkflowId(event.target.value)}><option value="">Choose an active workflow</option>{workflows.filter((workflow) => workflow.activeVersion).map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title}</option>)}</select></label>
+        <small>Owners can stop one workflow immediately. Its version and audit history are retained.</small>
+        <button disabled={!disableWorkflowId || disableState === "disabling"} onClick={() => void disableActiveWorkflow()} type="button">{disableState === "disabling" ? "Disabling workflow…" : "Disable immediately"}</button>
+      </div>
       <div className="workflow-review" aria-label="Workflow version history">
         <strong>Review workflow history</strong>
         <label>Workflow<select value={auditWorkflowId} onChange={(event) => { setAuditWorkflowId(event.target.value); setAuditEvents(null); }}><option value="">Choose a workflow</option>{workflows.map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title}</option>)}</select></label>

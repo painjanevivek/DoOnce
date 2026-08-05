@@ -32,6 +32,7 @@ npm run build
 - A local extension receipt remains in the browser until the user explicitly chooses an active workflow and saves it. Saved histories are loaded only for the selected tenant workflow and contain no page content or action values.
 - Imported paused receipts accept only the stable `changed-page`, `slow-network`, or `unknown` reason codes; malformed review files are rejected before they reach the API.
 - Reconfirming an already-saved receipt does not create another record; the dashboard reports that it is already saved.
+- An owner can select and immediately disable one active workflow after an explicit confirmation. The dashboard retains its history; a new reviewed draft is required before it can run again.
 - Removing extension consent clears that site's local captures, recording state, and local run receipts; data for other sites is retained.
 - Select any workflow in the dashboard to inspect its server-confirmed draft, policy-preview, and publication history.
 - Paused verified runs store a stable, redacted reason code (`changed-page`, `slow-network`, or `unknown`) while the extension shows a clear local explanation.
