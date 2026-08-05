@@ -19,4 +19,5 @@ function safeEventSummary(eventKind, selector) {
 
 const DoOnceCapturePolicy = { canObserveField, safeEventSummary };
 
+if (typeof globalThis !== "undefined") globalThis.DoOnceCapturePolicy = DoOnceCapturePolicy;
 if (typeof module !== "undefined") module.exports = DoOnceCapturePolicy;

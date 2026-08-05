@@ -38,17 +38,25 @@ consentButton.addEventListener("click", async () => {
   const allowedOrigins = new Set(stored["doonce.consentedOrigins"] ?? []);
   allowedOrigins.add(currentOrigin);
   await chrome.storage.local.set({ "doonce.consentedOrigins": [...allowedOrigins] });
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tab?.id) await chrome.runtime.sendMessage({ type: "doonce.start-capture", origin: currentOrigin, tabId: tab.id });
   revokeButton.disabled = false;
-  displayStatus("Consent saved locally. Recording remains off in this alpha.");
+  displayStatus("Consent saved locally. Safe, value-free capture is active for this tab only.");
 });
 
 revokeButton.addEventListener("click", async () => {
   if (!currentOrigin) return;
   const stored = await chrome.storage.local.get("doonce.consentedOrigins");
   const allowedOrigins = (stored["doonce.consentedOrigins"] ?? []).filter((origin) => origin !== currentOrigin);
-  await chrome.storage.local.set({ "doonce.consentedOrigins": allowedOrigins });
+  const captures = await chrome.storage.local.get("doonce.capturedSummaries");
+  await chrome.storage.local.set({
+    "doonce.consentedOrigins": allowedOrigins,
+    "doonce.capturedSummaries": (captures["doonce.capturedSummaries"] ?? []).filter((summary) => summary.origin !== currentOrigin),
+  });
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tab?.id) await chrome.tabs.sendMessage(tab.id, { type: "doonce.stop-capture" }).catch(() => undefined);
   revokeButton.disabled = true;
-  displayStatus("Consent removed. This site is not approved.");
+  displayStatus("Consent removed. Capture is off for this site.");
 });
 
 void loadCurrentOrigin().catch(() => {
