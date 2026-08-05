@@ -13,6 +13,7 @@ type LocalReceipt = { id: string; origin: string; outcome: "completed" | "paused
 type StoredReceipt = { id: string; outcome: "completed" | "paused"; pauseReason?: PauseReason; workflowVersion: number; finishedAt: string };
 type WorkflowAuditEvent = { id: string; version: number; eventType: "workflow.draft_created" | "workflow.policy_previewed" | "workflow.published" | "workflow.disabled" | "workflow.repair_draft_created"; createdAt: string };
 type SupportReportCategory = "workflow-paused" | "unexpected-result" | "safety-concern" | "other";
+type RunHealth = { workflowVersion: number; sampleSize: number; completedRuns: number; pausedRuns: number; successRate: number; pauseReasons: Partial<Record<PauseReason, number>>; meetsManualReliabilityThreshold: boolean };
 
 const supportReportCategories: Array<{ value: SupportReportCategory; label: string }> = [
   { value: "workflow-paused", label: "Workflow paused safely" },
@@ -106,6 +107,15 @@ function isReceiptHistory(value: unknown): value is { receipts: StoredReceipt[] 
   return typeof value === "object" && value !== null && Array.isArray((value as Record<string, unknown>).receipts) && (value as { receipts: unknown[] }).receipts.every(isStoredReceipt);
 }
 
+function isRunHealthResponse(value: unknown): value is { health: RunHealth } {
+  if (typeof value !== "object" || value === null) return false;
+  const health = (value as Record<string, unknown>).health;
+  if (typeof health !== "object" || health === null || Array.isArray(health)) return false;
+  const record = health as Record<string, unknown>;
+  const pauseReasons = record.pauseReasons;
+  return typeof record.workflowVersion === "number" && Number.isInteger(record.workflowVersion) && record.workflowVersion > 0 && typeof record.sampleSize === "number" && Number.isInteger(record.sampleSize) && record.sampleSize >= 0 && record.sampleSize <= 50 && typeof record.completedRuns === "number" && Number.isInteger(record.completedRuns) && record.completedRuns >= 0 && typeof record.pausedRuns === "number" && Number.isInteger(record.pausedRuns) && record.pausedRuns >= 0 && record.completedRuns + record.pausedRuns === record.sampleSize && typeof record.successRate === "number" && Number.isInteger(record.successRate) && record.successRate >= 0 && record.successRate <= 100 && typeof record.meetsManualReliabilityThreshold === "boolean" && typeof pauseReasons === "object" && pauseReasons !== null && !Array.isArray(pauseReasons) && Object.entries(pauseReasons).every(([reason, count]) => isPauseReason(reason) && typeof count === "number" && Number.isInteger(count) && count > 0);
+}
+
 function isWorkflowAuditHistory(value: unknown): value is { events: WorkflowAuditEvent[] } {
   if (typeof value !== "object" || value === null || !Array.isArray((value as Record<string, unknown>).events)) return false;
   return (value as { events: unknown[] }).events.every((event) => {
@@ -143,6 +153,9 @@ export default function WorkflowCatalog() {
   const [historyWorkflowId, setHistoryWorkflowId] = useState("");
   const [receiptHistory, setReceiptHistory] = useState<StoredReceipt[] | null>(null);
   const [historyState, setHistoryState] = useState<"idle" | "loading">("idle");
+  const [healthWorkflowId, setHealthWorkflowId] = useState("");
+  const [runHealth, setRunHealth] = useState<RunHealth | null>(null);
+  const [healthState, setHealthState] = useState<"idle" | "loading">("idle");
   const [auditWorkflowId, setAuditWorkflowId] = useState("");
   const [auditEvents, setAuditEvents] = useState<WorkflowAuditEvent[] | null>(null);
   const [auditState, setAuditState] = useState<"idle" | "loading">("idle");
@@ -306,6 +319,25 @@ export default function WorkflowCatalog() {
     }
   }
 
+  async function loadRunHealth() {
+    const workflow = workflows.find((item) => item.id === healthWorkflowId);
+    if (!workflow?.activeVersion) return;
+    setHealthState("loading");
+    setMessage("");
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/v1/workflows/${workflow.id}/run-health?version=${workflow.activeVersion}`, { credentials: "include", headers: { Accept: "application/json" } });
+      const body: unknown = await response.json();
+      if (response.status === 401) return setState("signed-out");
+      if (!response.ok || !isRunHealthResponse(body) || body.health.workflowVersion !== workflow.activeVersion) throw new Error("Run health was not confirmed.");
+      setRunHealth(body.health);
+      setMessage(`Recent manual-run health loaded for version ${body.health.workflowVersion}.`);
+    } catch {
+      setMessage("Run health could not be verified. Scheduling remains unavailable.");
+    } finally {
+      setHealthState("idle");
+    }
+  }
+
   async function loadAuditHistory() {
     if (!auditWorkflowId) return;
     setAuditState("loading");
@@ -426,6 +458,13 @@ export default function WorkflowCatalog() {
         <label>Active workflow<select value={historyWorkflowId} onChange={(event) => { setHistoryWorkflowId(event.target.value); setReceiptHistory(null); }}><option value="">Choose an active workflow</option>{workflows.filter((workflow) => workflow.activeVersion).map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title}</option>)}</select></label>
         <button disabled={!historyWorkflowId || historyState === "loading"} onClick={() => void loadReceiptHistory()} type="button">{historyState === "loading" ? "Loading receipts…" : "Load saved receipts"}</button>
         {receiptHistory && (receiptHistory.length ? <ul className="workflow-list">{receiptHistory.map((savedReceipt) => <li key={savedReceipt.id}><span><strong>{savedReceipt.outcome === "completed" ? "Verified completion" : "Paused safely"}</strong><small>Version {savedReceipt.workflowVersion} · {new Date(savedReceipt.finishedAt).toLocaleString()}{savedReceipt.pauseReason ? ` · ${savedReceipt.pauseReason}` : ""}</small></span><b>{savedReceipt.outcome}</b></li>)}</ul> : <p className="workflow-empty">No saved receipts for this active workflow yet.</p>)}
+      </div>
+      <div className="workflow-review workflow-review--health" aria-label="Manual-run reliability evidence">
+        <strong>Review manual-run reliability</strong>
+        <label>Active workflow<select value={healthWorkflowId} onChange={(event) => { setHealthWorkflowId(event.target.value); setRunHealth(null); }}><option value="">Choose an active workflow</option>{workflows.filter((workflow) => workflow.activeVersion).map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title}</option>)}</select></label>
+        <small>Counts only the recent 50 receipts for the selected active version. This is evidence for review, not a scheduling switch.</small>
+        <button disabled={!healthWorkflowId || healthState === "loading"} onClick={() => void loadRunHealth()} type="button">{healthState === "loading" ? "Loading reliability…" : "Load reliability"}</button>
+        {runHealth && <div className="workflow-review-details"><p><b>{runHealth.successRate}% verified</b> · {runHealth.completedRuns} completed, {runHealth.pausedRuns} paused, from {runHealth.sampleSize}/50 recent manual runs.</p><p>{runHealth.meetsManualReliabilityThreshold ? "The 50-run / 90% manual reliability threshold is met. Scheduling remains disabled until a separate review." : "The 50-run / 90% manual reliability threshold is not met. Scheduling remains unavailable."}</p>{Object.keys(runHealth.pauseReasons).length > 0 && <p>Pause reasons: {Object.entries(runHealth.pauseReasons).map(([reason, count]) => `${reason} (${count})`).join(", ")}.</p>}</div>}
       </div>
       <form className="workflow-form" onSubmit={(event) => void createSafeDraft(event)}>
         <label>Workflow name<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={120} required /></label>

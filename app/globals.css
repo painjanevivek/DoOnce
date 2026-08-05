@@ -269,6 +269,13 @@ th:nth-child(3), th:nth-child(4), td:nth-child(3), td:nth-child(4) { text-align:
 .workflow-review--repair small { grid-column: 1; color: #75510d; }
 .workflow-review--repair button { grid-row: 1 / span 3; background: #8b6110; }
 .workflow-review--repair button:hover:not(:disabled) { background: #644308; }
+.workflow-review--health { margin: 1.5rem 0; border-color: #8bbba9; background: #edf6f1; }
+.workflow-review--health strong { color: var(--accent-dark); }
+.workflow-review--health label { display: grid; grid-column: 1; gap: .35rem; color: var(--muted); font-size: .82rem; font-weight: 700; }
+.workflow-review--health select { min-height: 44px; border: 1px solid #8bbba9; border-radius: .4rem; padding: .5rem .65rem; color: var(--ink); background: #fff; font: inherit; }
+.workflow-review--health select:focus-visible { outline: 3px solid #d49c2c; outline-offset: 2px; }
+.workflow-review--health small { grid-column: 1; color: var(--accent-dark); }
+.workflow-review--health button { grid-row: 1 / span 3; }
 .workflow-feedback { min-height: 1.4rem; color: var(--accent-dark); }
 .workflow-feedback[data-state="error"] { color: #a13e18; }
 .workflow-empty { margin: 1.5rem 0 0; padding: 1.25rem 0 0; border-top: 1px solid var(--line); color: var(--muted); }
