@@ -11,7 +11,7 @@ type SafeCaptureSummary = { origin: string; path?: string; eventKind: "click" | 
 type PauseReason = "changed-page" | "slow-network" | "unknown";
 type LocalReceipt = { id: string; origin: string; outcome: "completed" | "paused"; pauseReason?: PauseReason; finishedAt: string };
 type StoredReceipt = { id: string; outcome: "completed" | "paused"; pauseReason?: PauseReason; workflowVersion: number; finishedAt: string };
-type WorkflowAuditEvent = { id: string; version: number; eventType: "workflow.draft_created" | "workflow.policy_previewed" | "workflow.published" | "workflow.disabled"; createdAt: string };
+type WorkflowAuditEvent = { id: string; version: number; eventType: "workflow.draft_created" | "workflow.policy_previewed" | "workflow.published" | "workflow.disabled" | "workflow.repair_draft_created"; createdAt: string };
 type SupportReportCategory = "workflow-paused" | "unexpected-result" | "safety-concern" | "other";
 
 const supportReportCategories: Array<{ value: SupportReportCategory; label: string }> = [
@@ -80,6 +80,10 @@ function isWorkflowReviewResponse(value: unknown): value is { workflow: Workflow
   return workflow.status === "draft" && Array.isArray(workflow.allowedDomains) && workflow.allowedDomains.every((domain) => typeof domain === "string") && Array.isArray(workflow.steps) && workflow.steps.every((step) => typeof step === "object" && step !== null && typeof (step as Record<string, unknown>).name === "string" && typeof (step as Record<string, unknown>).domain === "string" && typeof (step as Record<string, unknown>).path === "string");
 }
 
+function isRepairDraftResponse(value: unknown): value is { workflow: WorkflowReview; repair: "reconfirm-safe-step" } {
+  return isWorkflowReviewResponse(value) && (value as Record<string, unknown>).repair === "reconfirm-safe-step";
+}
+
 function isSafeCaptureFile(value: unknown): value is { format: "doonce.safe-capture.v1"; summaries: SafeCaptureSummary[] } {
   if (typeof value !== "object" || value === null) return false;
   const record = value as Record<string, unknown>;
@@ -107,7 +111,7 @@ function isWorkflowAuditHistory(value: unknown): value is { events: WorkflowAudi
   return (value as { events: unknown[] }).events.every((event) => {
     if (typeof event !== "object" || event === null) return false;
     const item = event as Record<string, unknown>;
-    return isUuid(item.id) && typeof item.version === "number" && Number.isInteger(item.version) && item.version > 0 && ["workflow.draft_created", "workflow.policy_previewed", "workflow.published", "workflow.disabled"].includes(item.eventType as string) && isTimestamp(item.createdAt);
+    return isUuid(item.id) && typeof item.version === "number" && Number.isInteger(item.version) && item.version > 0 && ["workflow.draft_created", "workflow.policy_previewed", "workflow.published", "workflow.disabled", "workflow.repair_draft_created"].includes(item.eventType as string) && isTimestamp(item.createdAt);
   });
 }
 
@@ -144,6 +148,8 @@ export default function WorkflowCatalog() {
   const [auditState, setAuditState] = useState<"idle" | "loading">("idle");
   const [disableWorkflowId, setDisableWorkflowId] = useState("");
   const [disableState, setDisableState] = useState<"idle" | "disabling">("idle");
+  const [repairWorkflowId, setRepairWorkflowId] = useState("");
+  const [repairState, setRepairState] = useState<"idle" | "creating">("idle");
   const [supportCategory, setSupportCategory] = useState<SupportReportCategory>("workflow-paused");
   const [supportState, setSupportState] = useState<"idle" | "sending">("idle");
 
@@ -339,6 +345,27 @@ export default function WorkflowCatalog() {
     }
   }
 
+  async function createRepairDraft() {
+    if (!repairWorkflowId) return;
+    setRepairState("creating");
+    setMessage("");
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/v1/workflows/${repairWorkflowId}/repair-draft`, { method: "POST", credentials: "include", headers: { Accept: "application/json" } });
+      const body: unknown = await response.json();
+      if (response.status === 401) return setState("signed-out");
+      if (!response.ok || !isRepairDraftResponse(body)) throw new Error("Repair draft was not confirmed.");
+      setDraft(body.workflow);
+      setPreviewState("idle");
+      setWorkflows((current) => current.map((workflow) => workflow.id === body.workflow.id ? { ...workflow, updatedAt: new Date().toISOString() } : workflow));
+      setRepairWorkflowId("");
+      setMessage(`Repair draft version ${body.workflow.version} created. Reconfirm its safe step, run a fresh policy preview, then publish only if you approve it.`);
+    } catch {
+      setMessage("The repair draft was not confirmed. The existing workflow was not changed or enabled.");
+    } finally {
+      setRepairState("idle");
+    }
+  }
+
   async function submitSupportReport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSupportState("sending");
@@ -381,6 +408,12 @@ export default function WorkflowCatalog() {
         <small>Owners can stop one workflow immediately. Its version and audit history are retained.</small>
         <button disabled={!disableWorkflowId || disableState === "disabling"} onClick={() => void disableActiveWorkflow()} type="button">{disableState === "disabling" ? "Disabling workflow…" : "Disable immediately"}</button>
       </div>
+      <div className="workflow-review workflow-review--repair" aria-label="Create a reviewed repair draft">
+        <strong>Review required: repair a workflow</strong>
+        <label>Workflow to repair<select value={repairWorkflowId} onChange={(event) => setRepairWorkflowId(event.target.value)}><option value="">Choose a workflow</option>{workflows.map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title}</option>)}</select></label>
+        <small>Creates the next version as a draft from the approved safe step. It does not change or enable the existing workflow.</small>
+        <button disabled={!repairWorkflowId || repairState === "creating"} onClick={() => void createRepairDraft()} type="button">{repairState === "creating" ? "Creating repair draft…" : "Create repair draft"}</button>
+      </div>
       <div className="workflow-review" aria-label="Workflow version history">
         <strong>Review workflow history</strong>
         <label>Workflow<select value={auditWorkflowId} onChange={(event) => { setAuditWorkflowId(event.target.value); setAuditEvents(null); }}><option value="">Choose a workflow</option>{workflows.map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title}</option>)}</select></label>
@@ -402,7 +435,7 @@ export default function WorkflowCatalog() {
       </form>
       {draft && <aside className="workflow-review" aria-label="Draft review"><strong>Server-confirmed draft · version {draft.version}</strong><span>{draft.title}</span><div className="workflow-review-details"><p><b>Approved domain:</b> {draft.allowedDomains.join(", ")}</p><ol>{draft.steps.map((step) => <li key={step.id}><b>{step.kind}</b> — {step.name}<small>{step.domain}{step.path} · {step.expectedOutcome}</small></li>)}</ol><p>{previewState === "passed" ? "Policy preview passed." : "Run a server policy preview before publishing."}</p></div><div className="workflow-review-actions"><button disabled={previewState === "running" || state === "publishing"} onClick={() => void previewDraft()} type="button">{previewState === "running" ? "Checking policy…" : "Run policy preview"}</button><button disabled={previewState !== "passed" || state === "publishing"} onClick={() => void publishDraft()} type="button">Publish reviewed draft</button></div></aside>}
       <p className="workflow-feedback" aria-live="polite" data-state={state}>{message}</p>
-      {workflows.length === 0 ? <p className="workflow-empty">No workflows yet. The safe report-download template is ready when you are.</p> : <ul className="workflow-list">{workflows.map((workflow) => <li key={workflow.id}><span><strong>{workflow.title}</strong><small>{workflow.activeVersion ? `Active version ${workflow.activeVersion}` : "Draft"}</small></span><b>{workflow.activeVersion ? "Active" : "Draft"}</b></li>)}</ul>}
+      {workflows.length === 0 ? <p className="workflow-empty">No workflows yet. The safe report-download template is ready when you are.</p> : <ul className="workflow-list">{workflows.map((workflow) => <li key={workflow.id}><span><strong>{workflow.title}</strong><small>{workflow.activeVersion ? `Active version ${workflow.activeVersion}` : "Not active"}</small></span><b>{workflow.activeVersion ? "Active" : "Not active"}</b></li>)}</ul>}
     </section>
   );
 }
