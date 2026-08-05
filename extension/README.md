@@ -19,6 +19,8 @@ The recorder rejects password, OTP/security-code, payment, hidden, and file fiel
 
 The one exception is a manual test fixture: after consent, the popup can trigger the local `/demo/reports` CSV download only. The extension checks the exact local path and the fixture's explicit safe-action marker, pauses if the expected confirmation does not appear, and keeps at most 20 redacted receipts in local extension storage. It cannot run a captured workflow or any external site.
 
+The extension uses Chrome's `notifications` permission only to show one fixed system message when that verified local run completes or pauses. The message contains no origin, page content, selector, typed value, raw error, password, OTP, or receipt identifier. If notifications are unavailable, the receipt and popup result still work normally.
+
 The popup shows the latest local receipt's outcome, timestamp, and (when paused) bounded reason. It never displays raw page content, selectors, origins, or typed values in that summary.
 
 Users may explicitly export `doonce.local-run-receipt.v1` JSON for dashboard review. The extension never uploads receipts automatically.

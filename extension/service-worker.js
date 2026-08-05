@@ -1,6 +1,6 @@
 /* global chrome */
 
-importScripts("run-policy.js");
+importScripts("run-policy.js", "run-notification.js");
 
 chrome.runtime.onInstalled.addListener(async () => {
   const stored = await chrome.storage.local.get(["doonce.consentedOrigins", "doonce.recordingOrigins"]);
@@ -63,20 +63,34 @@ async function setRecording(tabId, origin, enabled) {
 
 async function runDemoDownload(tabId, origin) {
   const stored = await chrome.storage.local.get("doonce.consentedOrigins");
-  if (!(stored["doonce.consentedOrigins"] ?? []).includes(origin)) return { outcome: "paused", reason: "This site is not consented." };
-  const tab = await chrome.tabs.get(tabId);
-  if (!tab.url || new URL(tab.url).origin !== origin || !DoOnceRunPolicy.canRunDemo(tab.url, stored["doonce.consentedOrigins"])) return { outcome: "paused", reason: "Only the local report demo is supported." };
-
-  let result;
+  let result = { outcome: "paused", reasonCode: "unknown", reason: "The demo run could not be verified." };
   try {
-    result = await chrome.tabs.sendMessage(tabId, { type: "doonce.run-demo-download" });
+    const tab = await chrome.tabs.get(tabId);
+    if (!(stored["doonce.consentedOrigins"] ?? []).includes(origin) || !tab.url || new URL(tab.url).origin !== origin || !DoOnceRunPolicy.canRunDemo(tab.url, stored["doonce.consentedOrigins"])) {
+      result = { outcome: "paused", reasonCode: "unknown", reason: "The requested local run is not available." };
+    } else {
+      try {
+        result = await chrome.tabs.sendMessage(tabId, { type: "doonce.run-demo-download" });
+      } catch {
+        await chrome.scripting.executeScript({ target: { tabId }, files: ["demo-runner.js"] });
+        result = await chrome.tabs.sendMessage(tabId, { type: "doonce.run-demo-download" });
+      }
+    }
   } catch {
-    await chrome.scripting.executeScript({ target: { tabId }, files: ["demo-runner.js"] });
-    result = await chrome.tabs.sendMessage(tabId, { type: "doonce.run-demo-download" });
+    result = { outcome: "paused", reasonCode: "unknown", reason: "The demo run could not be verified." };
   }
   const normalized = result?.outcome === "completed" ? { outcome: "completed" } : { outcome: "paused", reasonCode: ["changed-page", "slow-network", "unknown"].includes(result?.reasonCode) ? result.reasonCode : "unknown", reason: typeof result?.reason === "string" ? result.reason.slice(0, 160) : "The demo run could not be verified." };
   await storeDemoReceipt(origin, normalized);
+  void notifyDemoRun(normalized);
   return normalized;
+}
+
+async function notifyDemoRun(result) {
+  try {
+    await DoOnceRunNotification.createRunNotification(chrome.notifications, result, chrome.runtime.getURL("notification-icon.svg"), `doonce-run-${crypto.randomUUID()}`);
+  } catch {
+    // Notification availability must never alter a verified run result or receipt.
+  }
 }
 
 async function storeDemoReceipt(origin, result) {
