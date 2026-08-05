@@ -232,6 +232,7 @@ export default function WorkflowCatalog() {
     setState("creating");
     try {
       const response = await fetch(`${apiBaseUrl}/api/v1/workflows/${receiptWorkflowId}/run-receipts/import`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ sourceId: receipt.id, outcome: receipt.outcome, ...(receipt.pauseReason ? { pauseReason: receipt.pauseReason } : {}) }) });
+      if (response.status === 409) { setReceipt(null); setState("ready"); setMessage("This receipt was already saved to a workflow."); return; }
       if (!response.ok) throw new Error("Not confirmed");
       setReceipt(null); setState("ready"); setMessage("Receipt saved to the selected active workflow.");
     } catch { setState("error"); setMessage("Receipt was not confirmed. Nothing was saved."); }
