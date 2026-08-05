@@ -8,6 +8,7 @@ type Workflow = { id: string; title: string; activeVersion: number | null; updat
 type WorkflowVersion = { id: string; title: string; version: number };
 type WorkflowReview = WorkflowVersion & { status: "draft"; allowedDomains: string[]; steps: Array<{ id: string; kind: string; name: string; expectedOutcome: string; domain: string; path: string }> };
 type SafeCaptureSummary = { origin: string; path?: string; eventKind: "click" | "change" | "input"; selector: string };
+type LocalReceipt = { id: string; origin: string; outcome: "completed" | "paused"; pauseReason?: string; finishedAt: string };
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:4000";
 
@@ -53,6 +54,12 @@ function isSafeCaptureFile(value: unknown): value is { format: "doonce.safe-capt
   return record.format === "doonce.safe-capture.v1" && Array.isArray(record.summaries) && record.summaries.length > 0 && record.summaries.every((summary) => typeof summary === "object" && summary !== null && typeof (summary as Record<string, unknown>).origin === "string" && ((summary as Record<string, unknown>).path === undefined || isSafeCapturePath((summary as Record<string, unknown>).path)) && ["click", "change", "input"].includes((summary as Record<string, unknown>).eventKind as string) && typeof (summary as Record<string, unknown>).selector === "string");
 }
 
+function isLocalReceiptFile(value: unknown): value is { format: "doonce.local-run-receipt.v1"; receipts: LocalReceipt[] } {
+  if (typeof value !== "object" || value === null) return false;
+  const record = value as Record<string, unknown>;
+  return record.format === "doonce.local-run-receipt.v1" && Array.isArray(record.receipts) && record.receipts.length > 0 && record.receipts.every((receipt) => { const item = receipt as Record<string, unknown>; return typeof receipt === "object" && receipt !== null && typeof item.id === "string" && typeof item.origin === "string" && ["completed", "paused"].includes(item.outcome as string) && (item.outcome !== "paused" || typeof item.pauseReason === "string"); });
+}
+
 export default function WorkflowCatalog() {
   const [state, setState] = useState<CatalogState>("loading");
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
@@ -62,6 +69,8 @@ export default function WorkflowCatalog() {
   const [title, setTitle] = useState("Download weekly sales report");
   const [domain, setDomain] = useState("reports.example.test");
   const [path, setPath] = useState("/weekly-report");
+  const [receipt, setReceipt] = useState<LocalReceipt | null>(null);
+  const [receiptWorkflowId, setReceiptWorkflowId] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -176,6 +185,29 @@ export default function WorkflowCatalog() {
     }
   }
 
+  async function importReceipt(file: File | undefined) {
+    if (!file || file.size > 128_000) return setMessage("Choose a small local receipt file.");
+    try {
+      const payload: unknown = JSON.parse(await file.text());
+      if (!isLocalReceiptFile(payload)) throw new Error("Invalid receipt.");
+      const latest = payload.receipts.at(-1)!;
+      const origin = new URL(latest.origin);
+      if (!(["localhost", "127.0.0.1"].includes(origin.hostname))) throw new Error("Unapproved origin.");
+      setReceipt(latest);
+      setMessage(`Local ${latest.outcome} receipt ready for explicit dashboard confirmation.`);
+    } catch { setState("error"); setMessage("That file is not a valid local receipt export."); }
+  }
+
+  async function saveReceipt() {
+    if (!receipt || !receiptWorkflowId) return;
+    setState("creating");
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/v1/workflows/${receiptWorkflowId}/run-receipts/import`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ sourceId: receipt.id, outcome: receipt.outcome, ...(receipt.pauseReason ? { pauseReason: receipt.pauseReason } : {}) }) });
+      if (!response.ok) throw new Error("Not confirmed");
+      setReceipt(null); setState("ready"); setMessage("Receipt saved to the selected active workflow.");
+    } catch { setState("error"); setMessage("Receipt was not confirmed. Nothing was saved."); }
+  }
+
   if (state === "loading") return <section className="workflow-panel" aria-live="polite"><p className="eyebrow">Workflow catalog</p><h2>Checking your workspace…</h2></section>;
   if (state === "signed-out") return <section className="workflow-panel"><p className="eyebrow">Workflow catalog</p><h2>Sign in to view a workspace.</h2><p>Workflow drafts are never shown until the server confirms your tenant session.</p><Link className="primary-link" href="/sign-up">Create workspace or sign in</Link></section>;
   if (state === "unavailable") return <section className="workflow-panel workflow-panel--error" role="alert"><p className="eyebrow">Workflow catalog</p><h2>Workspace service unavailable.</h2><p>No workflow details are shown while the account or workflow service cannot be verified.</p></section>;
@@ -188,6 +220,8 @@ export default function WorkflowCatalog() {
       </div>
       <p className="workflow-copy">The only template available in this phase downloads a report from the DoOnce demo domain. It cannot submit, delete, pay, enter credentials, or run on another domain.</p>
       <label className="workflow-import">Import a local capture for review<input type="file" accept="application/json" onChange={(event) => void importCapture(event.target.files?.[0])} /><small>Optional. This reads a local extension export in your browser; it is not uploaded until you create a draft.</small></label>
+      <label className="workflow-import">Import a local run receipt<input type="file" accept="application/json" onChange={(event) => void importReceipt(event.target.files?.[0])} /><small>Receipts remain local until you select an active workflow and confirm saving.</small></label>
+      {receipt && <div className="workflow-review"><strong>Receipt ready for confirmation</strong><span>{receipt.outcome} · {new Date(receipt.finishedAt).toLocaleString()}</span><label>Active workflow<select value={receiptWorkflowId} onChange={(event) => setReceiptWorkflowId(event.target.value)}><option value="">Choose an active workflow</option>{workflows.filter((workflow) => workflow.activeVersion).map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title}</option>)}</select></label><button className="workflow-create" disabled={!receiptWorkflowId || state === "creating"} onClick={() => void saveReceipt()} type="button">Save confirmed receipt</button></div>}
       <form className="workflow-form" onSubmit={(event) => void createSafeDraft(event)}>
         <label>Workflow name<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={120} required /></label>
         <label>Approved domain<input value={domain} onChange={(event) => setDomain(event.target.value)} inputMode="url" autoCapitalize="none" maxLength={253} required /></label>
