@@ -7,6 +7,7 @@ type CatalogState = "loading" | "ready" | "signed-out" | "unavailable" | "creati
 type Workflow = { id: string; title: string; activeVersion: number | null; updatedAt: string };
 type WorkflowVersion = { id: string; title: string; version: number };
 type WorkflowReview = WorkflowVersion & { status: "draft"; allowedDomains: string[]; steps: Array<{ id: string; kind: string; name: string; expectedOutcome: string; domain: string; path: string }> };
+type SafeCaptureSummary = { origin: string; eventKind: "click" | "change" | "input"; selector: string };
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:4000";
 
@@ -32,6 +33,12 @@ function isWorkflowReviewResponse(value: unknown): value is { workflow: Workflow
   if (!isWorkflowVersionResponse(value)) return false;
   const workflow = value.workflow as unknown as Record<string, unknown>;
   return workflow.status === "draft" && Array.isArray(workflow.allowedDomains) && workflow.allowedDomains.every((domain) => typeof domain === "string") && Array.isArray(workflow.steps) && workflow.steps.every((step) => typeof step === "object" && step !== null && typeof (step as Record<string, unknown>).name === "string" && typeof (step as Record<string, unknown>).domain === "string" && typeof (step as Record<string, unknown>).path === "string");
+}
+
+function isSafeCaptureFile(value: unknown): value is { format: "doonce.safe-capture.v1"; summaries: SafeCaptureSummary[] } {
+  if (typeof value !== "object" || value === null) return false;
+  const record = value as Record<string, unknown>;
+  return record.format === "doonce.safe-capture.v1" && Array.isArray(record.summaries) && record.summaries.length > 0 && record.summaries.every((summary) => typeof summary === "object" && summary !== null && typeof (summary as Record<string, unknown>).origin === "string" && ["click", "change", "input"].includes((summary as Record<string, unknown>).eventKind as string) && typeof (summary as Record<string, unknown>).selector === "string");
 }
 
 export default function WorkflowCatalog() {
@@ -98,6 +105,22 @@ export default function WorkflowCatalog() {
     }
   }
 
+  async function importCapture(file: File | undefined) {
+    if (!file || file.size > 128_000) return setMessage("Choose a small DoOnce local review file.");
+    try {
+      const payload: unknown = JSON.parse(await file.text());
+      if (!isSafeCaptureFile(payload)) throw new Error("Invalid capture file.");
+      const origin = new URL(payload.summaries[0].origin);
+      if (!payload.summaries.every((summary) => summary.origin === origin.origin) || (origin.protocol !== "https:" && origin.hostname !== "localhost" && origin.hostname !== "127.0.0.1")) throw new Error("Unapproved origin.");
+      setDomain(origin.hostname);
+      setTitle(`Review captured report from ${origin.hostname}`);
+      setMessage(`${payload.summaries.length} local, value-free event summaries imported. Review the domain and path before creating a draft.`);
+    } catch {
+      setState("error");
+      setMessage("That file is not a valid DoOnce local capture export.");
+    }
+  }
+
   async function publishDraft() {
     if (!draft) return;
     setState("publishing");
@@ -127,6 +150,7 @@ export default function WorkflowCatalog() {
         <button className="workflow-create" disabled={state === "creating" || state === "publishing"} onClick={() => void createSafeDraft()} type="button">{state === "creating" ? "Creating draft…" : "Create report-download draft"}</button>
       </div>
       <p className="workflow-copy">The only template available in this phase downloads a report from the DoOnce demo domain. It cannot submit, delete, pay, enter credentials, or run on another domain.</p>
+      <label className="workflow-import">Import a local capture for review<input type="file" accept="application/json" onChange={(event) => void importCapture(event.target.files?.[0])} /><small>Optional. This reads a local extension export in your browser; it is not uploaded until you create a draft.</small></label>
       <form className="workflow-form" onSubmit={(event) => void createSafeDraft(event)}>
         <label>Workflow name<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={120} required /></label>
         <label>Approved domain<input value={domain} onChange={(event) => setDomain(event.target.value)} inputMode="url" autoCapitalize="none" maxLength={253} required /></label>
