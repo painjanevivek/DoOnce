@@ -10,9 +10,9 @@ const safetyRules = [
 ];
 
 const releaseSteps = [
-  "Define the first supported report-download workflow with pilot users.",
-  "Verify the demo site against the deterministic policy engine.",
-  "Enable workflow recording only after those safety checks pass.",
+  "Create the reviewed local report-download draft.",
+  "Run its server policy preview and complete one local test.",
+  "Publish only after you confirm the verified receipt for that exact version.",
 ];
 
 export default function Home() {
@@ -28,7 +28,7 @@ export default function Home() {
           <a href="#release">Release path</a>
         </nav>
         <AccountStatus />
-        <span className="status-chip">Foundation</span>
+        <span className="status-chip">Controlled pilot</span>
       </header>
 
       <main id="main-content">
@@ -43,19 +43,19 @@ export default function Home() {
 
         <section className="status-grid" aria-label="Current product status">
           <article className="status-card primary-status">
-            <p className="card-label">Current focus</p>
-            <h2>Safety foundation</h2>
-            <p>The policy engine, workflow validation and API shell are being verified before browser recording is enabled.</p>
+            <p className="card-label">Current workflow</p>
+            <h2>Controlled report download</h2>
+            <p>Create, review, test, and publish one local report-download workflow with server-confirmed safeguards.</p>
           </article>
           <article className="status-card">
-            <p className="card-label">Workflow recording</p>
-            <h2>Not enabled yet</h2>
-            <p>The extension will ask for domain consent and exclude passwords, OTPs and payment fields before it records anything.</p>
+            <p className="card-label">Local capture</p>
+            <h2>Consent before recording</h2>
+            <p>The extension records only value-free local summaries after site consent and excludes passwords, OTPs, and payment fields.</p>
           </article>
           <article className="status-card">
             <p className="card-label">Workflow runs</p>
-            <h2>Manual first</h2>
-            <p>Scheduling waits until a supported workflow has reliable, human-reviewed manual runs.</p>
+            <h2>Test before publish</h2>
+            <p>Every draft needs a policy preview and a completed local test receipt before it can be published. Scheduling remains disabled.</p>
           </article>
           <PolicyServiceStatus />
         </section>

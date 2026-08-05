@@ -17,7 +17,7 @@ export default function SignUpPage() {
           <ul>
             <li>Tenant-specific access, checked by the server</li>
             <li>Signed, expiring sessions stored as HttpOnly cookies</li>
-            <li>Recording and scheduling remain deliberately disabled</li>
+            <li>Recording requires per-site consent; scheduling remains deliberately disabled</li>
           </ul>
         </div>
         <AccountForm />

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useState } from "react";
 
 type Mode = "sign-up" | "sign-in";
@@ -68,7 +69,7 @@ export default function AccountForm() {
       <div className="account-card-intro">
         <p className="eyebrow">Secure account access</p>
         <h2 id="account-form-title">{mode === "sign-up" ? "Start with a safe workspace." : "Continue to your workspace."}</h2>
-        <p>{mode === "sign-up" ? "Create the first owner account. Workflow recording stays off until its safety checks are complete." : "Use the account that owns your DoOnce workspace."}</p>
+        <p>{mode === "sign-up" ? "Create the first owner account. Workflow creation remains gated by server policy checks and a verified local test." : "Use the account that owns your DoOnce workspace."}</p>
       </div>
 
       <form className="account-form" onSubmit={submit}>
@@ -88,9 +89,13 @@ export default function AccountForm() {
           {mode === "sign-up" && <span className="field-hint">Use at least 12 characters. DoOnce never records passwords in workflows.</span>}
         </p>
         <p className="account-feedback" aria-live="polite" data-state={state}>{message}</p>
-        <button className="account-submit" disabled={state === "submitting"} type="submit">
-          {state === "submitting" ? "Securing your session…" : mode === "sign-up" ? "Create secure workspace" : "Sign in securely"}
-        </button>
+        {state === "success" ? (
+          <Link className="account-submit" href="/workflows">Open workflow workspace</Link>
+        ) : (
+          <button className="account-submit" disabled={state === "submitting"} type="submit">
+            {state === "submitting" ? "Securing your session…" : mode === "sign-up" ? "Create secure workspace" : "Sign in securely"}
+          </button>
+        )}
       </form>
       <p className="account-note">Your browser receives an HttpOnly session cookie. DoOnce does not place authentication tokens in local storage.</p>
     </section>
