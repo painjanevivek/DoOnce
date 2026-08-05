@@ -244,6 +244,8 @@ th:nth-child(3), th:nth-child(4), td:nth-child(3), td:nth-child(4) { text-align:
 .workflow-review-details li { padding-left: .15rem; }
 .workflow-review-details small { display: block; margin-top: .15rem; }
 .workflow-review button { grid-row: 1 / span 2; grid-column: 2; }
+.workflow-review-link { min-height: 44px; display: inline-flex; align-items: center; width: fit-content; margin-top: 1rem; color: var(--accent-dark); font-size: .9rem; font-weight: 750; }
+.workflow-review-link:hover { text-decoration: none; }
 .workflow-review-actions { display: grid; gap: .55rem; grid-row: 1 / span 3; grid-column: 2; }
 .workflow-review-actions button { grid-row: auto; grid-column: auto; }
 .workflow-support { margin: 1.5rem 0; border-color: #a9bdcc; background: #f0f6fa; }
@@ -306,6 +308,7 @@ th:nth-child(3), th:nth-child(4), td:nth-child(3), td:nth-child(4) { text-align:
   .workflow-form { grid-template-columns: 1fr; }
   .workflow-review { grid-template-columns: 1fr; }
   .workflow-review strong, .workflow-review span, .workflow-review label, .workflow-review small, .workflow-review-details, .workflow-review-actions { grid-column: 1; }
+  .workflow-review-link { width: 100%; }
   .workflow-review button { width: 100%; grid-row: auto; grid-column: 1; }
   .workflow-review-actions { width: 100%; grid-row: auto; grid-column: 1; }
 }

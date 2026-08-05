@@ -39,6 +39,7 @@ npm run build
 - Support submissions are rate-limited. The dashboard tells users to wait rather than retrying automatically, so a report is never duplicated after a throttled response.
 - Removing extension consent clears that site's local captures, recording state, and local run receipts; data for other sites is retained.
 - Select any workflow in the dashboard to inspect its server-confirmed draft, policy-preview, and publication history.
+- The selected workflow's lifecycle history can be downloaded as a no-store JSON attachment. The export contains only tenant-scoped audited lifecycle events.
 - Paused verified runs store a stable, redacted reason code (`changed-page`, `slow-network`, or `unknown`) while the extension shows a clear local explanation.
 - The verified local demo run requires a fresh in-popup review and explicit approval every time. Its preview names the one allowed download and the verification condition before the action can start.
 - After a verified local run completes or pauses, the extension can show one fixed system notification. It never contains page content, origins, selectors, typed values, receipt IDs, or raw errors.
