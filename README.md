@@ -31,3 +31,4 @@ npm run build
 - The extension can consent only HTTPS sites or the explicit local HTTP demo hosts; other URL schemes and public HTTP pages are rejected.
 - A local extension receipt remains in the browser until the user explicitly chooses an active workflow and saves it. Saved histories are loaded only for the selected tenant workflow and contain no page content or action values.
 - Reconfirming an already-saved receipt does not create another record; the dashboard reports that it is already saved.
+- Removing extension consent clears that site's local captures, recording state, and local run receipts; data for other sites is retained.
