@@ -23,6 +23,7 @@ export default function Home() {
         <Link className="brand" href="/" aria-label="DoOnce home">Do<span>Once</span></Link>
         <nav aria-label="Primary navigation">
           <a aria-current="page" href="#overview">Overview</a>
+          <Link href="/workflows">Workflows</Link>
           <a href="#safety">Safety</a>
           <a href="#release">Release path</a>
         </nav>
