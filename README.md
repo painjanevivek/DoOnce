@@ -1,3 +1,30 @@
-# DoOnce Frontend
+# DoOnce dashboard
 
-This is a dummy README file for the DoOnce frontend repository.
+The DoOnce dashboard is the user-facing control plane for safe, reviewable browser workflows. It will let users inspect workflow versions, approvals and receipts without hiding actions or granting unsafe defaults.
+
+## Phase 1 foundation
+
+The initial dashboard is a responsive safety shell. It intentionally does not pretend that recording or workflow execution is available before the extension, demo site and policy integration are ready.
+
+## Local development
+
+```text
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+## Checks
+
+```text
+npm run lint
+npm run typecheck
+npm run build
+```
+
+## Safety boundary
+
+- Workflows stop when a page or action is uncertain.
+- Passwords, OTPs, payment details, deletion and final submission are outside version 1.
+- Reversible writes need a visible preview and explicit approval.
