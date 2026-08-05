@@ -244,6 +244,8 @@ th:nth-child(3), th:nth-child(4), td:nth-child(3), td:nth-child(4) { text-align:
 .workflow-review-details li { padding-left: .15rem; }
 .workflow-review-details small { display: block; margin-top: .15rem; }
 .workflow-review button { grid-row: 1 / span 2; grid-column: 2; }
+.workflow-review-actions { display: grid; gap: .55rem; grid-row: 1 / span 3; grid-column: 2; }
+.workflow-review-actions button { grid-row: auto; grid-column: auto; }
 .workflow-feedback { min-height: 1.4rem; color: var(--accent-dark); }
 .workflow-feedback[data-state="error"] { color: #a13e18; }
 .workflow-empty { margin: 1.5rem 0 0; padding: 1.25rem 0 0; border-top: 1px solid var(--line); color: var(--muted); }
@@ -271,4 +273,5 @@ th:nth-child(3), th:nth-child(4), td:nth-child(3), td:nth-child(4) { text-align:
   .workflow-form { grid-template-columns: 1fr; }
   .workflow-review { grid-template-columns: 1fr; }
   .workflow-review button { grid-row: auto; grid-column: auto; }
+  .workflow-review-actions { grid-row: auto; grid-column: auto; }
 }

@@ -46,6 +46,7 @@ export default function WorkflowCatalog() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [draft, setDraft] = useState<WorkflowReview | null>(null);
   const [message, setMessage] = useState("");
+  const [previewState, setPreviewState] = useState<"idle" | "running" | "passed">("idle");
   const [title, setTitle] = useState("Download weekly sales report");
   const [domain, setDomain] = useState("reports.example.test");
   const [path, setPath] = useState("/weekly-report");
@@ -96,12 +97,30 @@ export default function WorkflowCatalog() {
       const reviewBody: unknown = await reviewResponse.json();
       if (!reviewResponse.ok || !isWorkflowReviewResponse(reviewBody)) throw new Error("Draft review was not confirmed.");
       setDraft(reviewBody.workflow);
+      setPreviewState("idle");
       setWorkflows((current) => [{ id: body.workflow.id, title: body.workflow.title, activeVersion: null, updatedAt: new Date().toISOString() }, ...current]);
       setState("ready");
       setMessage("Safe report-download draft created. Review it before publishing.");
     } catch {
       setState("error");
       setMessage("The draft was not confirmed. No workflow was enabled.");
+    }
+  }
+
+  async function previewDraft() {
+    if (!draft) return;
+    setPreviewState("running");
+    setMessage("");
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/v1/workflows/${draft.id}/preview`, { method: "POST", credentials: "include", headers: { Accept: "application/json" } });
+      const body: unknown = await response.json();
+      if (!response.ok || !isWorkflowReviewResponse(body) || (body as { preview?: unknown }).preview !== "policy-passed") throw new Error("Preview was not confirmed.");
+      setPreviewState("passed");
+      setMessage("Policy preview passed. Review the saved steps once more before publishing.");
+    } catch {
+      setPreviewState("idle");
+      setState("error");
+      setMessage("Policy preview did not pass. Nothing was activated.");
     }
   }
 
@@ -157,7 +176,7 @@ export default function WorkflowCatalog() {
         <label>Report path<input value={path} onChange={(event) => setPath(event.target.value)} maxLength={2048} required /></label>
         <button className="workflow-create" disabled={state === "creating" || state === "publishing"} type="submit">{state === "creating" ? "Creating draft…" : "Create reviewed draft"}</button>
       </form>
-      {draft && <aside className="workflow-review" aria-label="Draft review"><strong>Server-confirmed draft · version {draft.version}</strong><span>{draft.title}</span><div className="workflow-review-details"><p><b>Approved domain:</b> {draft.allowedDomains.join(", ")}</p><ol>{draft.steps.map((step) => <li key={step.id}><b>{step.kind}</b> — {step.name}<small>{step.domain}{step.path} · {step.expectedOutcome}</small></li>)}</ol></div><button disabled={state === "publishing"} onClick={() => void publishDraft()} type="button">Publish reviewed draft</button></aside>}
+      {draft && <aside className="workflow-review" aria-label="Draft review"><strong>Server-confirmed draft · version {draft.version}</strong><span>{draft.title}</span><div className="workflow-review-details"><p><b>Approved domain:</b> {draft.allowedDomains.join(", ")}</p><ol>{draft.steps.map((step) => <li key={step.id}><b>{step.kind}</b> — {step.name}<small>{step.domain}{step.path} · {step.expectedOutcome}</small></li>)}</ol><p>{previewState === "passed" ? "Policy preview passed." : "Run a server policy preview before publishing."}</p></div><div className="workflow-review-actions"><button disabled={previewState === "running" || state === "publishing"} onClick={() => void previewDraft()} type="button">{previewState === "running" ? "Checking policy…" : "Run policy preview"}</button><button disabled={previewState !== "passed" || state === "publishing"} onClick={() => void publishDraft()} type="button">Publish reviewed draft</button></div></aside>}
       <p className="workflow-feedback" aria-live="polite" data-state={state}>{message}</p>
       {workflows.length === 0 ? <p className="workflow-empty">No workflows yet. The safe report-download template is ready when you are.</p> : <ul className="workflow-list">{workflows.map((workflow) => <li key={workflow.id}><span><strong>{workflow.title}</strong><small>{workflow.activeVersion ? `Active version ${workflow.activeVersion}` : "Draft"}</small></span><b>{workflow.activeVersion ? "Active" : "Draft"}</b></li>)}</ul>}
     </section>
