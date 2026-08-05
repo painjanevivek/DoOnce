@@ -165,6 +165,8 @@ export default function WorkflowCatalog() {
   const [repairState, setRepairState] = useState<"idle" | "creating">("idle");
   const [supportCategory, setSupportCategory] = useState<SupportReportCategory>("workflow-paused");
   const [supportState, setSupportState] = useState<"idle" | "sending">("idle");
+  const [supportWorkflowId, setSupportWorkflowId] = useState("");
+  const [includeSupportRunHealth, setIncludeSupportRunHealth] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -400,14 +402,19 @@ export default function WorkflowCatalog() {
 
   async function submitSupportReport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const selectedWorkflow = workflows.find((workflow) => workflow.id === supportWorkflowId);
+    if (includeSupportRunHealth && !selectedWorkflow?.activeVersion) {
+      setMessage("Choose an active workflow before including its redacted run-health summary.");
+      return;
+    }
     setSupportState("sending");
     setMessage("");
     try {
-      const response = await fetch(`${apiBaseUrl}/api/v1/support-reports`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ category: supportCategory }) });
+      const response = await fetch(`${apiBaseUrl}/api/v1/support-reports`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ category: supportCategory, ...(includeSupportRunHealth && selectedWorkflow?.activeVersion ? { includeRunHealth: true, workflowId: selectedWorkflow.id, workflowVersion: selectedWorkflow.activeVersion } : {}) }) });
       const body: unknown = await response.json();
       if (response.status === 401) return setState("signed-out");
       if (!response.ok || !isSupportReportResponse(body)) throw new Error("Support report was not accepted.");
-      setMessage(`Problem report received. Reference ${body.report.id.slice(0, 8)} was recorded without page content or sensitive values.`);
+      setMessage(`Problem report received. Reference ${body.report.id.slice(0, 8)} was recorded${includeSupportRunHealth ? " with a server-derived run-health summary" : ""}, without page content or sensitive values.`);
     } catch {
       setMessage("Your problem report could not be sent. No browser content or sensitive values were uploaded.");
     } finally {
@@ -431,7 +438,9 @@ export default function WorkflowCatalog() {
       <form className="workflow-review workflow-support" aria-label="Report a problem" onSubmit={(event) => void submitSupportReport(event)}>
         <strong>Report a problem</strong>
         <label>Issue category<select value={supportCategory} onChange={(event) => setSupportCategory(event.target.value as SupportReportCategory)}>{supportReportCategories.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}</select></label>
-        <small>Only this category is sent. Do not share page content, passwords, OTPs, or screenshots with support.</small>
+        <label>Optional active workflow<select value={supportWorkflowId} onChange={(event) => { setSupportWorkflowId(event.target.value); if (!event.target.value) setIncludeSupportRunHealth(false); }}><option value="">Do not include run health</option>{workflows.filter((workflow) => workflow.activeVersion).map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title}</option>)}</select></label>
+        <label><input checked={includeSupportRunHealth} disabled={!supportWorkflowId} onChange={(event) => setIncludeSupportRunHealth(event.target.checked)} type="checkbox" /> Include its server-derived run-health summary</label>
+        <small>Only the selected category and, if you opt in, aggregate receipt counts and stable pause codes are sent. Never page content, selectors, passwords, OTPs, screenshots, or receipt IDs.</small>
         <button disabled={supportState === "sending"} type="submit">{supportState === "sending" ? "Sending report…" : "Send private report"}</button>
       </form>
       <div className="workflow-review workflow-review--danger" aria-label="Emergency workflow disable">
