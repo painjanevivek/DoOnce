@@ -9,6 +9,7 @@ const originElement = document.querySelector("#origin");
 const statusElement = document.querySelector("#status");
 const captureCountElement = document.querySelector("#capture-count");
 const runCountElement = document.querySelector("#run-count");
+const lastRunElement = document.querySelector("#last-run");
 let currentOrigin;
 let currentTab;
 let recording = false;
@@ -31,8 +32,10 @@ async function updateCaptureCount() {
 
 async function updateRunCount() {
   const stored = await chrome.storage.local.get("doonce.demoRunReceipts");
-  const receipts = (stored["doonce.demoRunReceipts"] ?? []).filter((receipt) => receipt.origin === currentOrigin);
+  const rawReceipts = stored["doonce.demoRunReceipts"];
+  const receipts = (Array.isArray(rawReceipts) ? rawReceipts : []).filter((receipt) => receipt && typeof receipt === "object" && receipt.origin === currentOrigin);
   runCountElement.textContent = receipts.length ? `${receipts.length} local demo receipt${receipts.length === 1 ? "" : "s"} ready for review.` : "No local demo run receipts.";
+  lastRunElement.textContent = DoOnceReceiptView.describeReceipt(receipts.at(-1));
 }
 
 async function isCurrentTabRecording(tab) {

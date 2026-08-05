@@ -1,0 +1,16 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+const assert = require("node:assert/strict");
+const test = require("node:test");
+const { describeReceipt, isReceipt } = require("./receipt-view.js");
+
+test("describes a completed local receipt without page data", () => {
+  const receipt = { outcome: "completed", finishedAt: "2026-08-05T00:00:00.000Z" };
+  assert.equal(isReceipt(receipt), true);
+  assert.match(describeReceipt(receipt), /completed/);
+  assert.doesNotMatch(describeReceipt(receipt), /origin|selector|value/i);
+});
+
+test("rejects malformed receipts and shows a bounded pause reason", () => {
+  assert.equal(isReceipt({ outcome: "paused", finishedAt: "not-a-date", pauseReason: "changed page" }), false);
+  assert.match(describeReceipt({ outcome: "paused", finishedAt: "2026-08-05T00:00:00.000Z", pauseReason: "Expected confirmation was missing." }), /Expected confirmation/);
+});
