@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "DoOnce Safe Capture",
+  "description": "Consent-first onboarding for reviewed DoOnce browser workflows.",
+  "version": "0.1.0",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "DoOnce Safe Capture"
+  },
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "permissions": ["activeTab", "storage"]
+}

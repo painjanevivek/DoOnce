@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none';">
+    <title>DoOnce Safe Capture</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="panel" aria-labelledby="title">
+      <p class="eyebrow">DoOnce extension alpha</p>
+      <h1 id="title">Choose a site first</h1>
+      <p id="origin" class="origin" aria-live="polite">Checking the current tab…</p>
+      <p class="explanation">DoOnce needs your explicit consent before a future recording can inspect this site. It does not record, send, or run anything from this alpha screen.</p>
+      <p class="boundary"><strong>Never captured:</strong> passwords, OTPs, payment details, or hidden page content.</p>
+      <div class="actions">
+        <button id="consent" type="button" disabled>Allow this site for future recording</button>
+        <button id="revoke" type="button" class="secondary" disabled>Remove consent</button>
+      </div>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,15 @@
+:root { color-scheme: light; font-family: Arial, sans-serif; color: #182019; background: #f7f8f4; }
+body { margin: 0; min-width: 336px; }
+.panel { padding: 24px; }
+.eyebrow { margin: 0 0 8px; color: #466449; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+h1 { margin: 0; font-size: 24px; line-height: 1.15; }
+.origin { min-height: 22px; margin: 16px 0; color: #1f4325; font-weight: 700; overflow-wrap: anywhere; }
+.explanation, .boundary { color: #4b554c; font-size: 14px; line-height: 1.5; }
+.boundary { border-left: 3px solid #c88719; padding-left: 12px; }
+.actions { display: grid; gap: 10px; margin-top: 20px; }
+button { min-height: 44px; border: 1px solid #275c31; border-radius: 8px; background: #275c31; color: #fff; cursor: pointer; font: inherit; font-weight: 700; padding: 10px 12px; }
+button:hover:not(:disabled) { background: #17441f; }
+button:focus-visible { outline: 3px solid #d49c2c; outline-offset: 2px; }
+button:disabled { cursor: not-allowed; opacity: .52; }
+.secondary { background: transparent; color: #275c31; }
+.status { min-height: 20px; margin: 16px 0 0; color: #1f4325; font-size: 14px; font-weight: 700; }
