@@ -13,7 +13,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+Open `http://localhost:3000`. The development server also permits the explicit loopback host `http://127.0.0.1:3000` for local browser tooling; no public development origins are allow-listed.
 
 ## Checks
 
