@@ -136,6 +136,7 @@ h2 { margin: 0; font-size: clamp(2rem, 4vw, 3.2rem); }
 
 .primary-status { border-color: #8bbba9; background: #edf6f1; }
 .policy-status--available { border-color: #8bbba9; background: #edf6f1; }
+.policy-status--restricted { border-color: #d2a144; background: #fff8df; }
 .policy-status--unavailable { border-color: #dc9d84; background: #fff3ed; }
 .policy-status button { border: 0; padding: 0; color: var(--accent-dark); background: transparent; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
 .status-card h2 { font-size: 1.6rem; }

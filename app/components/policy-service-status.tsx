@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from "react";
 
-type ServiceState = "checking" | "available" | "unavailable";
+type ServiceState = "checking" | "available" | "restricted" | "unavailable";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:4000";
 
-function isSafetySummary(value: unknown): value is { public: true; blocked: string[]; paused: string[] } {
+function isSafetySummary(value: unknown): value is { public: true; blocked: string[]; paused: string[]; workflowChangesEnabled: boolean; killSwitchActive: boolean } {
   if (typeof value !== "object" || value === null) return false;
   const summary = value as Record<string, unknown>;
-  return summary.public === true && Array.isArray(summary.blocked) && Array.isArray(summary.paused);
+  return summary.public === true && Array.isArray(summary.blocked) && Array.isArray(summary.paused)
+    && typeof summary.workflowChangesEnabled === "boolean" && typeof summary.killSwitchActive === "boolean";
 }
 
 export default function PolicyServiceStatus() {
@@ -28,7 +29,7 @@ export default function PolicyServiceStatus() {
         });
         const summary: unknown = await response.json();
         if (!response.ok || !isSafetySummary(summary)) throw new Error("Policy service returned an invalid response.");
-        setState("available");
+        setState(summary.workflowChangesEnabled ? "available" : "restricted");
       } catch {
         if (!controller.signal.aborted) setState("unavailable");
       } finally {
@@ -59,6 +60,16 @@ export default function PolicyServiceStatus() {
         <p className="card-label">Policy service</p>
         <h2>Safety rules online</h2>
         <p>Browser actions will be checked by the server before they are ever eligible to run.</p>
+      </article>
+    );
+  }
+
+  if (state === "restricted") {
+    return (
+      <article className="status-card policy-status policy-status--restricted" role="alert">
+        <p className="card-label">Policy service</p>
+        <h2>Workflow changes paused</h2>
+        <p>The operational safety control is active. Existing workflow details remain visible, but no draft can be created or published.</p>
       </article>
     );
   }
