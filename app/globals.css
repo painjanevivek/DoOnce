@@ -73,6 +73,9 @@ nav a, footer a {
   text-decoration: none;
 }
 
+.header-action, .back-link { color: var(--accent-dark); font-size: .9rem; font-weight: 750; text-decoration: none; }
+.header-action:hover, .back-link:hover { text-decoration: underline; }
+
 nav a[aria-current="page"], nav a:hover, footer a:hover { color: var(--ink); text-decoration: underline; }
 
 .status-chip {
@@ -179,10 +182,43 @@ th, td { padding: .85rem 1rem; border-top: 1px solid var(--line); white-space: n
 th { color: var(--muted); font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; }
 th:nth-child(3), th:nth-child(4), td:nth-child(3), td:nth-child(4) { text-align: right; }
 
+.account-shell { min-height: 100vh; background: linear-gradient(115deg, #eaf2ec 0%, var(--paper) 52%, #f7eee5 100%); }
+.account-header, .account-main { width: min(1120px, calc(100% - 2rem)); margin-inline: auto; }
+.account-header { min-height: 72px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+.account-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(360px, 480px); gap: clamp(2rem, 8vw, 9rem); align-items: center; padding: clamp(4rem, 10vw, 9rem) 0; }
+.account-context { max-width: 560px; }
+.account-context h1 { margin: 0; font-size: clamp(3.3rem, 6vw, 5.7rem); }
+.account-context > p:not(.eyebrow) { max-width: 520px; margin: 1.5rem 0 2rem; color: var(--muted); font-size: 1.1rem; }
+.account-context ul { display: grid; gap: .8rem; margin: 0; padding: 0; list-style: none; color: var(--ink); }
+.account-context li { display: flex; gap: .75rem; align-items: flex-start; }
+.account-context li::before { content: "✓"; flex: 0 0 auto; color: var(--accent); font-weight: 800; }
+.account-card { border: 1px solid var(--line); border-radius: .9rem; overflow: hidden; background: var(--panel); }
+.account-switch { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--line); background: #f0f0ea; }
+.account-switch button { min-height: 48px; border: 0; border-bottom: 3px solid transparent; color: var(--muted); background: transparent; font: inherit; font-size: .9rem; font-weight: 750; cursor: pointer; }
+.account-switch button.is-active { border-bottom-color: var(--accent); color: var(--ink); background: var(--panel); }
+.account-card-intro, .account-form, .account-note { margin-inline: clamp(1.25rem, 4vw, 2.5rem); }
+.account-card-intro { padding-top: 2rem; }
+.account-card-intro h2 { font-size: clamp(2rem, 4vw, 2.6rem); }
+.account-card-intro p:last-child, .account-note { color: var(--muted); }
+.account-form { display: grid; gap: 1rem; margin-top: 1.75rem; }
+.field { display: grid; gap: .45rem; margin: 0; }
+.field label { font-weight: 750; }
+.field input { min-height: 46px; border: 1px solid var(--line); border-radius: .4rem; padding: .65rem .75rem; color: var(--ink); background: #fff; font: inherit; }
+.field input:focus { border-color: var(--accent); outline: 3px solid color-mix(in srgb, var(--accent) 22%, transparent); outline-offset: 1px; }
+.field-hint { color: var(--muted); font-size: .83rem; }
+.account-feedback { min-height: 1.4rem; margin: 0; color: var(--muted); font-size: .9rem; }
+.account-feedback[data-state="error"] { color: #a13e18; }
+.account-feedback[data-state="success"] { color: var(--accent-dark); }
+.account-submit { min-height: 46px; border: 0; border-radius: .4rem; padding: .65rem 1rem; color: #fff; background: var(--accent); font: inherit; font-weight: 750; cursor: pointer; }
+.account-submit:hover:not(:disabled) { background: var(--accent-dark); }
+.account-submit:disabled { cursor: wait; opacity: .72; }
+.account-note { margin-top: 1.5rem; margin-bottom: 2rem; font-size: .82rem; }
+
 @media (max-width: 720px) {
   .site-header { flex-wrap: wrap; padding: 1rem 0; gap: .8rem; }
   nav { order: 3; width: 100%; margin-left: 0; overflow-x: auto; }
   .status-chip { margin-left: auto; }
+  .header-action { margin-left: auto; }
   .status-grid, .rules-grid, .release-section { grid-template-columns: 1fr; }
   .status-grid { padding-bottom: 4rem; }
   .release-section { gap: 2rem; padding: 4rem 0; }
@@ -190,4 +226,6 @@ th:nth-child(3), th:nth-child(4), td:nth-child(3), td:nth-child(4) { text-align:
   footer { flex-direction: column; }
   .demo-intro { padding: 3.5rem 0 2rem; }
   .demo-controls { grid-template-columns: 1fr; align-items: stretch; }
+  .account-main { grid-template-columns: 1fr; gap: 3rem; padding: 4rem 0; }
+  .account-context h1 { font-size: clamp(3rem, 14vw, 4.6rem); }
 }

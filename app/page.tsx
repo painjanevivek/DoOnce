@@ -25,6 +25,7 @@ export default function Home() {
           <a href="#safety">Safety</a>
           <a href="#release">Release path</a>
         </nav>
+        <Link className="header-action" href="/sign-up">Create workspace</Link>
         <span className="status-chip">Foundation</span>
       </header>
 
