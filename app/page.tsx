@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AccountStatus from "./components/account-status";
 import PolicyServiceStatus from "./components/policy-service-status";
 
 const safetyRules = [
@@ -25,7 +26,7 @@ export default function Home() {
           <a href="#safety">Safety</a>
           <a href="#release">Release path</a>
         </nav>
-        <Link className="header-action" href="/sign-up">Create workspace</Link>
+        <AccountStatus />
         <span className="status-chip">Foundation</span>
       </header>
 

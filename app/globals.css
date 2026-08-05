@@ -75,6 +75,9 @@ nav a, footer a {
 
 .header-action, .back-link { color: var(--accent-dark); font-size: .9rem; font-weight: 750; text-decoration: none; }
 .header-action:hover, .back-link:hover { text-decoration: underline; }
+.account-status { display: inline-flex; align-items: center; gap: .55rem; color: var(--muted); font-size: .82rem; white-space: nowrap; }
+.account-status button { min-height: 36px; border: 1px solid var(--line); border-radius: .35rem; padding: .35rem .55rem; color: var(--accent-dark); background: var(--panel); font: inherit; font-weight: 750; cursor: pointer; }
+.account-status--unavailable { color: #a13e18; }
 
 nav a[aria-current="page"], nav a:hover, footer a:hover { color: var(--ink); text-decoration: underline; }
 
