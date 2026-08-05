@@ -2,12 +2,15 @@
 
 const consentButton = document.querySelector("#consent");
 const recordingButton = document.querySelector("#recording");
+const runDemoButton = document.querySelector("#run-demo");
 const revokeButton = document.querySelector("#revoke");
 const exportButton = document.querySelector("#export");
 const originElement = document.querySelector("#origin");
 const statusElement = document.querySelector("#status");
 const captureCountElement = document.querySelector("#capture-count");
+const runCountElement = document.querySelector("#run-count");
 let currentOrigin;
+let currentTab;
 let recording = false;
 
 function recordableOrigin(url) {
@@ -26,6 +29,12 @@ async function updateCaptureCount() {
   captureCountElement.textContent = summaries.length ? `${summaries.length} value-free local event${summaries.length === 1 ? "" : "s"} ready for review.` : "No local events ready for review.";
 }
 
+async function updateRunCount() {
+  const stored = await chrome.storage.local.get("doonce.demoRunReceipts");
+  const receipts = (stored["doonce.demoRunReceipts"] ?? []).filter((receipt) => receipt.origin === currentOrigin);
+  runCountElement.textContent = receipts.length ? `${receipts.length} local demo receipt${receipts.length === 1 ? "" : "s"} ready for review.` : "No local demo run receipts.";
+}
+
 async function isCurrentTabRecording(tab) {
   if (!tab?.id) return false;
   try {
@@ -37,6 +46,7 @@ async function isCurrentTabRecording(tab) {
 
 async function loadCurrentOrigin() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  currentTab = tab;
   if (!tab?.url || !recordableOrigin(tab.url)) {
     originElement.textContent = "Open an HTTPS website or the local DoOnce demo to continue.";
     displayStatus("No site has been approved.");
@@ -51,9 +61,11 @@ async function loadCurrentOrigin() {
   consentButton.disabled = false;
   recordingButton.disabled = !allowedOrigins.includes(currentOrigin);
   recordingButton.textContent = recording ? "Pause recording" : "Resume recording";
+  runDemoButton.disabled = !DoOnceRunPolicy.canRunDemo(tab.url, allowedOrigins);
   revokeButton.disabled = !allowedOrigins.includes(currentOrigin);
   displayStatus(allowedOrigins.includes(currentOrigin) ? (recording ? "This site is approved and recording is active for this tab." : "This site is approved; recording is paused.") : "This site is not approved.");
   await updateCaptureCount();
+  await updateRunCount();
 }
 
 consentButton.addEventListener("click", async () => {
@@ -67,9 +79,20 @@ consentButton.addEventListener("click", async () => {
   recording = response?.updated === true;
   recordingButton.disabled = !recording;
   recordingButton.textContent = recording ? "Pause recording" : "Resume recording";
+  runDemoButton.disabled = !DoOnceRunPolicy.canRunDemo(currentTab?.url, [currentOrigin]);
   revokeButton.disabled = false;
   displayStatus(recording ? "Consent saved locally. Safe, value-free capture is active for this tab only." : "Consent was saved, but recording could not start for this tab.");
   await updateCaptureCount();
+});
+
+runDemoButton.addEventListener("click", async () => {
+  if (!currentOrigin || !currentTab?.id) return;
+  runDemoButton.disabled = true;
+  displayStatus("Running the verified local download. DoOnce will pause if the expected confirmation is absent.");
+  const result = await chrome.runtime.sendMessage({ type: "doonce.run-demo-download", origin: currentOrigin, tabId: currentTab.id });
+  await updateRunCount();
+  displayStatus(result?.outcome === "completed" ? "Verified local demo download completed. A redacted local receipt was saved." : `Demo run paused: ${result?.reason ?? "verification failed"}`);
+  runDemoButton.disabled = !DoOnceRunPolicy.canRunDemo(currentTab.url, [currentOrigin]);
 });
 
 recordingButton.addEventListener("click", async () => {
@@ -103,6 +126,7 @@ revokeButton.addEventListener("click", async () => {
   recording = false;
   recordingButton.disabled = true;
   recordingButton.textContent = "Pause recording";
+  runDemoButton.disabled = true;
   displayStatus("Consent removed. Capture is off for this site.");
   await updateCaptureCount();
 });

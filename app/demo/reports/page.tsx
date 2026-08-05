@@ -35,7 +35,7 @@ export default function DemoReportPage() {
         <p>This local-only fixture models a low-risk read-and-download workflow. It has no sign-in, hidden fields, final submission or real customer data.</p>
       </section>
 
-      <section className="demo-card" aria-labelledby="report-controls-title">
+      <section className="demo-card" aria-labelledby="report-controls-title" data-doonce-demo-report="weekly-sales">
         <div className="demo-card-heading">
           <div>
             <p className="card-label">Report centre</p>
@@ -48,6 +48,7 @@ export default function DemoReportPage() {
           <label htmlFor="report-range">Reporting period</label>
           <select
             id="report-range"
+            data-doonce-capture-id="report-range"
             value={range}
             onChange={(event) => {
               setRange(event.target.value);
@@ -59,6 +60,7 @@ export default function DemoReportPage() {
           </select>
           <button
             type="button"
+            data-doonce-safe-action="download"
             onClick={() => {
               downloadDemoCsv();
               setStatus("Download started. The generated CSV contains only demo data.");
@@ -67,7 +69,7 @@ export default function DemoReportPage() {
             Download CSV
           </button>
         </div>
-        <p className="demo-status" aria-live="polite">{status}</p>
+        <p id="demo-run-status" className="demo-status" aria-live="polite">{status}</p>
 
         <div className="table-wrap">
           <table>

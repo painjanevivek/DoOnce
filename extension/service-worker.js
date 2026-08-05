@@ -1,5 +1,7 @@
 /* global chrome */
 
+importScripts("run-policy.js");
+
 chrome.runtime.onInstalled.addListener(async () => {
   const stored = await chrome.storage.local.get(["doonce.consentedOrigins", "doonce.recordingOrigins"]);
   if (!Array.isArray(stored["doonce.consentedOrigins"])) {
@@ -33,6 +35,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   return true;
 });
 
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type !== "doonce.run-demo-download" || !Number.isInteger(message.tabId) || typeof message.origin !== "string") return;
+  void runDemoDownload(message.tabId, message.origin).then(sendResponse, () => sendResponse({ outcome: "paused", reason: "The demo run could not start." }));
+  return true;
+});
+
 async function setRecording(tabId, origin, enabled) {
   const stored = await chrome.storage.local.get(["doonce.consentedOrigins", "doonce.recordingOrigins"]);
   if (!(stored["doonce.consentedOrigins"] ?? []).includes(origin)) return false;
@@ -50,6 +58,30 @@ async function setRecording(tabId, origin, enabled) {
   else recordingOrigins.delete(origin);
   await chrome.storage.local.set({ "doonce.recordingOrigins": [...recordingOrigins] });
   return true;
+}
+
+async function runDemoDownload(tabId, origin) {
+  const stored = await chrome.storage.local.get("doonce.consentedOrigins");
+  if (!(stored["doonce.consentedOrigins"] ?? []).includes(origin)) return { outcome: "paused", reason: "This site is not consented." };
+  const tab = await chrome.tabs.get(tabId);
+  if (!tab.url || new URL(tab.url).origin !== origin || !DoOnceRunPolicy.canRunDemo(tab.url, stored["doonce.consentedOrigins"])) return { outcome: "paused", reason: "Only the local report demo is supported." };
+
+  let result;
+  try {
+    result = await chrome.tabs.sendMessage(tabId, { type: "doonce.run-demo-download" });
+  } catch {
+    await chrome.scripting.executeScript({ target: { tabId }, files: ["demo-runner.js"] });
+    result = await chrome.tabs.sendMessage(tabId, { type: "doonce.run-demo-download" });
+  }
+  const normalized = result?.outcome === "completed" ? { outcome: "completed" } : { outcome: "paused", reason: typeof result?.reason === "string" ? result.reason.slice(0, 160) : "The demo run could not be verified." };
+  await storeDemoReceipt(origin, normalized);
+  return normalized;
+}
+
+async function storeDemoReceipt(origin, result) {
+  const stored = await chrome.storage.local.get("doonce.demoRunReceipts");
+  const receipt = { id: crypto.randomUUID(), origin, outcome: result.outcome, ...(result.outcome === "paused" ? { pauseReason: result.reason } : {}), stepOutcomes: [{ stepId: "demo-download", outcome: result.outcome === "completed" ? "verified" : "paused" }], finishedAt: new Date().toISOString() };
+  await chrome.storage.local.set({ "doonce.demoRunReceipts": [...(stored["doonce.demoRunReceipts"] ?? []), receipt].slice(-20) });
 }
 
 async function storeCaptureSummary(message, senderOrigin) {
