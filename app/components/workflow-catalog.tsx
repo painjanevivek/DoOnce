@@ -413,6 +413,10 @@ export default function WorkflowCatalog() {
       const response = await fetch(`${apiBaseUrl}/api/v1/support-reports`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ category: supportCategory, ...(includeSupportRunHealth && selectedWorkflow?.activeVersion ? { includeRunHealth: true, workflowId: selectedWorkflow.id, workflowVersion: selectedWorkflow.activeVersion } : {}) }) });
       const body: unknown = await response.json();
       if (response.status === 401) return setState("signed-out");
+      if (response.status === 429) {
+        setMessage("You have sent several reports recently. Please wait a minute before trying again; no additional report was created.");
+        return;
+      }
       if (!response.ok || !isSupportReportResponse(body)) throw new Error("Support report was not accepted.");
       setMessage(`Problem report received. Reference ${body.report.id.slice(0, 8)} was recorded${includeSupportRunHealth ? " with a server-derived run-health summary" : ""}, without page content or sensitive values.`);
     } catch {

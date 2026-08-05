@@ -36,6 +36,7 @@ npm run build
 - Creating a repair draft only reconstructs the safe approved step as the next version. It never re-enables a workflow; the new draft needs a fresh policy preview and an explicit publication decision.
 - Any signed-in tenant member can send a categorized problem report from the dashboard. It sends no page content, selector, typed value, attachment, password, OTP, or free-form diagnostic text.
 - A reporter may explicitly include the selected active workflow's server-derived run-health aggregate; it contains only bounded counts and stable pause codes, never receipt IDs or browser data.
+- Support submissions are rate-limited. The dashboard tells users to wait rather than retrying automatically, so a report is never duplicated after a throttled response.
 - Removing extension consent clears that site's local captures, recording state, and local run receipts; data for other sites is retained.
 - Select any workflow in the dashboard to inspect its server-confirmed draft, policy-preview, and publication history.
 - Paused verified runs store a stable, redacted reason code (`changed-page`, `slow-network`, or `unknown`) while the extension shows a clear local explanation.
