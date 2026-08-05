@@ -8,8 +8,9 @@ type Workflow = { id: string; title: string; activeVersion: number | null; updat
 type WorkflowVersion = { id: string; title: string; version: number };
 type WorkflowReview = WorkflowVersion & { status: "draft"; allowedDomains: string[]; steps: Array<{ id: string; kind: string; name: string; expectedOutcome: string; domain: string; path: string }> };
 type SafeCaptureSummary = { origin: string; path?: string; eventKind: "click" | "change" | "input"; selector: string };
-type LocalReceipt = { id: string; origin: string; outcome: "completed" | "paused"; pauseReason?: string; finishedAt: string };
-type StoredReceipt = { id: string; outcome: "completed" | "paused"; pauseReason?: string; workflowVersion: number; finishedAt: string };
+type PauseReason = "changed-page" | "slow-network" | "unknown";
+type LocalReceipt = { id: string; origin: string; outcome: "completed" | "paused"; pauseReason?: PauseReason; finishedAt: string };
+type StoredReceipt = { id: string; outcome: "completed" | "paused"; pauseReason?: PauseReason; workflowVersion: number; finishedAt: string };
 type WorkflowAuditEvent = { id: string; version: number; eventType: "workflow.draft_created" | "workflow.policy_previewed" | "workflow.published"; createdAt: string };
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:4000";
@@ -28,6 +29,10 @@ function isUuid(value: unknown): value is string {
 
 function isTimestamp(value: unknown): value is string {
   return typeof value === "string" && !Number.isNaN(Date.parse(value));
+}
+
+function isPauseReason(value: unknown): value is PauseReason {
+  return value === "changed-page" || value === "slow-network" || value === "unknown";
 }
 
 function isLocalOrigin(value: string): boolean {
@@ -76,13 +81,13 @@ function isSafeCaptureFile(value: unknown): value is { format: "doonce.safe-capt
 function isLocalReceiptFile(value: unknown): value is { format: "doonce.local-run-receipt.v1"; receipts: LocalReceipt[] } {
   if (typeof value !== "object" || value === null) return false;
   const record = value as Record<string, unknown>;
-  return record.format === "doonce.local-run-receipt.v1" && Array.isArray(record.receipts) && record.receipts.length > 0 && record.receipts.every((receipt) => { const item = receipt as Record<string, unknown>; return typeof receipt === "object" && receipt !== null && isUuid(item.id) && typeof item.origin === "string" && isLocalOrigin(item.origin) && ["completed", "paused"].includes(item.outcome as string) && isTimestamp(item.finishedAt) && (item.outcome !== "paused" || typeof item.pauseReason === "string"); });
+  return record.format === "doonce.local-run-receipt.v1" && Array.isArray(record.receipts) && record.receipts.length > 0 && record.receipts.every((receipt) => { const item = receipt as Record<string, unknown>; return typeof receipt === "object" && receipt !== null && isUuid(item.id) && typeof item.origin === "string" && isLocalOrigin(item.origin) && ["completed", "paused"].includes(item.outcome as string) && isTimestamp(item.finishedAt) && (item.outcome !== "paused" || isPauseReason(item.pauseReason)); });
 }
 
 function isStoredReceipt(value: unknown): value is StoredReceipt {
   if (typeof value !== "object" || value === null) return false;
   const receipt = value as Record<string, unknown>;
-  return isUuid(receipt.id) && ["completed", "paused"].includes(receipt.outcome as string) && typeof receipt.workflowVersion === "number" && Number.isInteger(receipt.workflowVersion) && receipt.workflowVersion > 0 && isTimestamp(receipt.finishedAt) && (receipt.outcome !== "paused" || typeof receipt.pauseReason === "string");
+  return isUuid(receipt.id) && ["completed", "paused"].includes(receipt.outcome as string) && typeof receipt.workflowVersion === "number" && Number.isInteger(receipt.workflowVersion) && receipt.workflowVersion > 0 && isTimestamp(receipt.finishedAt) && (receipt.outcome !== "paused" || isPauseReason(receipt.pauseReason));
 }
 
 function isReceiptHistory(value: unknown): value is { receipts: StoredReceipt[] } {
