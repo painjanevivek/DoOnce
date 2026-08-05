@@ -26,6 +26,15 @@ async function updateCaptureCount() {
   captureCountElement.textContent = summaries.length ? `${summaries.length} value-free local event${summaries.length === 1 ? "" : "s"} ready for review.` : "No local events ready for review.";
 }
 
+async function isCurrentTabRecording(tab) {
+  if (!tab?.id) return false;
+  try {
+    return (await chrome.tabs.sendMessage(tab.id, { type: "doonce.capture-status" }))?.recording === true;
+  } catch {
+    return false;
+  }
+}
+
 async function loadCurrentOrigin() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.url || !recordableOrigin(tab.url)) {
@@ -38,7 +47,7 @@ async function loadCurrentOrigin() {
   originElement.textContent = currentOrigin;
   const stored = await chrome.storage.local.get(["doonce.consentedOrigins", "doonce.recordingOrigins"]);
   const allowedOrigins = stored["doonce.consentedOrigins"] ?? [];
-  recording = DoOnceRecordingState.isRecording(stored["doonce.recordingOrigins"], currentOrigin);
+  recording = DoOnceRecordingState.isRecording(stored["doonce.recordingOrigins"], currentOrigin) && await isCurrentTabRecording(tab);
   consentButton.disabled = false;
   recordingButton.disabled = !allowedOrigins.includes(currentOrigin);
   recordingButton.textContent = recording ? "Pause recording" : "Resume recording";

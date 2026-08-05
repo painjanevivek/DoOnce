@@ -20,7 +20,8 @@ function capture(event) {
 document.addEventListener("click", capture, true);
 document.addEventListener("change", capture, true);
 document.addEventListener("input", capture, true);
-chrome.runtime.onMessage.addListener((message) => {
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "doonce.start-capture") recording = true;
   if (message?.type === "doonce.stop-capture") recording = false;
+  if (message?.type === "doonce.capture-status") sendResponse({ recording });
 });
