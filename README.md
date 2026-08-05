@@ -1,6 +1,6 @@
 # DoOnce dashboard
 
-The DoOnce dashboard is the user-facing control plane for safe, reviewable browser workflows. It will let users inspect workflow versions, approvals and receipts without hiding actions or granting unsafe defaults.
+The DoOnce dashboard is the user-facing control plane for safe, reviewable browser workflows. It lets users inspect workflow versions, approvals and redacted receipts without hiding actions or granting unsafe defaults.
 
 ## Phase 1 foundation
 
@@ -28,3 +28,4 @@ npm run build
 - Workflows stop when a page or action is uncertain.
 - Passwords, OTPs, payment details, deletion and final submission are outside version 1.
 - Reversible writes need a visible preview and explicit approval.
+- A local extension receipt remains in the browser until the user explicitly chooses an active workflow and saves it. Saved histories are loaded only for the selected tenant workflow and contain no page content or action values.
