@@ -7,12 +7,20 @@ type CatalogState = "loading" | "ready" | "signed-out" | "unavailable" | "creati
 type Workflow = { id: string; title: string; activeVersion: number | null; updatedAt: string };
 type WorkflowVersion = { id: string; title: string; version: number };
 type WorkflowReview = WorkflowVersion & { status: "draft"; allowedDomains: string[]; steps: Array<{ id: string; kind: string; name: string; expectedOutcome: string; domain: string; path: string }> };
-type SafeCaptureSummary = { origin: string; eventKind: "click" | "change" | "input"; selector: string };
+type SafeCaptureSummary = { origin: string; path?: string; eventKind: "click" | "change" | "input"; selector: string };
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:4000";
 
 function isValidWorkflowDomain(value: string): boolean {
   return value === "localhost" || value === "127.0.0.1" || /^(?:[a-z0-9-]+\.)+[a-z]{2,63}$/.test(value);
+}
+
+function isSafeCapturePath(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= 2048 && value.startsWith("/") && !value.startsWith("//") && !value.includes("..");
+}
+
+function isSupportedDemoCapture(summaries: SafeCaptureSummary[]): boolean {
+  return summaries.every((summary) => summary.path === "/demo/reports") && summaries.some((summary) => summary.eventKind === "click" && summary.selector === "#download-csv");
 }
 
 function isWorkflow(value: unknown): value is Workflow {
@@ -42,7 +50,7 @@ function isWorkflowReviewResponse(value: unknown): value is { workflow: Workflow
 function isSafeCaptureFile(value: unknown): value is { format: "doonce.safe-capture.v1"; summaries: SafeCaptureSummary[] } {
   if (typeof value !== "object" || value === null) return false;
   const record = value as Record<string, unknown>;
-  return record.format === "doonce.safe-capture.v1" && Array.isArray(record.summaries) && record.summaries.length > 0 && record.summaries.every((summary) => typeof summary === "object" && summary !== null && typeof (summary as Record<string, unknown>).origin === "string" && ["click", "change", "input"].includes((summary as Record<string, unknown>).eventKind as string) && typeof (summary as Record<string, unknown>).selector === "string");
+  return record.format === "doonce.safe-capture.v1" && Array.isArray(record.summaries) && record.summaries.length > 0 && record.summaries.every((summary) => typeof summary === "object" && summary !== null && typeof (summary as Record<string, unknown>).origin === "string" && ((summary as Record<string, unknown>).path === undefined || isSafeCapturePath((summary as Record<string, unknown>).path)) && ["click", "change", "input"].includes((summary as Record<string, unknown>).eventKind as string) && typeof (summary as Record<string, unknown>).selector === "string");
 }
 
 export default function WorkflowCatalog() {
@@ -136,8 +144,14 @@ export default function WorkflowCatalog() {
       const origin = new URL(payload.summaries[0].origin);
       if (!payload.summaries.every((summary) => summary.origin === origin.origin) || (origin.protocol !== "https:" && origin.hostname !== "localhost" && origin.hostname !== "127.0.0.1")) throw new Error("Unapproved origin.");
       setDomain(origin.hostname);
-      setTitle(`Review captured report from ${origin.hostname}`);
-      setMessage(`${payload.summaries.length} local, value-free event summaries imported. Review the domain and path before creating a draft.`);
+      if (isSupportedDemoCapture(payload.summaries)) {
+        setTitle("Download captured weekly sales report");
+        setPath("/demo/reports");
+        setMessage("Recognized the safe local report-download pattern. Its domain and path are ready for review before creating a draft.");
+      } else {
+        setTitle(`Review captured report from ${origin.hostname}`);
+        setMessage(`${payload.summaries.length} local, value-free event summaries imported. This capture is review-only until it matches a supported workflow pattern.`);
+      }
     } catch {
       setState("error");
       setMessage("That file is not a valid DoOnce local capture export.");

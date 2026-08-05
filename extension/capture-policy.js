@@ -17,7 +17,11 @@ function safeEventSummary(eventKind, selector) {
   return { eventKind, selector };
 }
 
-const DoOnceCapturePolicy = { canObserveField, safeEventSummary };
+function safePath(path) {
+  return typeof path === "string" && path.length > 0 && path.length <= 2048 && path.startsWith("/") && !path.startsWith("//") && !path.includes("..") ? path : undefined;
+}
+
+const DoOnceCapturePolicy = { canObserveField, safeEventSummary, safePath };
 
 if (typeof globalThis !== "undefined") globalThis.DoOnceCapturePolicy = DoOnceCapturePolicy;
 if (typeof module !== "undefined") module.exports = DoOnceCapturePolicy;

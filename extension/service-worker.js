@@ -14,7 +14,8 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 chrome.runtime.onMessage.addListener((message, sender) => {
   if (message?.type !== "doonce.capture" || !sender.tab?.id || !sender.url) return;
-  void storeCaptureSummary(message, new URL(sender.url).origin);
+  const senderUrl = new URL(sender.url);
+  void storeCaptureSummary(message, senderUrl.origin, senderUrl.pathname);
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -84,14 +85,19 @@ async function storeDemoReceipt(origin, result) {
   await chrome.storage.local.set({ "doonce.demoRunReceipts": [...(stored["doonce.demoRunReceipts"] ?? []), receipt].slice(-20) });
 }
 
-async function storeCaptureSummary(message, senderOrigin) {
-  if (message.origin !== senderOrigin || !isSummary(message.summary)) return;
+async function storeCaptureSummary(message, senderOrigin, senderPath) {
+  if (message.origin !== senderOrigin || !isSummary(message.summary) || !isSafePath(message.path)) return;
+  if (senderPath !== message.path) return;
   const stored = await chrome.storage.local.get(["doonce.consentedOrigins", "doonce.capturedSummaries"]);
   if (!(stored["doonce.consentedOrigins"] ?? []).includes(senderOrigin)) return;
   const summaries = stored["doonce.capturedSummaries"] ?? [];
-  await chrome.storage.local.set({ "doonce.capturedSummaries": [...summaries, { origin: senderOrigin, ...message.summary }].slice(-50) });
+  await chrome.storage.local.set({ "doonce.capturedSummaries": [...summaries, { origin: senderOrigin, path: message.path, ...message.summary }].slice(-50) });
 }
 
 function isSummary(summary) {
   return summary && ["click", "change", "input"].includes(summary.eventKind) && typeof summary.selector === "string" && summary.selector.length <= 256;
+}
+
+function isSafePath(path) {
+  return typeof path === "string" && path.length > 0 && path.length <= 2048 && path.startsWith("/") && !path.startsWith("//") && !path.includes("..");
 }

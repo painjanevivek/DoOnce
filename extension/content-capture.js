@@ -14,7 +14,8 @@ function capture(event) {
   if (["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName) && !DoOnceCapturePolicy.canObserveField(event.target)) return;
   const selector = safeSelector(event.target);
   const summary = selector ? DoOnceCapturePolicy.safeEventSummary(event.type, selector) : undefined;
-  if (summary) chrome.runtime.sendMessage({ type: "doonce.capture", origin: location.origin, summary });
+  const path = DoOnceCapturePolicy.safePath(location.pathname);
+  if (summary && path) chrome.runtime.sendMessage({ type: "doonce.capture", origin: location.origin, path, summary });
 }
 
 document.addEventListener("click", capture, true);
