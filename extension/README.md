@@ -21,7 +21,7 @@ The one exception is a manual test fixture: after consent, the popup presents a 
 
 The extension uses Chrome's `notifications` permission only to show one fixed system message when that verified local run completes or pauses. The message contains no origin, page content, selector, typed value, raw error, password, OTP, or receipt identifier. If notifications are unavailable, the receipt and popup result still work normally.
 
-The popup shows the latest local receipt's outcome, timestamp, and (when paused) bounded reason. It never displays raw page content, selectors, origins, or typed values in that summary.
+The popup shows the latest local receipt's outcome, timestamp, and (when paused) one stable reason code. Invalid receipts are excluded before display and export, so it never displays raw page content, selectors, origins, typed values, or unrecognized error text.
 
 Users may explicitly export `doonce.local-run-receipt.v1` JSON for dashboard review. The extension never uploads receipts automatically.
 

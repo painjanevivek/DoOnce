@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { describeReceipt, isReceipt } = require("./receipt-view.js");
+const { describePauseReason, describeReceipt, isReceipt } = require("./receipt-view.js");
 
 test("describes a completed local receipt without page data", () => {
   const receipt = { outcome: "completed", finishedAt: "2026-08-05T00:00:00.000Z" };
@@ -10,9 +10,11 @@ test("describes a completed local receipt without page data", () => {
   assert.doesNotMatch(describeReceipt(receipt), /origin|selector|value/i);
 });
 
-test("rejects malformed receipts and shows a bounded pause reason", () => {
+test("rejects malformed receipts and never exposes an unrecognized pause reason", () => {
   assert.equal(isReceipt({ outcome: "paused", finishedAt: "not-a-date", pauseReason: "changed page" }), false);
-  assert.match(describeReceipt({ outcome: "paused", finishedAt: "2026-08-05T00:00:00.000Z", pauseReason: "Expected confirmation was missing." }), /Expected confirmation/);
+  assert.equal(isReceipt({ outcome: "paused", finishedAt: "2026-08-05T00:00:00.000Z", pauseReason: "Expected confirmation was missing." }), false);
+  assert.doesNotMatch(describeReceipt({ outcome: "paused", finishedAt: "2026-08-05T00:00:00.000Z", pauseReason: "Expected confirmation was missing." }), /Expected confirmation/);
+  assert.match(describePauseReason("Expected confirmation was missing."), /could not be verified/i);
 });
 
 test("turns stable pause codes into a user-safe explanation", () => {

@@ -1,9 +1,11 @@
+const pauseReasons = new Set(["changed-page", "slow-network", "unknown"]);
+
 function isReceipt(receipt) {
   return receipt && typeof receipt === "object"
     && ["completed", "paused"].includes(receipt.outcome)
     && typeof receipt.finishedAt === "string"
     && !Number.isNaN(Date.parse(receipt.finishedAt))
-    && (receipt.outcome !== "paused" || (typeof receipt.pauseReason === "string" && receipt.pauseReason.length > 0 && receipt.pauseReason.length <= 160));
+    && (receipt.outcome === "paused" ? pauseReasons.has(receipt.pauseReason) : receipt.pauseReason === undefined);
 }
 
 function describeReceipt(receipt) {
@@ -14,7 +16,7 @@ function describeReceipt(receipt) {
 }
 
 function describePauseReason(reason) {
-  return ({ "changed-page": "The expected page control changed.", "slow-network": "The expected confirmation did not arrive in time.", unknown: "The run could not be verified." })[reason] ?? reason;
+  return ({ "changed-page": "The expected page control changed.", "slow-network": "The expected confirmation did not arrive in time.", unknown: "The run could not be verified." })[reason] ?? "The run could not be verified.";
 }
 
 const DoOnceReceiptView = { describeReceipt, describePauseReason, isReceipt };
