@@ -21,4 +21,6 @@ The one exception is a manual test fixture: after consent, the popup can trigger
 
 The popup shows the latest local receipt's outcome, timestamp, and (when paused) bounded reason. It never displays raw page content, selectors, origins, or typed values in that summary.
 
+Users may explicitly export `doonce.local-run-receipt.v1` JSON for dashboard review. The extension never uploads receipts automatically.
+
 Users may explicitly download a local `doonce.safe-capture.v1` review file and import it into the dashboard. The dashboard validates its format and origin locally, then requires the user to review and create a normal server-validated draft; importing the file does not upload it.

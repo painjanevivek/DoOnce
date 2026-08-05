@@ -3,6 +3,7 @@
 const consentButton = document.querySelector("#consent");
 const recordingButton = document.querySelector("#recording");
 const runDemoButton = document.querySelector("#run-demo");
+const exportReceiptsButton = document.querySelector("#export-receipts");
 const revokeButton = document.querySelector("#revoke");
 const exportButton = document.querySelector("#export");
 const originElement = document.querySelector("#origin");
@@ -34,6 +35,7 @@ async function updateRunCount() {
   const stored = await chrome.storage.local.get("doonce.demoRunReceipts");
   const rawReceipts = stored["doonce.demoRunReceipts"];
   const receipts = (Array.isArray(rawReceipts) ? rawReceipts : []).filter((receipt) => receipt && typeof receipt === "object" && receipt.origin === currentOrigin);
+  exportReceiptsButton.disabled = receipts.length === 0;
   runCountElement.textContent = receipts.length ? `${receipts.length} local demo receipt${receipts.length === 1 ? "" : "s"} ready for review.` : "No local demo run receipts.";
   lastRunElement.textContent = DoOnceReceiptView.describeReceipt(receipts.at(-1));
 }
@@ -88,9 +90,26 @@ consentButton.addEventListener("click", async () => {
   await updateCaptureCount();
 });
 
+exportReceiptsButton.addEventListener("click", async () => {
+  if (!currentOrigin) return;
+  const stored = await chrome.storage.local.get("doonce.demoRunReceipts");
+  const rawReceipts = stored["doonce.demoRunReceipts"];
+  const receipts = (Array.isArray(rawReceipts) ? rawReceipts : []).filter((receipt) => receipt && typeof receipt === "object" && receipt.origin === currentOrigin && DoOnceReceiptView.isReceipt(receipt));
+  if (receipts.length === 0) return displayStatus("No verified local receipt is available to export.");
+  const blob = new Blob([JSON.stringify({ format: "doonce.local-run-receipt.v1", receipts }, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "doonce-local-run-receipts.json";
+  link.click();
+  URL.revokeObjectURL(url);
+  displayStatus("Local receipts downloaded for your dashboard review. Nothing was sent automatically.");
+});
+
 runDemoButton.addEventListener("click", async () => {
   if (!currentOrigin || !currentTab?.id) return;
   runDemoButton.disabled = true;
+  exportReceiptsButton.disabled = true;
   displayStatus("Running the verified local download. DoOnce will pause if the expected confirmation is absent.");
   const result = await chrome.runtime.sendMessage({ type: "doonce.run-demo-download", origin: currentOrigin, tabId: currentTab.id });
   await updateRunCount();
