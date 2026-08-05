@@ -11,6 +11,10 @@ type SafeCaptureSummary = { origin: string; eventKind: "click" | "change" | "inp
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:4000";
 
+function isValidWorkflowDomain(value: string): boolean {
+  return value === "localhost" || value === "127.0.0.1" || /^(?:[a-z0-9-]+\.)+[a-z]{2,63}$/.test(value);
+}
+
 function isWorkflow(value: unknown): value is Workflow {
   if (typeof value !== "object" || value === null) return false;
   const record = value as Record<string, unknown>;
@@ -73,7 +77,7 @@ export default function WorkflowCatalog() {
     event?.preventDefault();
     const normalizedDomain = domain.trim().toLowerCase();
     const normalizedPath = path.trim();
-    if (!title.trim() || !/^(?:[a-z0-9-]+\.)+[a-z]{2,63}$/.test(normalizedDomain) || !normalizedPath.startsWith("/") || normalizedPath.startsWith("//")) {
+    if (!title.trim() || !isValidWorkflowDomain(normalizedDomain) || !normalizedPath.startsWith("/") || normalizedPath.startsWith("//")) {
       setState("error");
       setMessage("Enter a title, a valid domain, and a path beginning with one slash.");
       return;
