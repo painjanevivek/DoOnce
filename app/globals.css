@@ -246,6 +246,13 @@ th:nth-child(3), th:nth-child(4), td:nth-child(3), td:nth-child(4) { text-align:
 .workflow-review button { grid-row: 1 / span 2; grid-column: 2; }
 .workflow-review-actions { display: grid; gap: .55rem; grid-row: 1 / span 3; grid-column: 2; }
 .workflow-review-actions button { grid-row: auto; grid-column: auto; }
+.workflow-support { margin: 1.5rem 0; border-color: #a9bdcc; background: #f0f6fa; }
+.workflow-support strong { color: #315b79; }
+.workflow-support label { display: grid; grid-column: 1; gap: .35rem; color: var(--muted); font-size: .82rem; font-weight: 700; }
+.workflow-support select { min-height: 44px; border: 1px solid #a9bdcc; border-radius: .4rem; padding: .5rem .65rem; color: var(--ink); background: #fff; font: inherit; }
+.workflow-support select:focus-visible { outline: 3px solid #d49c2c; outline-offset: 2px; }
+.workflow-support small { grid-column: 1; color: #315b79; }
+.workflow-support button { grid-row: 1 / span 3; }
 .workflow-review--danger { margin: 1.5rem 0; border-color: #dc9d84; background: #fff3ed; }
 .workflow-review--danger strong { color: #a13e18; }
 .workflow-review--danger label { display: grid; grid-column: 1; gap: .35rem; color: var(--muted); font-size: .82rem; font-weight: 700; }

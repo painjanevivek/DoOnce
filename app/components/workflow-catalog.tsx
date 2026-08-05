@@ -11,7 +11,15 @@ type SafeCaptureSummary = { origin: string; path?: string; eventKind: "click" | 
 type PauseReason = "changed-page" | "slow-network" | "unknown";
 type LocalReceipt = { id: string; origin: string; outcome: "completed" | "paused"; pauseReason?: PauseReason; finishedAt: string };
 type StoredReceipt = { id: string; outcome: "completed" | "paused"; pauseReason?: PauseReason; workflowVersion: number; finishedAt: string };
-type WorkflowAuditEvent = { id: string; version: number; eventType: "workflow.draft_created" | "workflow.policy_previewed" | "workflow.published"; createdAt: string };
+type WorkflowAuditEvent = { id: string; version: number; eventType: "workflow.draft_created" | "workflow.policy_previewed" | "workflow.published" | "workflow.disabled"; createdAt: string };
+type SupportReportCategory = "workflow-paused" | "unexpected-result" | "safety-concern" | "other";
+
+const supportReportCategories: Array<{ value: SupportReportCategory; label: string }> = [
+  { value: "workflow-paused", label: "Workflow paused safely" },
+  { value: "unexpected-result", label: "Unexpected result" },
+  { value: "safety-concern", label: "Safety concern" },
+  { value: "other", label: "Other product problem" },
+];
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:4000";
 
@@ -109,6 +117,14 @@ function isDisableResponse(value: unknown): value is { workflowId: string; disab
   return isUuid(record.workflowId) && typeof record.disabledVersion === "number" && Number.isInteger(record.disabledVersion) && record.disabledVersion > 0;
 }
 
+function isSupportReportResponse(value: unknown): value is { report: { id: string; category: SupportReportCategory; createdAt: string } } {
+  if (typeof value !== "object" || value === null) return false;
+  const report = (value as Record<string, unknown>).report;
+  if (typeof report !== "object" || report === null) return false;
+  const record = report as Record<string, unknown>;
+  return isUuid(record.id) && supportReportCategories.some((category) => category.value === record.category) && isTimestamp(record.createdAt);
+}
+
 export default function WorkflowCatalog() {
   const [state, setState] = useState<CatalogState>("loading");
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
@@ -128,6 +144,8 @@ export default function WorkflowCatalog() {
   const [auditState, setAuditState] = useState<"idle" | "loading">("idle");
   const [disableWorkflowId, setDisableWorkflowId] = useState("");
   const [disableState, setDisableState] = useState<"idle" | "disabling">("idle");
+  const [supportCategory, setSupportCategory] = useState<SupportReportCategory>("workflow-paused");
+  const [supportState, setSupportState] = useState<"idle" | "sending">("idle");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -321,6 +339,23 @@ export default function WorkflowCatalog() {
     }
   }
 
+  async function submitSupportReport(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSupportState("sending");
+    setMessage("");
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/v1/support-reports`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ category: supportCategory }) });
+      const body: unknown = await response.json();
+      if (response.status === 401) return setState("signed-out");
+      if (!response.ok || !isSupportReportResponse(body)) throw new Error("Support report was not accepted.");
+      setMessage(`Problem report received. Reference ${body.report.id.slice(0, 8)} was recorded without page content or sensitive values.`);
+    } catch {
+      setMessage("Your problem report could not be sent. No browser content or sensitive values were uploaded.");
+    } finally {
+      setSupportState("idle");
+    }
+  }
+
   if (state === "loading") return <section className="workflow-panel" aria-live="polite"><p className="eyebrow">Workflow catalog</p><h2>Checking your workspace…</h2></section>;
   if (state === "signed-out") return <section className="workflow-panel"><p className="eyebrow">Workflow catalog</p><h2>Sign in to view a workspace.</h2><p>Workflow drafts are never shown until the server confirms your tenant session.</p><Link className="primary-link" href="/sign-up">Create workspace or sign in</Link></section>;
   if (state === "unavailable") return <section className="workflow-panel workflow-panel--error" role="alert"><p className="eyebrow">Workflow catalog</p><h2>Workspace service unavailable.</h2><p>No workflow details are shown while the account or workflow service cannot be verified.</p></section>;
@@ -334,6 +369,12 @@ export default function WorkflowCatalog() {
       <p className="workflow-copy">The only template available in this phase downloads a report from the DoOnce demo domain. It cannot submit, delete, pay, enter credentials, or run on another domain.</p>
       <label className="workflow-import">Import a local capture for review<input type="file" accept="application/json" onChange={(event) => void importCapture(event.target.files?.[0])} /><small>Optional. This reads a local extension export in your browser; it is not uploaded until you create a draft.</small></label>
       <label className="workflow-import">Import a local run receipt<input type="file" accept="application/json" onChange={(event) => void importReceipt(event.target.files?.[0])} /><small>Receipts remain local until you select an active workflow and confirm saving.</small></label>
+      <form className="workflow-review workflow-support" aria-label="Report a problem" onSubmit={(event) => void submitSupportReport(event)}>
+        <strong>Report a problem</strong>
+        <label>Issue category<select value={supportCategory} onChange={(event) => setSupportCategory(event.target.value as SupportReportCategory)}>{supportReportCategories.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}</select></label>
+        <small>Only this category is sent. Do not share page content, passwords, OTPs, or screenshots with support.</small>
+        <button disabled={supportState === "sending"} type="submit">{supportState === "sending" ? "Sending report…" : "Send private report"}</button>
+      </form>
       <div className="workflow-review workflow-review--danger" aria-label="Emergency workflow disable">
         <strong>Disable an active workflow</strong>
         <label>Active workflow<select value={disableWorkflowId} onChange={(event) => setDisableWorkflowId(event.target.value)}><option value="">Choose an active workflow</option>{workflows.filter((workflow) => workflow.activeVersion).map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title}</option>)}</select></label>
