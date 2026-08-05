@@ -6,6 +6,7 @@ import { type FormEvent, useEffect, useState } from "react";
 type CatalogState = "loading" | "ready" | "signed-out" | "unavailable" | "creating" | "publishing" | "error";
 type Workflow = { id: string; title: string; activeVersion: number | null; updatedAt: string };
 type WorkflowVersion = { id: string; title: string; version: number };
+type WorkflowReview = WorkflowVersion & { status: "draft"; allowedDomains: string[]; steps: Array<{ id: string; kind: string; name: string; expectedOutcome: string; domain: string; path: string }> };
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:4000";
 
@@ -27,10 +28,16 @@ function isWorkflowVersionResponse(value: unknown): value is { workflow: Workflo
   return typeof record.id === "string" && typeof record.title === "string" && typeof record.version === "number";
 }
 
+function isWorkflowReviewResponse(value: unknown): value is { workflow: WorkflowReview } {
+  if (!isWorkflowVersionResponse(value)) return false;
+  const workflow = value.workflow as unknown as Record<string, unknown>;
+  return workflow.status === "draft" && Array.isArray(workflow.allowedDomains) && workflow.allowedDomains.every((domain) => typeof domain === "string") && Array.isArray(workflow.steps) && workflow.steps.every((step) => typeof step === "object" && step !== null && typeof (step as Record<string, unknown>).name === "string" && typeof (step as Record<string, unknown>).domain === "string" && typeof (step as Record<string, unknown>).path === "string");
+}
+
 export default function WorkflowCatalog() {
   const [state, setState] = useState<CatalogState>("loading");
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [draft, setDraft] = useState<WorkflowVersion | null>(null);
+  const [draft, setDraft] = useState<WorkflowReview | null>(null);
   const [message, setMessage] = useState("");
   const [title, setTitle] = useState("Download weekly sales report");
   const [domain, setDomain] = useState("reports.example.test");
@@ -78,7 +85,10 @@ export default function WorkflowCatalog() {
       });
       const body: unknown = await response.json();
       if (!response.ok || !isWorkflowVersionResponse(body)) throw new Error("Draft was not confirmed.");
-      setDraft(body.workflow);
+      const reviewResponse = await fetch(`${apiBaseUrl}/api/v1/workflows/${body.workflow.id}`, { credentials: "include", headers: { Accept: "application/json" } });
+      const reviewBody: unknown = await reviewResponse.json();
+      if (!reviewResponse.ok || !isWorkflowReviewResponse(reviewBody)) throw new Error("Draft review was not confirmed.");
+      setDraft(reviewBody.workflow);
       setWorkflows((current) => [{ id: body.workflow.id, title: body.workflow.title, activeVersion: null, updatedAt: new Date().toISOString() }, ...current]);
       setState("ready");
       setMessage("Safe report-download draft created. Review it before publishing.");
@@ -123,7 +133,7 @@ export default function WorkflowCatalog() {
         <label>Report path<input value={path} onChange={(event) => setPath(event.target.value)} maxLength={2048} required /></label>
         <button className="workflow-create" disabled={state === "creating" || state === "publishing"} type="submit">{state === "creating" ? "Creating draft…" : "Create reviewed draft"}</button>
       </form>
-      {draft && <aside className="workflow-review" aria-label="Draft review"><strong>Draft ready for review</strong><span>{draft.title}</span><button disabled={state === "publishing"} onClick={() => void publishDraft()} type="button">{state === "publishing" ? "Publishing…" : "Publish reviewed draft"}</button></aside>}
+      {draft && <aside className="workflow-review" aria-label="Draft review"><strong>Server-confirmed draft · version {draft.version}</strong><span>{draft.title}</span><div className="workflow-review-details"><p><b>Approved domain:</b> {draft.allowedDomains.join(", ")}</p><ol>{draft.steps.map((step) => <li key={step.id}><b>{step.kind}</b> — {step.name}<small>{step.domain}{step.path} · {step.expectedOutcome}</small></li>)}</ol></div><button disabled={state === "publishing"} onClick={() => void publishDraft()} type="button">Publish reviewed draft</button></aside>}
       <p className="workflow-feedback" aria-live="polite" data-state={state}>{message}</p>
       {workflows.length === 0 ? <p className="workflow-empty">No workflows yet. The safe report-download template is ready when you are.</p> : <ul className="workflow-list">{workflows.map((workflow) => <li key={workflow.id}><span><strong>{workflow.title}</strong><small>{workflow.activeVersion ? `Active version ${workflow.activeVersion}` : "Draft"}</small></span><b>{workflow.activeVersion ? "Active" : "Draft"}</b></li>)}</ul>}
     </section>
