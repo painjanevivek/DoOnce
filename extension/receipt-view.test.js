@@ -14,3 +14,8 @@ test("rejects malformed receipts and shows a bounded pause reason", () => {
   assert.equal(isReceipt({ outcome: "paused", finishedAt: "not-a-date", pauseReason: "changed page" }), false);
   assert.match(describeReceipt({ outcome: "paused", finishedAt: "2026-08-05T00:00:00.000Z", pauseReason: "Expected confirmation was missing." }), /Expected confirmation/);
 });
+
+test("turns stable pause codes into a user-safe explanation", () => {
+  assert.match(describeReceipt({ outcome: "paused", finishedAt: "2026-08-05T00:00:00.000Z", pauseReason: "changed-page" }), /expected page control changed/i);
+  assert.match(describeReceipt({ outcome: "paused", finishedAt: "2026-08-05T00:00:00.000Z", pauseReason: "slow-network" }), /did not arrive in time/i);
+});

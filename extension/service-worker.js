@@ -74,14 +74,14 @@ async function runDemoDownload(tabId, origin) {
     await chrome.scripting.executeScript({ target: { tabId }, files: ["demo-runner.js"] });
     result = await chrome.tabs.sendMessage(tabId, { type: "doonce.run-demo-download" });
   }
-  const normalized = result?.outcome === "completed" ? { outcome: "completed" } : { outcome: "paused", reason: typeof result?.reason === "string" ? result.reason.slice(0, 160) : "The demo run could not be verified." };
+  const normalized = result?.outcome === "completed" ? { outcome: "completed" } : { outcome: "paused", reasonCode: ["changed-page", "slow-network", "unknown"].includes(result?.reasonCode) ? result.reasonCode : "unknown", reason: typeof result?.reason === "string" ? result.reason.slice(0, 160) : "The demo run could not be verified." };
   await storeDemoReceipt(origin, normalized);
   return normalized;
 }
 
 async function storeDemoReceipt(origin, result) {
   const stored = await chrome.storage.local.get("doonce.demoRunReceipts");
-  const receipt = { id: crypto.randomUUID(), origin, outcome: result.outcome, ...(result.outcome === "paused" ? { pauseReason: result.reason } : {}), stepOutcomes: [{ stepId: "demo-download", outcome: result.outcome === "completed" ? "verified" : "paused" }], finishedAt: new Date().toISOString() };
+  const receipt = { id: crypto.randomUUID(), origin, outcome: result.outcome, ...(result.outcome === "paused" ? { pauseReason: result.reasonCode } : {}), stepOutcomes: [{ stepId: "demo-download", outcome: result.outcome === "completed" ? "verified" : "paused" }], finishedAt: new Date().toISOString() };
   await chrome.storage.local.set({ "doonce.demoRunReceipts": [...(stored["doonce.demoRunReceipts"] ?? []), receipt].slice(-20) });
 }
 

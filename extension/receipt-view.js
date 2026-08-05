@@ -10,9 +10,13 @@ function describeReceipt(receipt) {
   if (!isReceipt(receipt)) return "No verified local receipt is available.";
   const completedAt = new Date(receipt.finishedAt).toLocaleString();
   if (receipt.outcome === "completed") return `Last local receipt: completed at ${completedAt}. Demo download verified.`;
-  return `Last local receipt: paused at ${completedAt}. Reason: ${receipt.pauseReason}`;
+  return `Last local receipt: paused at ${completedAt}. Reason: ${describePauseReason(receipt.pauseReason)}`;
 }
 
-const DoOnceReceiptView = { describeReceipt, isReceipt };
+function describePauseReason(reason) {
+  return ({ "changed-page": "The expected page control changed.", "slow-network": "The expected confirmation did not arrive in time.", unknown: "The run could not be verified." })[reason] ?? reason;
+}
+
+const DoOnceReceiptView = { describeReceipt, describePauseReason, isReceipt };
 
 if (typeof module !== "undefined") module.exports = DoOnceReceiptView;

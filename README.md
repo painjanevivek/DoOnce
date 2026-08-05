@@ -33,3 +33,4 @@ npm run build
 - Reconfirming an already-saved receipt does not create another record; the dashboard reports that it is already saved.
 - Removing extension consent clears that site's local captures, recording state, and local run receipts; data for other sites is retained.
 - Select any workflow in the dashboard to inspect its server-confirmed draft, policy-preview, and publication history.
+- Paused verified runs store a stable, redacted reason code (`changed-page`, `slow-network`, or `unknown`) while the extension shows a clear local explanation.
