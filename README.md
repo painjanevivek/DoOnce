@@ -30,6 +30,7 @@ npm run build
 - Reversible writes need a visible preview and explicit approval.
 - The extension can consent only HTTPS sites or the explicit local HTTP demo hosts; other URL schemes and public HTTP pages are rejected.
 - A local extension receipt remains in the browser until the user explicitly chooses an active workflow and saves it. Saved histories are loaded only for the selected tenant workflow and contain no page content or action values.
+- Before a draft can be published, the dashboard requires a completed local receipt to be confirmed for that exact draft version after its policy preview. A paused receipt never unlocks publication.
 - Imported paused receipts accept only the stable `changed-page`, `slow-network`, or `unknown` reason codes; malformed review files are rejected before they reach the API.
 - Reconfirming an already-saved receipt does not create another record; the dashboard reports that it is already saved.
 - An owner can select and immediately disable one active workflow after an explicit confirmation. The dashboard retains its history; a new reviewed draft is required before it can run again.

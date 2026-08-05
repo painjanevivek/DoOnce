@@ -6,7 +6,7 @@ import { type FormEvent, useEffect, useState } from "react";
 type CatalogState = "loading" | "ready" | "signed-out" | "unavailable" | "creating" | "publishing" | "error";
 type Workflow = { id: string; title: string; activeVersion: number | null; updatedAt: string };
 type WorkflowVersion = { id: string; title: string; version: number };
-type WorkflowReview = WorkflowVersion & { status: "draft"; allowedDomains: string[]; steps: Array<{ id: string; kind: string; name: string; expectedOutcome: string; domain: string; path: string }> };
+type WorkflowReview = WorkflowVersion & { status: "draft"; allowedDomains: string[]; steps: Array<{ id: string; kind: string; name: string; expectedOutcome: string; domain: string; path: string }>; testRunVerified: boolean };
 type SafeCaptureSummary = { origin: string; path?: string; eventKind: "click" | "change" | "input"; selector: string };
 type PauseReason = "changed-page" | "slow-network" | "unknown";
 type LocalReceipt = { id: string; origin: string; outcome: "completed" | "paused"; pauseReason?: PauseReason; finishedAt: string };
@@ -78,11 +78,15 @@ function isWorkflowVersionResponse(value: unknown): value is { workflow: Workflo
 function isWorkflowReviewResponse(value: unknown): value is { workflow: WorkflowReview } {
   if (!isWorkflowVersionResponse(value)) return false;
   const workflow = value.workflow as unknown as Record<string, unknown>;
-  return workflow.status === "draft" && Array.isArray(workflow.allowedDomains) && workflow.allowedDomains.every((domain) => typeof domain === "string") && Array.isArray(workflow.steps) && workflow.steps.every((step) => typeof step === "object" && step !== null && typeof (step as Record<string, unknown>).name === "string" && typeof (step as Record<string, unknown>).domain === "string" && typeof (step as Record<string, unknown>).path === "string");
+  return workflow.status === "draft" && typeof workflow.testRunVerified === "boolean" && Array.isArray(workflow.allowedDomains) && workflow.allowedDomains.every((domain) => typeof domain === "string") && Array.isArray(workflow.steps) && workflow.steps.every((step) => typeof step === "object" && step !== null && typeof (step as Record<string, unknown>).name === "string" && typeof (step as Record<string, unknown>).domain === "string" && typeof (step as Record<string, unknown>).path === "string");
 }
 
 function isRepairDraftResponse(value: unknown): value is { workflow: WorkflowReview; repair: "reconfirm-safe-step" } {
   return isWorkflowReviewResponse(value) && (value as Record<string, unknown>).repair === "reconfirm-safe-step";
+}
+
+function isDraftTestReceiptResponse(value: unknown): value is { workflow: WorkflowReview } {
+  return isWorkflowReviewResponse(value);
 }
 
 function isSafeCaptureFile(value: unknown): value is { format: "doonce.safe-capture.v1"; summaries: SafeCaptureSummary[] } {
@@ -303,6 +307,28 @@ export default function WorkflowCatalog() {
     } catch { setState("error"); setMessage("Receipt was not confirmed. Nothing was saved."); }
   }
 
+  async function confirmDraftTestReceipt() {
+    if (!receipt || !draft) return;
+    if (receipt.outcome !== "completed") {
+      setMessage("A paused receipt cannot unlock publication. Run the reviewed draft again and confirm a completed receipt.");
+      return;
+    }
+    setState("creating");
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/v1/workflows/${draft.id}/test-receipts/import`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ sourceId: receipt.id, outcome: "completed" }) });
+      const body: unknown = await response.json();
+      if (response.status === 409) { setReceipt(null); setState("ready"); setMessage("This completed test receipt was already saved for the draft."); return; }
+      if (!response.ok || !isDraftTestReceiptResponse(body) || !body.workflow.testRunVerified) throw new Error("Draft test was not confirmed.");
+      setDraft(body.workflow);
+      setReceipt(null);
+      setState("ready");
+      setMessage("Completed test receipt confirmed for this draft. Review the step once more before publishing.");
+    } catch {
+      setState("error");
+      setMessage("The completed test receipt was not confirmed. This draft remains unpublished.");
+    }
+  }
+
   async function loadReceiptHistory() {
     if (!historyWorkflowId) return;
     setHistoryState("loading");
@@ -465,7 +491,8 @@ export default function WorkflowCatalog() {
         <button disabled={!auditWorkflowId || auditState === "loading"} onClick={() => void loadAuditHistory()} type="button">{auditState === "loading" ? "Loading historyâ€¦" : "Load workflow history"}</button>
         {auditEvents && (auditEvents.length ? <ol className="workflow-list">{auditEvents.map((event) => <li key={event.id}><span><strong>{event.eventType.replace("workflow.", "").replaceAll("_", " ")}</strong><small>Version {event.version} Â· {new Date(event.createdAt).toLocaleString()}</small></span><b>Recorded</b></li>)}</ol> : <p className="workflow-empty">No lifecycle history for this workflow yet.</p>)}
       </div>
-      {receipt && <div className="workflow-review"><strong>Receipt ready for confirmation</strong><span>{receipt.outcome} · {new Date(receipt.finishedAt).toLocaleString()}</span><label>Active workflow<select value={receiptWorkflowId} onChange={(event) => setReceiptWorkflowId(event.target.value)}><option value="">Choose an active workflow</option>{workflows.filter((workflow) => workflow.activeVersion).map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title}</option>)}</select></label><button className="workflow-create" disabled={!receiptWorkflowId || state === "creating"} onClick={() => void saveReceipt()} type="button">Save confirmed receipt</button></div>}
+      {receipt && draft && <div className="workflow-review" aria-label="Confirm completed draft test"><strong>Test receipt ready for this draft</strong><span>{receipt.outcome} · {new Date(receipt.finishedAt).toLocaleString()}</span><small>{receipt.outcome === "completed" ? "Confirm this completed local receipt to unlock publication for the current draft version." : "Paused receipts are retained locally but cannot unlock publication. Run the reviewed draft again before publishing."}</small><button className="workflow-create" disabled={receipt.outcome !== "completed" || state === "creating"} onClick={() => void confirmDraftTestReceipt()} type="button">{state === "creating" ? "Confirming test…" : "Confirm completed draft test"}</button></div>}
+      {receipt && !draft && <div className="workflow-review"><strong>Receipt ready for confirmation</strong><span>{receipt.outcome} · {new Date(receipt.finishedAt).toLocaleString()}</span><label>Active workflow<select value={receiptWorkflowId} onChange={(event) => setReceiptWorkflowId(event.target.value)}><option value="">Choose an active workflow</option>{workflows.filter((workflow) => workflow.activeVersion).map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title}</option>)}</select></label><button className="workflow-create" disabled={!receiptWorkflowId || state === "creating"} onClick={() => void saveReceipt()} type="button">Save confirmed receipt</button></div>}
       <div className="workflow-review" aria-label="Saved run receipt history">
         <strong>Review saved receipts</strong>
         <label>Active workflow<select value={historyWorkflowId} onChange={(event) => { setHistoryWorkflowId(event.target.value); setReceiptHistory(null); }}><option value="">Choose an active workflow</option>{workflows.filter((workflow) => workflow.activeVersion).map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title}</option>)}</select></label>
@@ -485,7 +512,7 @@ export default function WorkflowCatalog() {
         <label>Report path<input value={path} onChange={(event) => setPath(event.target.value)} maxLength={2048} required /></label>
         <button className="workflow-create" disabled={state === "creating" || state === "publishing"} type="submit">{state === "creating" ? "Creating draft…" : "Create reviewed draft"}</button>
       </form>
-      {draft && <aside className="workflow-review" aria-label="Draft review"><strong>Server-confirmed draft · version {draft.version}</strong><span>{draft.title}</span><div className="workflow-review-details"><p><b>Approved domain:</b> {draft.allowedDomains.join(", ")}</p><ol>{draft.steps.map((step) => <li key={step.id}><b>{step.kind}</b> — {step.name}<small>{step.domain}{step.path} · {step.expectedOutcome}</small></li>)}</ol><p>{previewState === "passed" ? "Policy preview passed." : "Run a server policy preview before publishing."}</p></div><div className="workflow-review-actions"><button disabled={previewState === "running" || state === "publishing"} onClick={() => void previewDraft()} type="button">{previewState === "running" ? "Checking policy…" : "Run policy preview"}</button><button disabled={previewState !== "passed" || state === "publishing"} onClick={() => void publishDraft()} type="button">Publish reviewed draft</button></div></aside>}
+      {draft && <aside className="workflow-review" aria-label="Draft review"><strong>Server-confirmed draft · version {draft.version}</strong><span>{draft.title}</span><div className="workflow-review-details"><p><b>Approved domain:</b> {draft.allowedDomains.join(", ")}</p><ol>{draft.steps.map((step) => <li key={step.id}><b>{step.kind}</b> — {step.name}<small>{step.domain}{step.path} · {step.expectedOutcome}</small></li>)}</ol><p>{previewState === "passed" ? "Policy preview passed." : "Run a server policy preview before publishing."}</p><p>{draft.testRunVerified ? "A completed local test receipt is confirmed for this version." : "Import and confirm one completed local test receipt before publishing."}</p></div><div className="workflow-review-actions"><button disabled={previewState === "running" || state === "publishing"} onClick={() => void previewDraft()} type="button">{previewState === "running" ? "Checking policy…" : "Run policy preview"}</button><button disabled={previewState !== "passed" || !draft.testRunVerified || state === "publishing"} onClick={() => void publishDraft()} type="button">Publish reviewed draft</button></div></aside>}
       {auditWorkflowId && <a className="workflow-review-link" download href={`${apiBaseUrl}/api/v1/workflows/${auditWorkflowId}/audit-events/export`}>Download selected audit JSON</a>}
       <p className="workflow-feedback" aria-live="polite" data-state={state}>{message}</p>
       {workflows.length === 0 ? <p className="workflow-empty">No workflows yet. The safe report-download template is ready when you are.</p> : <ul className="workflow-list">{workflows.map((workflow) => <li key={workflow.id}><span><strong>{workflow.title}</strong><small>{workflow.activeVersion ? `Active version ${workflow.activeVersion}` : "Not active"}</small></span><b>{workflow.activeVersion ? "Active" : "Not active"}</b></li>)}</ul>}
