@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
 type CatalogState = "loading" | "ready" | "signed-out" | "unavailable" | "creating" | "publishing" | "error";
 type Workflow = { id: string; title: string; activeVersion: number | null; updatedAt: string };
@@ -32,6 +32,9 @@ export default function WorkflowCatalog() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [draft, setDraft] = useState<WorkflowVersion | null>(null);
   const [message, setMessage] = useState("");
+  const [title, setTitle] = useState("Download weekly sales report");
+  const [domain, setDomain] = useState("reports.example.test");
+  const [path, setPath] = useState("/weekly-report");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -51,7 +54,15 @@ export default function WorkflowCatalog() {
     return () => controller.abort();
   }, []);
 
-  async function createSafeDraft() {
+  async function createSafeDraft(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+    const normalizedDomain = domain.trim().toLowerCase();
+    const normalizedPath = path.trim();
+    if (!title.trim() || !/^(?:[a-z0-9-]+\.)+[a-z]{2,63}$/.test(normalizedDomain) || !normalizedPath.startsWith("/") || normalizedPath.startsWith("//")) {
+      setState("error");
+      setMessage("Enter a title, a valid domain, and a path beginning with one slash.");
+      return;
+    }
     setState("creating");
     setMessage("");
     try {
@@ -60,9 +71,9 @@ export default function WorkflowCatalog() {
         credentials: "include",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
-          title: "Download weekly sales report",
-          allowedDomains: ["reports.example.test"],
-          steps: [{ id: crypto.randomUUID(), kind: "download", name: "Download this week's report", expectedOutcome: "A CSV report is downloaded.", domain: "reports.example.test", path: "/weekly-report" }],
+          title: title.trim(),
+          allowedDomains: [normalizedDomain],
+          steps: [{ id: crypto.randomUUID(), kind: "download", name: "Download reviewed report", expectedOutcome: "A CSV report is downloaded.", domain: normalizedDomain, path: normalizedPath }],
         }),
       });
       const body: unknown = await response.json();
@@ -106,6 +117,12 @@ export default function WorkflowCatalog() {
         <button className="workflow-create" disabled={state === "creating" || state === "publishing"} onClick={() => void createSafeDraft()} type="button">{state === "creating" ? "Creating draft…" : "Create report-download draft"}</button>
       </div>
       <p className="workflow-copy">The only template available in this phase downloads a report from the DoOnce demo domain. It cannot submit, delete, pay, enter credentials, or run on another domain.</p>
+      <form className="workflow-form" onSubmit={(event) => void createSafeDraft(event)}>
+        <label>Workflow name<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={120} required /></label>
+        <label>Approved domain<input value={domain} onChange={(event) => setDomain(event.target.value)} inputMode="url" autoCapitalize="none" maxLength={253} required /></label>
+        <label>Report path<input value={path} onChange={(event) => setPath(event.target.value)} maxLength={2048} required /></label>
+        <button className="workflow-create" disabled={state === "creating" || state === "publishing"} type="submit">{state === "creating" ? "Creating draft…" : "Create reviewed draft"}</button>
+      </form>
       {draft && <aside className="workflow-review" aria-label="Draft review"><strong>Draft ready for review</strong><span>{draft.title}</span><button disabled={state === "publishing"} onClick={() => void publishDraft()} type="button">{state === "publishing" ? "Publishing…" : "Publish reviewed draft"}</button></aside>}
       <p className="workflow-feedback" aria-live="polite" data-state={state}>{message}</p>
       {workflows.length === 0 ? <p className="workflow-empty">No workflows yet. The safe report-download template is ready when you are.</p> : <ul className="workflow-list">{workflows.map((workflow) => <li key={workflow.id}><span><strong>{workflow.title}</strong><small>{workflow.activeVersion ? `Active version ${workflow.activeVersion}` : "Draft"}</small></span><b>{workflow.activeVersion ? "Active" : "Draft"}</b></li>)}</ul>}
