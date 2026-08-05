@@ -9,6 +9,10 @@ function setRecording(recordingOrigins, origin, enabled) {
   return [...origins];
 }
 
-const DoOnceRecordingState = { isRecording, setRecording };
+function removeOriginData(records, origin) {
+  return Array.isArray(records) ? records.filter((record) => record?.origin !== origin) : [];
+}
+
+const DoOnceRecordingState = { isRecording, setRecording, removeOriginData };
 
 if (typeof module !== "undefined") module.exports = DoOnceRecordingState;

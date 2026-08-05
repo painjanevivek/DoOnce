@@ -134,9 +134,9 @@ revokeButton.addEventListener("click", async () => {
   const [captures, recordingOrigins, demoRunReceipts] = await Promise.all([chrome.storage.local.get("doonce.capturedSummaries"), chrome.storage.local.get("doonce.recordingOrigins"), chrome.storage.local.get("doonce.demoRunReceipts")]);
   await chrome.storage.local.set({
     "doonce.consentedOrigins": allowedOrigins,
-    "doonce.capturedSummaries": (captures["doonce.capturedSummaries"] ?? []).filter((summary) => summary.origin !== currentOrigin),
+    "doonce.capturedSummaries": DoOnceRecordingState.removeOriginData(captures["doonce.capturedSummaries"], currentOrigin),
     "doonce.recordingOrigins": DoOnceRecordingState.setRecording(recordingOrigins["doonce.recordingOrigins"], currentOrigin, false),
-    "doonce.demoRunReceipts": (demoRunReceipts["doonce.demoRunReceipts"] ?? []).filter((receipt) => receipt?.origin !== currentOrigin),
+    "doonce.demoRunReceipts": DoOnceRecordingState.removeOriginData(demoRunReceipts["doonce.demoRunReceipts"], currentOrigin),
   });
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (tab?.id) await chrome.tabs.sendMessage(tab.id, { type: "doonce.stop-capture" }).catch(() => undefined);
