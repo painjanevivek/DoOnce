@@ -4,9 +4,9 @@ import Link from "next/link";
 import { type FormEvent, useEffect, useState } from "react";
 
 type CatalogState = "loading" | "ready" | "signed-out" | "unavailable" | "creating" | "publishing" | "error";
-type Workflow = { id: string; title: string; activeVersion: number | null; updatedAt: string };
+type Workflow = { id: string; title: string; activeVersion: number | null; draftVersion: number | null; updatedAt: string };
 type WorkflowVersion = { id: string; title: string; version: number };
-type WorkflowReview = WorkflowVersion & { status: "draft"; allowedDomains: string[]; steps: Array<{ id: string; kind: string; name: string; expectedOutcome: string; domain: string; path: string }>; testRunVerified: boolean };
+type WorkflowReview = WorkflowVersion & { status: "draft"; allowedDomains: string[]; steps: Array<{ id: string; kind: string; name: string; expectedOutcome: string; domain: string; path: string }>; policyPreviewed: boolean; testRunVerified: boolean };
 type SafeCaptureSummary = { origin: string; path?: string; eventKind: "click" | "change" | "input"; selector: string };
 type PauseReason = "changed-page" | "slow-network" | "unknown";
 type LocalReceipt = { id: string; origin: string; outcome: "completed" | "paused"; pauseReason?: PauseReason; finishedAt: string };
@@ -60,7 +60,7 @@ function isSupportedDemoCapture(summaries: SafeCaptureSummary[]): boolean {
 function isWorkflow(value: unknown): value is Workflow {
   if (typeof value !== "object" || value === null) return false;
   const record = value as Record<string, unknown>;
-  return typeof record.id === "string" && typeof record.title === "string" && (typeof record.activeVersion === "number" || record.activeVersion === null) && typeof record.updatedAt === "string";
+  return typeof record.id === "string" && typeof record.title === "string" && (typeof record.activeVersion === "number" || record.activeVersion === null) && ((typeof record.draftVersion === "number" && Number.isInteger(record.draftVersion) && record.draftVersion > 0) || record.draftVersion === null) && typeof record.updatedAt === "string";
 }
 
 function isWorkflowList(value: unknown): value is { workflows: Workflow[] } {
@@ -78,7 +78,7 @@ function isWorkflowVersionResponse(value: unknown): value is { workflow: Workflo
 function isWorkflowReviewResponse(value: unknown): value is { workflow: WorkflowReview } {
   if (!isWorkflowVersionResponse(value)) return false;
   const workflow = value.workflow as unknown as Record<string, unknown>;
-  return workflow.status === "draft" && typeof workflow.testRunVerified === "boolean" && Array.isArray(workflow.allowedDomains) && workflow.allowedDomains.every((domain) => typeof domain === "string") && Array.isArray(workflow.steps) && workflow.steps.every((step) => typeof step === "object" && step !== null && typeof (step as Record<string, unknown>).name === "string" && typeof (step as Record<string, unknown>).domain === "string" && typeof (step as Record<string, unknown>).path === "string");
+  return workflow.status === "draft" && typeof workflow.policyPreviewed === "boolean" && typeof workflow.testRunVerified === "boolean" && Array.isArray(workflow.allowedDomains) && workflow.allowedDomains.every((domain) => typeof domain === "string") && Array.isArray(workflow.steps) && workflow.steps.every((step) => typeof step === "object" && step !== null && typeof (step as Record<string, unknown>).name === "string" && typeof (step as Record<string, unknown>).domain === "string" && typeof (step as Record<string, unknown>).path === "string");
 }
 
 function isRepairDraftResponse(value: unknown): value is { workflow: WorkflowReview; repair: "reconfirm-safe-step" } {
@@ -153,6 +153,8 @@ export default function WorkflowCatalog() {
   const [domain, setDomain] = useState("reports.example.test");
   const [path, setPath] = useState("/weekly-report");
   const [receipt, setReceipt] = useState<LocalReceipt | null>(null);
+  const [resumeDraftId, setResumeDraftId] = useState("");
+  const [resumeState, setResumeState] = useState<"idle" | "loading">("idle");
   const [receiptWorkflowId, setReceiptWorkflowId] = useState("");
   const [historyWorkflowId, setHistoryWorkflowId] = useState("");
   const [receiptHistory, setReceiptHistory] = useState<StoredReceipt[] | null>(null);
@@ -219,7 +221,7 @@ export default function WorkflowCatalog() {
       if (!reviewResponse.ok || !isWorkflowReviewResponse(reviewBody)) throw new Error("Draft review was not confirmed.");
       setDraft(reviewBody.workflow);
       setPreviewState("idle");
-      setWorkflows((current) => [{ id: body.workflow.id, title: body.workflow.title, activeVersion: null, updatedAt: new Date().toISOString() }, ...current]);
+      setWorkflows((current) => [{ id: body.workflow.id, title: body.workflow.title, activeVersion: null, draftVersion: body.workflow.version, updatedAt: new Date().toISOString() }, ...current]);
       setState("ready");
       setMessage("Safe report-download draft created. Review it before publishing.");
     } catch {
@@ -236,7 +238,8 @@ export default function WorkflowCatalog() {
       const response = await fetch(`${apiBaseUrl}/api/v1/workflows/${draft.id}/preview`, { method: "POST", credentials: "include", headers: { Accept: "application/json" } });
       const body: unknown = await response.json();
       if (!response.ok || !isWorkflowReviewResponse(body) || (body as { preview?: unknown }).preview !== "policy-passed") throw new Error("Preview was not confirmed.");
-      setPreviewState("passed");
+      setDraft(body.workflow);
+      setPreviewState(body.workflow.policyPreviewed ? "passed" : "idle");
       setMessage("Policy preview passed. Review the saved steps once more before publishing.");
     } catch {
       setPreviewState("idle");
@@ -275,8 +278,9 @@ export default function WorkflowCatalog() {
       const response = await fetch(`${apiBaseUrl}/api/v1/workflows/${draft.id}/publish`, { method: "POST", credentials: "include", headers: { Accept: "application/json" } });
       const body: unknown = await response.json();
       if (!response.ok || !isWorkflowVersionResponse(body)) throw new Error("Publication was not confirmed.");
-      setWorkflows((current) => current.map((workflow) => workflow.id === body.workflow.id ? { ...workflow, activeVersion: body.workflow.version } : workflow));
+      setWorkflows((current) => current.map((workflow) => workflow.id === body.workflow.id ? { ...workflow, activeVersion: body.workflow.version, draftVersion: null } : workflow));
       setDraft(null);
+      setResumeDraftId("");
       setState("ready");
       setMessage("Workflow published. It remains limited to the approved report-download step.");
     } catch {
@@ -294,6 +298,26 @@ export default function WorkflowCatalog() {
       setReceipt(latest);
       setMessage(`Local ${latest.outcome} receipt ready for explicit dashboard confirmation.`);
     } catch { setState("error"); setMessage("That file is not a valid local receipt export."); }
+  }
+
+  async function resumeDraft() {
+    if (!resumeDraftId) return;
+    setResumeState("loading");
+    setMessage("");
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/v1/workflows/${resumeDraftId}`, { credentials: "include", headers: { Accept: "application/json" } });
+      const body: unknown = await response.json();
+      if (response.status === 401) return setState("signed-out");
+      if (!response.ok || !isWorkflowReviewResponse(body)) throw new Error("Draft review was not confirmed.");
+      setDraft(body.workflow);
+      setReceipt(null);
+      setPreviewState(body.workflow.policyPreviewed ? "passed" : "idle");
+      setMessage(`Draft version ${body.workflow.version} restored. ${body.workflow.policyPreviewed ? "Its server policy preview remains recorded." : "Run its server policy preview before publishing."}`);
+    } catch {
+      setMessage("This saved draft could not be restored. It remains unpublished.");
+    } finally {
+      setResumeState("idle");
+    }
   }
 
   async function saveReceipt() {
@@ -416,7 +440,8 @@ export default function WorkflowCatalog() {
       if (!response.ok || !isRepairDraftResponse(body)) throw new Error("Repair draft was not confirmed.");
       setDraft(body.workflow);
       setPreviewState("idle");
-      setWorkflows((current) => current.map((workflow) => workflow.id === body.workflow.id ? { ...workflow, updatedAt: new Date().toISOString() } : workflow));
+      setWorkflows((current) => current.map((workflow) => workflow.id === body.workflow.id ? { ...workflow, draftVersion: body.workflow.version, updatedAt: new Date().toISOString() } : workflow));
+      setResumeDraftId(body.workflow.id);
       setRepairWorkflowId("");
       setMessage(`Repair draft version ${body.workflow.version} created. Reconfirm its safe step, run a fresh policy preview, then publish only if you approve it.`);
     } catch {
@@ -465,6 +490,7 @@ export default function WorkflowCatalog() {
       <p className="workflow-copy">The only template available in this phase downloads a report from the DoOnce demo domain. It cannot submit, delete, pay, enter credentials, or run on another domain.</p>
       <label className="workflow-import">Import a local capture for review<input type="file" accept="application/json" onChange={(event) => void importCapture(event.target.files?.[0])} /><small>Optional. This reads a local extension export in your browser; it is not uploaded until you create a draft.</small></label>
       <label className="workflow-import">Import a local run receipt<input type="file" accept="application/json" onChange={(event) => void importReceipt(event.target.files?.[0])} /><small>Receipts remain local until you select an active workflow and confirm saving.</small></label>
+      {workflows.some((workflow) => workflow.draftVersion !== null) && <div className="workflow-review" aria-label="Resume an unpublished draft"><strong>Resume an unpublished draft</strong><label>Saved draft<select value={resumeDraftId} onChange={(event) => setResumeDraftId(event.target.value)}><option value="">Choose a saved draft</option>{workflows.filter((workflow) => workflow.draftVersion !== null).map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title} — version {workflow.draftVersion}</option>)}</select></label><small>Restores the server-confirmed draft and its publication prerequisites. It does not run or publish anything.</small><button disabled={!resumeDraftId || resumeState === "loading"} onClick={() => void resumeDraft()} type="button">{resumeState === "loading" ? "Restoring draft…" : "Resume draft review"}</button></div>}
       <form className="workflow-review workflow-support" aria-label="Report a problem" onSubmit={(event) => void submitSupportReport(event)}>
         <strong>Report a problem</strong>
         <label>Issue category<select value={supportCategory} onChange={(event) => setSupportCategory(event.target.value as SupportReportCategory)}>{supportReportCategories.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}</select></label>
