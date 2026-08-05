@@ -14,10 +14,16 @@
       <p id="origin" class="origin" aria-live="polite">Checking the current tab…</p>
       <p class="explanation">DoOnce records only value-free interaction summaries after your explicit consent. The only available execution is the verified local report download; nothing is sent automatically.</p>
       <p class="boundary"><strong>Never captured:</strong> passwords, OTPs, payment details, or hidden page content.</p>
+      <section class="run-preview" aria-labelledby="run-preview-title">
+        <p class="eyebrow" id="run-preview-title">Pre-run review</p>
+        <p><strong>Action:</strong> download the local weekly-report CSV.</p>
+        <p><strong>Expected result:</strong> a visible download confirmation. DoOnce pauses if it cannot verify it.</p>
+        <label><input id="run-approval" type="checkbox" disabled> I reviewed this local action and approve one run.</label>
+      </section>
       <div class="actions">
         <button id="consent" type="button" disabled>Allow safe capture on this site</button>
         <button id="recording" type="button" class="secondary" disabled>Pause recording</button>
-        <button id="run-demo" type="button" class="secondary" disabled>Run verified local demo download</button>
+        <button id="run-demo" type="button" class="secondary" disabled>Approve and run local demo download</button>
         <button id="export-receipts" type="button" class="secondary" disabled>Export local receipts for dashboard review</button>
         <button id="revoke" type="button" class="secondary" disabled>Remove consent</button>
         <button id="export" type="button" class="secondary" disabled>Export local capture for review</button>

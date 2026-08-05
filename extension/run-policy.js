@@ -20,6 +20,10 @@ function canRunDemo(url, consentedOrigins) {
   }
 }
 
-const DoOnceRunPolicy = { canRunDemo, isConsentableWebOrigin };
+function canStartDemoRun(url, consentedOrigins, approved) {
+  return approved === true && canRunDemo(url, consentedOrigins);
+}
+
+const DoOnceRunPolicy = { canRunDemo, canStartDemoRun, isConsentableWebOrigin };
 
 if (typeof module !== "undefined") module.exports = DoOnceRunPolicy;

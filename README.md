@@ -37,4 +37,5 @@ npm run build
 - Removing extension consent clears that site's local captures, recording state, and local run receipts; data for other sites is retained.
 - Select any workflow in the dashboard to inspect its server-confirmed draft, policy-preview, and publication history.
 - Paused verified runs store a stable, redacted reason code (`changed-page`, `slow-network`, or `unknown`) while the extension shows a clear local explanation.
+- The verified local demo run requires a fresh in-popup review and explicit approval every time. Its preview names the one allowed download and the verification condition before the action can start.
 - After a verified local run completes or pauses, the extension can show one fixed system notification. It never contains page content, origins, selectors, typed values, receipt IDs, or raw errors.

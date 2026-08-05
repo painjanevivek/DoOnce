@@ -6,6 +6,10 @@ h1 { margin: 0; font-size: 24px; line-height: 1.15; }
 .origin { min-height: 22px; margin: 16px 0; color: #1f4325; font-weight: 700; overflow-wrap: anywhere; }
 .explanation, .boundary { color: #4b554c; font-size: 14px; line-height: 1.5; }
 .boundary { border-left: 3px solid #c88719; padding-left: 12px; }
+.run-preview { display: grid; gap: 8px; margin-top: 18px; border: 1px solid #9db9a5; border-radius: 8px; padding: 14px; background: #eef6ef; color: #26342a; font-size: 13px; line-height: 1.45; }
+.run-preview p { margin: 0; }
+.run-preview label { display: flex; gap: 8px; align-items: flex-start; font-weight: 700; }
+.run-preview input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: #275c31; }
 .actions { display: grid; gap: 10px; margin-top: 20px; }
 button { min-height: 44px; border: 1px solid #275c31; border-radius: 8px; background: #275c31; color: #fff; cursor: pointer; font: inherit; font-weight: 700; padding: 10px 12px; }
 button:hover:not(:disabled) { background: #17441f; }

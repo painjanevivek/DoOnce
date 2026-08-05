@@ -17,7 +17,7 @@ Each new summary also includes a bounded relative path. The service worker compa
 
 The recorder rejects password, OTP/security-code, payment, hidden, and file fields. It has no network API calls and does not execute workflow steps. Cloud sync requires a separate reviewed extension-to-API contract.
 
-The one exception is a manual test fixture: after consent, the popup can trigger the local `/demo/reports` CSV download only. The extension checks the exact local path and the fixture's explicit safe-action marker, pauses if the expected confirmation does not appear, and keeps at most 20 redacted receipts in local extension storage. It cannot run a captured workflow or any external site.
+The one exception is a manual test fixture: after consent, the popup presents a pre-run review for the local `/demo/reports` CSV download only. The user must explicitly approve each run. The extension checks the exact local path and the fixture's explicit safe-action marker, pauses if the expected confirmation does not appear, and keeps at most 20 redacted receipts in local extension storage. It cannot run a captured workflow or any external site.
 
 The extension uses Chrome's `notifications` permission only to show one fixed system message when that verified local run completes or pauses. The message contains no origin, page content, selector, typed value, raw error, password, OTP, or receipt identifier. If notifications are unavailable, the receipt and popup result still work normally.
 

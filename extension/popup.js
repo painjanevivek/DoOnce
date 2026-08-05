@@ -3,6 +3,7 @@
 const consentButton = document.querySelector("#consent");
 const recordingButton = document.querySelector("#recording");
 const runDemoButton = document.querySelector("#run-demo");
+const runApprovalInput = document.querySelector("#run-approval");
 const exportReceiptsButton = document.querySelector("#export-receipts");
 const revokeButton = document.querySelector("#revoke");
 const exportButton = document.querySelector("#export");
@@ -17,6 +18,13 @@ let recording = false;
 
 function displayStatus(message) {
   statusElement.textContent = message;
+}
+
+function updateDemoRunAvailability(allowedOrigins) {
+  const available = Boolean(currentTab?.url && DoOnceRunPolicy.canRunDemo(currentTab.url, allowedOrigins));
+  runApprovalInput.disabled = !available;
+  if (!available) runApprovalInput.checked = false;
+  runDemoButton.disabled = !DoOnceRunPolicy.canStartDemoRun(currentTab?.url, allowedOrigins, runApprovalInput.checked);
 }
 
 async function updateCaptureCount() {
@@ -61,7 +69,7 @@ async function loadCurrentOrigin() {
   consentButton.disabled = false;
   recordingButton.disabled = !allowedOrigins.includes(currentOrigin);
   recordingButton.textContent = recording ? "Pause recording" : "Resume recording";
-  runDemoButton.disabled = !DoOnceRunPolicy.canRunDemo(tab.url, allowedOrigins);
+  updateDemoRunAvailability(allowedOrigins);
   revokeButton.disabled = !allowedOrigins.includes(currentOrigin);
   displayStatus(allowedOrigins.includes(currentOrigin) ? (recording ? "This site is approved and recording is active for this tab." : "This site is approved; recording is paused.") : "This site is not approved.");
   await updateCaptureCount();
@@ -79,7 +87,7 @@ consentButton.addEventListener("click", async () => {
   recording = response?.updated === true;
   recordingButton.disabled = !recording;
   recordingButton.textContent = recording ? "Pause recording" : "Resume recording";
-  runDemoButton.disabled = !DoOnceRunPolicy.canRunDemo(currentTab?.url, [currentOrigin]);
+  updateDemoRunAvailability([currentOrigin]);
   revokeButton.disabled = false;
   displayStatus(recording ? "Consent saved locally. Safe, value-free capture is active for this tab only." : "Consent was saved, but recording could not start for this tab.");
   await updateCaptureCount();
@@ -103,13 +111,25 @@ exportReceiptsButton.addEventListener("click", async () => {
 
 runDemoButton.addEventListener("click", async () => {
   if (!currentOrigin || !currentTab?.id) return;
+  if (!DoOnceRunPolicy.canStartDemoRun(currentTab.url, [currentOrigin], runApprovalInput.checked)) return displayStatus("Review the local action and check the approval box before running it.");
   runDemoButton.disabled = true;
+  runApprovalInput.disabled = true;
   exportReceiptsButton.disabled = true;
   displayStatus("Running the verified local download. DoOnce will pause if the expected confirmation is absent.");
-  const result = await chrome.runtime.sendMessage({ type: "doonce.run-demo-download", origin: currentOrigin, tabId: currentTab.id });
+  let result;
+  try {
+    result = await chrome.runtime.sendMessage({ type: "doonce.run-demo-download", origin: currentOrigin, tabId: currentTab.id });
+  } catch {
+    result = { outcome: "paused", reasonCode: "unknown" };
+  }
   await updateRunCount();
-  displayStatus(result?.outcome === "completed" ? "Verified local demo download completed. A redacted local receipt was saved." : `Demo run paused: ${result?.reason ?? "verification failed"}`);
-  runDemoButton.disabled = !DoOnceRunPolicy.canRunDemo(currentTab.url, [currentOrigin]);
+  displayStatus(result?.outcome === "completed" ? "Verified local demo download completed. A redacted local receipt was saved." : `Demo run paused safely: ${DoOnceReceiptView.describePauseReason(result?.reasonCode)}`);
+  runApprovalInput.checked = false;
+  updateDemoRunAvailability([currentOrigin]);
+});
+
+runApprovalInput.addEventListener("change", () => {
+  updateDemoRunAvailability(currentOrigin ? [currentOrigin] : []);
 });
 
 recordingButton.addEventListener("click", async () => {
@@ -145,6 +165,8 @@ revokeButton.addEventListener("click", async () => {
   recordingButton.disabled = true;
   recordingButton.textContent = "Pause recording";
   runDemoButton.disabled = true;
+  runApprovalInput.checked = false;
+  runApprovalInput.disabled = true;
   displayStatus("Consent removed. Local captures and run receipts for this site were cleared.");
   await updateCaptureCount();
 });
