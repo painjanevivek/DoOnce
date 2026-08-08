@@ -12,7 +12,8 @@
     "build:extension": "node extension/build.mjs",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p extension/tsconfig.json",
+    "typecheck": "npm run contracts:verify && tsc --noEmit && tsc --noEmit -p extension/tsconfig.json",
+    "contracts:verify": "node scripts/verify-contracts.mjs",
     "test": "npm run test:extension",
     "test:extension": "npm run build:extension && tsx --test extension/src/*.test.ts app/features/workflows/*.test.ts && node --test extension/controlled-run-harness.test.js",
     "test:e2e": "npm run verify:controlled-runs",
@@ -20,6 +21,8 @@
     "verify:controlled-runs": "npm run build:extension && node extension/verify-controlled-run-evidence.js"
   },
   "dependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "next": "^16.1.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

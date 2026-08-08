@@ -26,7 +26,7 @@ export function isSupportedDemoCapture(actions: RecordedActionSummary[]): boolea
   return actions.every((action) => action.path === "/demo/reports") && actions.some((action) => action.eventKind === "click" && (action.selector === "#download-csv" || action.actionHint === "download"));
 }
 
-export function parseCaptureImport(value: unknown): { format: "doonce.capture.v2"; actions: RecordedActionSummary[]; migratedFromLegacy: boolean } | undefined {
+export function parseCaptureImport(value: unknown): { format: "doonce.capture.v2"; actions: RecordedActionSummary[]; migratedFromLegacy: boolean; workflowSpec?: WorkflowSpec } | undefined {
   if (!isRecord(value)) return undefined;
   const legacy = value.format === "doonce.safe-capture.v1";
   const actions = legacy ? value.summaries : value.format === "doonce.capture.v2" ? value.actions : undefined;
@@ -37,7 +37,9 @@ export function parseCaptureImport(value: unknown): { format: "doonce.capture.v2
     if (!normalized) return undefined;
     parsed.push(normalized);
   }
-  return { format: "doonce.capture.v2", actions: parsed, migratedFromLegacy: legacy };
+  const workflowSpec = value.workflowSpec === undefined ? undefined : validateContract<WorkflowSpec>("WorkflowSpec", value.workflowSpec);
+  if (workflowSpec && !workflowSpec.ok) return undefined;
+  return { format: "doonce.capture.v2", actions: parsed, migratedFromLegacy: legacy, ...(workflowSpec?.ok ? { workflowSpec: workflowSpec.value } : {}) };
 }
 
 export function isWorkflowList(value: unknown): value is { workflows: Workflow[] } {
@@ -148,3 +150,5 @@ function isTimestamp(value: unknown): value is string {
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+import type { WorkflowSpec } from "../../../contracts/protocol";
+import { validateContract } from "../../../contracts/validation";

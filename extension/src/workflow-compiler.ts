@@ -1,6 +1,9 @@
 import type { RecordedActionSummary } from "./capture-export";
+import type { LocatorCandidate, WorkflowSpec, WorkflowStep } from "../../contracts/protocol";
+import { validateContract } from "../../contracts/validation";
 
 export const workflowSpecFormat = "doonce.workflow-spec.v1" as const;
+export const workflowSpecSchemaVersion = 1 as const;
 const locatorPattern = /^(?:#[a-zA-Z][a-zA-Z0-9_-]{0,63}|\[data-doonce-capture-id="[a-z0-9-]{1,64}"\])$/i;
 
 interface CompileOptions {
@@ -8,16 +11,8 @@ interface CompileOptions {
   idFactory?: () => string;
 }
 
-interface CompiledStep {
-  id: string;
-  action: "download" | "ask-approval";
-  name: string;
-  expectedOutcome: string;
-  target: { domain: string; path: string; selector: string };
-}
-
 export type CompileResult =
-  | { ok: true; value: { format: typeof workflowSpecFormat; title: string; allowedDomains: string[]; inputs: []; steps: CompiledStep[] } }
+  | { ok: true; value: WorkflowSpec }
   | { ok: false; errors: string[] };
 
 export function compileRecordedActions(actions: unknown, options: CompileOptions = {}): CompileResult {
@@ -28,19 +23,29 @@ export function compileRecordedActions(actions: unknown, options: CompileOptions
 
   const origin = parseOrigin((actions[0] as Partial<RecordedActionSummary> | undefined)?.origin);
   if (!origin) return { ok: false, errors: ["Capture origin is not supported."] };
-  const steps: CompiledStep[] = [];
+  const steps: WorkflowStep[] = [];
   for (const [index, action] of actions.entries()) {
     if (!isCompilableAction(action, origin)) return { ok: false, errors: [`Capture event ${index + 1} cannot be compiled.`] };
     const download = action.actionHint === "download";
-    steps.push({
-      id: idFactory(),
-      action: download ? "download" : "ask-approval",
-      name: download ? "Download the verified report" : `Review recorded ${action.eventKind}`,
-      expectedOutcome: download ? "The expected report download is confirmed." : "An operator reviews this recorded action before it can run.",
-      target: { domain: origin.hostname, path: action.path, selector: action.selector },
+    steps.push(download ? {
+      id: idFactory(), action: "download", name: "Download the verified report", expectedOutcome: "The expected report download is confirmed.",
+      target: { domain: origin.hostname, path: action.path, locator: { schemaVersion: 1, primary: locatorCandidate(action.selector), fallbacks: [] } },
+    } : {
+      id: idFactory(), action: "ask-approval", name: `Review recorded ${action.eventKind}`, expectedOutcome: "An operator reviews this recorded action before it can run.",
+      prompt: `Review the recorded ${action.eventKind} action.`,
     });
   }
-  return { ok: true, value: { format: workflowSpecFormat, title: title.trim(), allowedDomains: [origin.hostname], inputs: [], steps } };
+  const workflow = { schemaVersion: workflowSpecSchemaVersion, format: workflowSpecFormat, title: title.trim(), allowedDomains: [origin.hostname], inputs: [], steps } satisfies WorkflowSpec;
+  const validation = validateContract<WorkflowSpec>("WorkflowSpec", workflow);
+  return validation.ok ? validation : { ok: false, errors: validation.errors.map((error) => error.message) };
+}
+
+function locatorCandidate(selector: string): LocatorCandidate {
+  const id = /^#([a-zA-Z][a-zA-Z0-9_-]{0,63})$/.exec(selector)?.[1];
+  if (id) return { strategy: "id", value: id, confidence: 0.95 };
+  const captureId = /^\[data-doonce-capture-id="([a-z0-9-]{1,64})"\]$/i.exec(selector)?.[1];
+  if (!captureId) throw new TypeError("The recorded locator cannot be compiled.");
+  return { strategy: "capture-id", value: captureId, confidence: 1 };
 }
 
 function parseOrigin(value: unknown): URL | undefined {

@@ -15,7 +15,9 @@ test("compiles explicit download hints and pauses unclassified actions for revie
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.equal(result.value.format, workflowSpecFormat);
+  assert.equal(result.value.schemaVersion, 1);
   assert.deepEqual(result.value.steps.map((step) => step.action), ["ask-approval", "download"]);
+  assert.equal(result.value.steps[1]?.action === "download" ? result.value.steps[1].target.locator.primary.strategy : undefined, "capture-id");
   assert.equal("value" in result.value.steps[0]!, false);
 });
 
