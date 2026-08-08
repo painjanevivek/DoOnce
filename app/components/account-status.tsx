@@ -18,9 +18,12 @@ function isCurrentUser(value: unknown): value is { user: { email: string; role: 
 export default function AccountStatus() {
   const [state, setState] = useState<AccountState>("checking");
   const [email, setEmail] = useState("");
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 4_000);
+    let active = true;
     async function loadAccount() {
       try {
         const response = await fetch(`${apiBaseUrl}/api/v1/auth/me`, {
@@ -34,12 +37,18 @@ export default function AccountStatus() {
         setEmail(body.user.email);
         setState("signed-in");
       } catch {
-        if (!controller.signal.aborted) setState("unavailable");
+        if (active) setState("unavailable");
+      } finally {
+        window.clearTimeout(timeout);
       }
     }
     void loadAccount();
-    return () => controller.abort();
-  }, []);
+    return () => {
+      active = false;
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [attempt]);
 
   async function signOut() {
     try {
@@ -56,6 +65,6 @@ export default function AccountStatus() {
     return <div className="account-status" aria-live="polite"><span title={email}>Signed in</span><button onClick={() => void signOut()} type="button">Sign out</button></div>;
   }
   if (state === "signed-out") return <Link className="header-action" href="/sign-up">Create workspace</Link>;
-  if (state === "unavailable") return <span className="account-status account-status--unavailable">Account service offline</span>;
+  if (state === "unavailable") return <div className="account-status account-status--unavailable" role="status"><span>Account service offline</span><button onClick={() => { setState("checking"); setAttempt((current) => current + 1); }} type="button">Retry</button></div>;
   return <span className="account-status">Checking account</span>;
 }

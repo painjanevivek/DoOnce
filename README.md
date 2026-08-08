@@ -26,6 +26,7 @@ npm run build
 ## Safety boundary
 
 - Workflows stop when a page or action is uncertain.
+- If the account service is temporarily unavailable, the header stops checking after four seconds and provides an explicit retry without changing session state.
 - After a successful sign-up or sign-in, the account page keeps the confirmation visible and offers one direct link to the authenticated workflow workspace.
 - Passwords, OTPs, payment details, deletion and final submission are outside version 1.
 - Reversible writes need a visible preview and explicit approval.
