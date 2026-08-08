@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AccountStatus from "./components/account-status";
+import LegalFooter from "./components/legal-footer";
 import PolicyServiceStatus from "./components/policy-service-status";
 
 const safetyRules = [
@@ -86,10 +87,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer>
-        <span>DoOnce is built for reviewable, low-risk browser work.</span>
-        <a href="#safety">Safety boundary</a>
-      </footer>
+      <LegalFooter />
     </div>
   );
 }

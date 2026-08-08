@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AccountForm from "../components/account-form";
+import LegalFooter from "../components/legal-footer";
 
 export default function SignUpPage() {
   return (
@@ -22,6 +23,7 @@ export default function SignUpPage() {
         </div>
         <AccountForm />
       </main>
+      <LegalFooter />
     </div>
   );
 }
