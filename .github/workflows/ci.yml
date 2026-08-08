@@ -25,5 +25,6 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test:extension
+      - run: npm run verify:controlled-runs
       - run: npm run build
       - run: docker build --tag doonce-frontend:ci .

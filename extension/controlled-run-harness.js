@@ -5,7 +5,7 @@
 // Chrome API/DOM surface needed for the local demo fixture. It is deliberately
 // separate from production code and records no page content or identifiers.
 const assert = require("node:assert/strict");
-const { randomUUID } = require("node:crypto");
+const { createHash, randomUUID } = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
@@ -15,6 +15,7 @@ const reportDirectory = path.join(extensionDirectory, "..", "docs", "reliability
 const workflowVersion = 1;
 const fixtureOrigin = "http://127.0.0.1:3000";
 const fixtureUrl = `${fixtureOrigin}/demo/reports`;
+const sourceFiles = ["service-worker.js", "demo-runner.js", "run-policy.js", "controlled-run-harness.js"];
 const scenarios = [
   ...Array(30).fill("completed"),
   ...Array(10).fill("changed-page"),
@@ -24,6 +25,10 @@ const scenarios = [
 
 function readExtensionScript(filename) {
   return fs.readFileSync(path.join(extensionDirectory, filename), "utf8");
+}
+
+function sourceDigests() {
+  return Object.fromEntries(sourceFiles.map((filename) => [`extension/${filename}`, createHash("sha256").update(readExtensionScript(filename)).digest("hex")]));
 }
 
 function createStorage() {
@@ -186,7 +191,7 @@ async function runControlledBatch() {
   assert.deepEqual(pauseReasons, { "changed-page": 10, "slow-network": 5, unknown: 5 });
 
   return {
-    reportVersion: 1,
+    reportVersion: 2,
     generatedAt: finishedAt,
     execution: {
       mode: "automated-controlled-local-extension-harness",
@@ -195,6 +200,10 @@ async function runControlledBatch() {
       explicitApprovalRequired: true,
       scriptsExercised: ["extension/service-worker.js", "extension/demo-runner.js", "extension/run-policy.js"],
       note: "The service worker intentionally retains only the latest 20 browser-storage receipts; this harness captures each receipt at its storage write without recording its ID, origin, step metadata, or page data.",
+    },
+    provenance: {
+      sourceDigests: sourceDigests(),
+      assurance: "CI replays this exact source path and rejects this report if any tracked source digest changes.",
     },
     workflow: { version: workflowVersion, label: "local demo fixture" },
     startedAt,
@@ -207,7 +216,8 @@ async function runControlledBatch() {
 
 function toMarkdown(report) {
   const rows = report.runs.map((run) => `| ${run.run} | ${run.workflowVersion} | ${run.outcome} | ${run.pauseReason ?? "—"} | ${run.startedAt} | ${run.finishedAt} |`).join("\n");
-  return `# Controlled local extension run report\n\nGenerated: ${report.generatedAt}\n\nThis is automated, controlled local evidence—not 50 manual user runs or a production/pilot reliability result. It exercises the shipped extension service worker, run policy, and demo runner with explicit approval required for every run.\n\n| Metric | Result |\n| --- | ---: |\n| Run count | ${report.runCount} |\n| Completed | ${report.results.completed} |\n| Paused | ${report.results.paused} |\n| Workflow version | ${report.workflow.version} |\n\n## Pause reasons\n\n| Reason | Count |\n| --- | ---: |\n| Changed page | ${report.results.pauseReasons["changed-page"]} |\n| Slow network | ${report.results.pauseReasons["slow-network"]} |\n| Unknown / message-channel failure | ${report.results.pauseReasons.unknown} |\n\nThe workflow version is the controlled local fixture configuration. Extension receipts themselves deliberately omit workflow identifiers, origins, element selectors, values, and receipt IDs.\n\n## Run ledger\n\n| Run | Workflow version | Result | Pause reason | Started (UTC) | Finished (UTC) |\n| ---: | ---: | --- | --- | --- | --- |\n${rows}\n`;
+  const evidence = Object.entries(report.provenance.sourceDigests).map(([filename, digest]) => `| ${filename} | \`${digest}\` |`).join("\n");
+  return `# Controlled local extension run report\n\nGenerated: ${report.generatedAt}\n\nThis is automated, controlled local evidence—not 50 manual user runs or a production/pilot reliability result. It exercises the shipped extension service worker, run policy, and demo runner with explicit approval required for every run.\n\n| Metric | Result |\n| --- | ---: |\n| Run count | ${report.runCount} |\n| Completed | ${report.results.completed} |\n| Paused | ${report.results.paused} |\n| Workflow version | ${report.workflow.version} |\n\n## Pause reasons\n\n| Reason | Count |\n| --- | ---: |\n| Changed page | ${report.results.pauseReasons["changed-page"]} |\n| Slow network | ${report.results.pauseReasons["slow-network"]} |\n| Unknown / message-channel failure | ${report.results.pauseReasons.unknown} |\n\nThe workflow version is the controlled local fixture configuration. Extension receipts deliberately omit workflow identifiers, origins, element selectors, values, and receipt IDs.\n\n## Evidence binding\n\nCI replays the service worker, run policy, and content runner for the same 50-run matrix. It also rejects this ledger if any source digest below changes. This proves the controlled code path and binds the ledger to that exact source; it does not claim to prove a production or pilot run.\n\n| Source | SHA-256 |\n| --- | --- |\n${evidence}\n\n## Run ledger\n\n| Run | Workflow version | Result | Pause reason | Started (UTC) | Finished (UTC) |\n| ---: | ---: | --- | --- | --- | --- |\n${rows}\n`;
 }
 
 async function main() {
