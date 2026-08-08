@@ -261,6 +261,7 @@ export default function WorkflowCatalog() {
         }),
       });
       const body: unknown = await response.json();
+      if (response.status === 401) return setState("signed-out");
       if (!response.ok || !isWorkflowVersionResponse(body)) throw new Error("Draft was not confirmed.");
       const reviewResponse = await fetch(`${apiBaseUrl}/api/v1/workflows/${body.workflow.id}`, { credentials: "include", headers: { Accept: "application/json" } });
       const reviewBody: unknown = await reviewResponse.json();
@@ -293,6 +294,7 @@ export default function WorkflowCatalog() {
     try {
       const response = await fetch(`${apiBaseUrl}/api/v1/workflows/${draft.id}/preview`, { method: "POST", credentials: "include", headers: { Accept: "application/json" } });
       const body: unknown = await response.json();
+      if (response.status === 401) return setState("signed-out");
       if (!response.ok || !isWorkflowReviewResponse(body) || (body as { preview?: unknown }).preview !== "policy-passed") throw new Error("Preview was not confirmed.");
       setDraft(body.workflow);
       setPreviewState(body.workflow.policyPreviewed ? "passed" : "idle");
@@ -343,6 +345,7 @@ export default function WorkflowCatalog() {
     try {
       const response = await fetch(`${apiBaseUrl}/api/v1/workflows/${draft.id}/publish`, { method: "POST", credentials: "include", headers: { Accept: "application/json" } });
       const body: unknown = await response.json();
+      if (response.status === 401) return setState("signed-out");
       if (!response.ok || !isWorkflowVersionResponse(body)) throw new Error("Publication was not confirmed.");
       setWorkflows((current) => current.map((workflow) => workflow.id === body.workflow.id ? { ...workflow, activeVersion: body.workflow.version, draftVersion: null } : workflow));
       setDraft(null);
@@ -402,6 +405,7 @@ export default function WorkflowCatalog() {
     setState("creating");
     try {
       const response = await fetch(`${apiBaseUrl}/api/v1/workflows/${receiptWorkflowId}/run-receipts/import`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ sourceId: receipt.id, outcome: receipt.outcome, ...(receipt.pauseReason ? { pauseReason: receipt.pauseReason } : {}) }) });
+      if (response.status === 401) return setState("signed-out");
       if (response.status === 409) { setReceipt(null); setState("ready"); setMessage("This receipt was already saved to a workflow."); return; }
       if (!response.ok) throw new Error("Not confirmed");
       setReceipt(null); setState("ready"); setMessage("Receipt saved to the selected active workflow.");
@@ -423,6 +427,7 @@ export default function WorkflowCatalog() {
     try {
       const response = await fetch(`${apiBaseUrl}/api/v1/workflows/${draft.id}/test-receipts/import`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ sourceId: receipt.id, outcome: "completed" }) });
       const body: unknown = await response.json();
+      if (response.status === 401) return setState("signed-out");
       if (response.status === 409) { setReceipt(null); setState("ready"); setMessage("This completed test receipt was already saved for the draft."); return; }
       if (!response.ok || !isDraftTestReceiptResponse(body) || !body.workflow.testRunVerified) throw new Error("Draft test was not confirmed.");
       setDraft(body.workflow);
