@@ -1,10 +1,10 @@
-# DoOnce dashboard
+# DoOnce
 
-The DoOnce dashboard is the user-facing control plane for safe, reviewable browser workflows. It lets users inspect workflow versions, approvals and redacted receipts without hiding actions or granting unsafe defaults. The accompanying extension records only value-free summaries after per-site consent and offers one verified local report-download run.
+DoOnce turns a browser task demonstrated once into an editable, reusable workflow. The dashboard owns workflow authoring, versions, tests, runs, and repairs; the accompanying Chrome extension records demonstrations and executes attended workflows in the user's existing browser session.
 
-## Phase 1 foundation
+## Current alpha foundation
 
-The initial dashboard is a responsive safety shell. It intentionally does not pretend that recording or workflow execution is available before the extension, demo site and policy integration are ready.
+The current vertical slice supports the lifecycle around one local report-download workflow: capture review, draft creation, test evidence, immutable publication, run receipts, disabling, and repair drafts. General recording-to-workflow compilation and execution are planned but are not represented as complete.
 
 ## Local development
 
@@ -25,7 +25,7 @@ npm run build
 
 GitHub Actions runs these checks, including the extension test suite, for pull requests and every push to `main`.
 
-## Safety boundary
+## Current capability boundary
 
 - Workflows stop when a page or action is uncertain.
 - If the account service is temporarily unavailable, the header stops checking after four seconds and provides an explicit retry without changing session state.

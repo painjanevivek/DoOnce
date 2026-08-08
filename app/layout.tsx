@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "DoOnce | Safe workflow control",
-  description: "Reviewable browser workflow automation that stops when it is uncertain.",
+  title: "DoOnce | Browser workflow automation",
+  description: "Demonstrate a browser task once and turn it into an editable, reusable workflow.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

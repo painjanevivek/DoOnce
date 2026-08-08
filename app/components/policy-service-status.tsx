@@ -49,9 +49,9 @@ export default function PolicyServiceStatus() {
   if (state === "checking") {
     return (
       <article className="status-card policy-status" aria-live="polite">
-        <p className="card-label">Policy service</p>
-        <h2>Checking safety rules</h2>
-        <p>Verifying that the server-side policy service is reachable.</p>
+        <p className="card-label">Workflow service</p>
+        <h2>Checking capabilities</h2>
+        <p>Verifying that the workflow API is reachable.</p>
       </article>
     );
   }
@@ -59,9 +59,9 @@ export default function PolicyServiceStatus() {
   if (state === "available") {
     return (
       <article className="status-card policy-status policy-status--available" aria-live="polite">
-        <p className="card-label">Policy service</p>
-        <h2>Safety rules online</h2>
-        <p>Draft review and publication are checked by the server before a workflow can be enabled.</p>
+        <p className="card-label">Workflow service</p>
+        <h2>Workflow API online</h2>
+        <p>Draft creation, testing, publication, and version history are available.</p>
       </article>
     );
   }
@@ -69,18 +69,18 @@ export default function PolicyServiceStatus() {
   if (state === "restricted") {
     return (
       <article className="status-card policy-status policy-status--restricted" role="alert">
-        <p className="card-label">Policy service</p>
+        <p className="card-label">Workflow service</p>
         <h2>Workflow changes paused</h2>
-        <p>The operational safety control is active. Existing workflow details remain visible, but no draft can be created or published.</p>
+        <p>The operational change control is active. Existing workflow details remain visible, but no draft can be created or published.</p>
       </article>
     );
   }
 
   return (
     <article className="status-card policy-status policy-status--unavailable" role="alert">
-      <p className="card-label">Policy service</p>
-      <h2>Safety rules unavailable</h2>
-      <p>Draft review and publication remain unavailable until the server-side policy service is reachable.</p>
+      <p className="card-label">Workflow service</p>
+      <h2>Workflow API unavailable</h2>
+      <p>Draft review and publication remain unavailable until the workflow API is reachable.</p>
       <button type="button" onClick={() => setAttempt((current) => current + 1)}>Check again</button>
     </article>
   );
