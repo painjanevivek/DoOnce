@@ -1,4 +1,4 @@
-/* global chrome */
+/* global chrome, DoOnceWorkflowCompiler */
 
 const consentButton = document.querySelector("#consent");
 const recordingButton = document.querySelector("#recording");
@@ -175,14 +175,15 @@ exportButton.addEventListener("click", async () => {
   if (!currentOrigin) return;
   const stored = await chrome.storage.local.get("doonce.capturedSummaries");
   const summaries = (stored["doonce.capturedSummaries"] ?? []).filter((summary) => summary.origin === currentOrigin);
-  const blob = new Blob([JSON.stringify({ format: "doonce.safe-capture.v1", summaries }, null, 2)], { type: "application/json" });
+  const compiled = DoOnceWorkflowCompiler.compileSafeCapture(summaries);
+  const blob = new Blob([JSON.stringify({ format: "doonce.safe-capture.v1", summaries, ...(compiled.ok ? { workflowSpec: compiled.value } : {}) }, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
   link.download = "doonce-safe-capture.json";
   link.click();
   URL.revokeObjectURL(url);
-  displayStatus("Local review file downloaded. Nothing was sent to DoOnce.");
+  displayStatus(compiled.ok ? "Local review file and safe workflow draft downloaded. Nothing was sent to DoOnce." : "Local review file downloaded. Nothing was sent to DoOnce.");
 });
 
 void loadCurrentOrigin().catch(() => {

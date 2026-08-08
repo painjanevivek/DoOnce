@@ -105,11 +105,12 @@ async function storeCaptureSummary(message, senderOrigin, senderPath) {
   const stored = await chrome.storage.local.get(["doonce.consentedOrigins", "doonce.capturedSummaries"]);
   if (!(stored["doonce.consentedOrigins"] ?? []).includes(senderOrigin)) return;
   const summaries = stored["doonce.capturedSummaries"] ?? [];
-  await chrome.storage.local.set({ "doonce.capturedSummaries": [...summaries, { origin: senderOrigin, path: message.path, ...message.summary }].slice(-50) });
+  const summary = { eventKind: message.summary.eventKind, selector: message.summary.selector, ...(message.summary.actionHint === "download" ? { actionHint: "download" } : {}) };
+  await chrome.storage.local.set({ "doonce.capturedSummaries": [...summaries, { origin: senderOrigin, path: message.path, ...summary }].slice(-50) });
 }
 
 function isSummary(summary) {
-  return summary && ["click", "change", "input"].includes(summary.eventKind) && typeof summary.selector === "string" && summary.selector.length <= 256;
+  return summary && typeof summary === "object" && Object.keys(summary).every((key) => ["eventKind", "selector", "actionHint"].includes(key)) && ["click", "change", "input"].includes(summary.eventKind) && typeof summary.selector === "string" && summary.selector.length <= 256 && (summary.actionHint === undefined || summary.actionHint === "download");
 }
 
 function isSafePath(path) {

@@ -1,6 +1,6 @@
 {
   "reportVersion": 2,
-  "generatedAt": "2026-08-08T22:42:24.644Z",
+  "generatedAt": "2026-08-08T22:52:37.940Z",
   "execution": {
     "mode": "automated-controlled-local-extension-harness",
     "manual": false,
@@ -15,7 +15,7 @@
   },
   "provenance": {
     "sourceDigests": {
-      "extension/service-worker.js": "388fb88718fa916e364f7f2b3316129659c0dd15e1ccd71a385b052aefba2c1c",
+      "extension/service-worker.js": "35ab9a31a0ce2eb21152770c2ecbf50329d0f0e30769e7cd84bc4cb7f2c06159",
       "extension/demo-runner.js": "b5dce309755f047367ca55dab0461bea17cd4f4fc8a2098d43f2b086c5aaf07f",
       "extension/run-policy.js": "e11fc8e2985d110edb3515c8462e72c61a54421491bd9caa40a80cc5b54a7222",
       "extension/controlled-run-harness.js": "9ffc4c6f9fb48ed3b1aa466866549a3d5c7d3842b8e4d32930fc74f5f3e00f08"
@@ -26,8 +26,8 @@
     "version": 1,
     "label": "local demo fixture"
   },
-  "startedAt": "2026-08-08T22:42:21.765Z",
-  "finishedAt": "2026-08-08T22:42:24.644Z",
+  "startedAt": "2026-08-08T22:52:35.057Z",
+  "finishedAt": "2026-08-08T22:52:37.940Z",
   "runCount": 50,
   "results": {
     "completed": 30,
@@ -42,422 +42,422 @@
     {
       "run": 1,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:21.766Z",
+      "startedAt": "2026-08-08T22:52:35.058Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:21.856Z"
+      "finishedAt": "2026-08-08T22:52:35.141Z"
     },
     {
       "run": 2,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:21.856Z",
+      "startedAt": "2026-08-08T22:52:35.142Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:21.934Z"
+      "finishedAt": "2026-08-08T22:52:35.223Z"
     },
     {
       "run": 3,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:21.935Z",
+      "startedAt": "2026-08-08T22:52:35.223Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:22.022Z"
+      "finishedAt": "2026-08-08T22:52:35.317Z"
     },
     {
       "run": 4,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:22.022Z",
+      "startedAt": "2026-08-08T22:52:35.317Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:22.102Z"
+      "finishedAt": "2026-08-08T22:52:35.401Z"
     },
     {
       "run": 5,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:22.102Z",
+      "startedAt": "2026-08-08T22:52:35.401Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:22.185Z"
+      "finishedAt": "2026-08-08T22:52:35.482Z"
     },
     {
       "run": 6,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:22.185Z",
+      "startedAt": "2026-08-08T22:52:35.482Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:22.265Z"
+      "finishedAt": "2026-08-08T22:52:35.564Z"
     },
     {
       "run": 7,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:22.265Z",
+      "startedAt": "2026-08-08T22:52:35.564Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:22.343Z"
+      "finishedAt": "2026-08-08T22:52:35.648Z"
     },
     {
       "run": 8,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:22.343Z",
+      "startedAt": "2026-08-08T22:52:35.648Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:22.426Z"
+      "finishedAt": "2026-08-08T22:52:35.727Z"
     },
     {
       "run": 9,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:22.426Z",
+      "startedAt": "2026-08-08T22:52:35.727Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:22.510Z"
+      "finishedAt": "2026-08-08T22:52:35.810Z"
     },
     {
       "run": 10,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:22.510Z",
+      "startedAt": "2026-08-08T22:52:35.810Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:22.589Z"
+      "finishedAt": "2026-08-08T22:52:35.900Z"
     },
     {
       "run": 11,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:22.589Z",
+      "startedAt": "2026-08-08T22:52:35.900Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:22.668Z"
+      "finishedAt": "2026-08-08T22:52:35.977Z"
     },
     {
       "run": 12,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:22.668Z",
+      "startedAt": "2026-08-08T22:52:35.977Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:22.758Z"
+      "finishedAt": "2026-08-08T22:52:36.060Z"
     },
     {
       "run": 13,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:22.758Z",
+      "startedAt": "2026-08-08T22:52:36.060Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:22.843Z"
+      "finishedAt": "2026-08-08T22:52:36.146Z"
     },
     {
       "run": 14,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:22.843Z",
+      "startedAt": "2026-08-08T22:52:36.146Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:22.927Z"
+      "finishedAt": "2026-08-08T22:52:36.223Z"
     },
     {
       "run": 15,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:22.927Z",
+      "startedAt": "2026-08-08T22:52:36.223Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:23.006Z"
+      "finishedAt": "2026-08-08T22:52:36.306Z"
     },
     {
       "run": 16,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:23.006Z",
+      "startedAt": "2026-08-08T22:52:36.306Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:23.089Z"
+      "finishedAt": "2026-08-08T22:52:36.386Z"
     },
     {
       "run": 17,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:23.089Z",
+      "startedAt": "2026-08-08T22:52:36.386Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:23.168Z"
+      "finishedAt": "2026-08-08T22:52:36.466Z"
     },
     {
       "run": 18,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:23.168Z",
+      "startedAt": "2026-08-08T22:52:36.467Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:23.247Z"
+      "finishedAt": "2026-08-08T22:52:36.543Z"
     },
     {
       "run": 19,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:23.247Z",
+      "startedAt": "2026-08-08T22:52:36.543Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:23.334Z"
+      "finishedAt": "2026-08-08T22:52:36.620Z"
     },
     {
       "run": 20,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:23.334Z",
+      "startedAt": "2026-08-08T22:52:36.620Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:23.410Z"
+      "finishedAt": "2026-08-08T22:52:36.698Z"
     },
     {
       "run": 21,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:23.410Z",
+      "startedAt": "2026-08-08T22:52:36.698Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:23.497Z"
+      "finishedAt": "2026-08-08T22:52:36.777Z"
     },
     {
       "run": 22,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:23.497Z",
+      "startedAt": "2026-08-08T22:52:36.777Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:23.576Z"
+      "finishedAt": "2026-08-08T22:52:36.860Z"
     },
     {
       "run": 23,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:23.576Z",
+      "startedAt": "2026-08-08T22:52:36.860Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:23.652Z"
+      "finishedAt": "2026-08-08T22:52:36.942Z"
     },
     {
       "run": 24,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:23.652Z",
+      "startedAt": "2026-08-08T22:52:36.942Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:23.734Z"
+      "finishedAt": "2026-08-08T22:52:37.022Z"
     },
     {
       "run": 25,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:23.735Z",
+      "startedAt": "2026-08-08T22:52:37.022Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:23.822Z"
+      "finishedAt": "2026-08-08T22:52:37.099Z"
     },
     {
       "run": 26,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:23.822Z",
+      "startedAt": "2026-08-08T22:52:37.100Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:23.905Z"
+      "finishedAt": "2026-08-08T22:52:37.181Z"
     },
     {
       "run": 27,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:23.905Z",
+      "startedAt": "2026-08-08T22:52:37.181Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:23.983Z"
+      "finishedAt": "2026-08-08T22:52:37.261Z"
     },
     {
       "run": 28,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:23.983Z",
+      "startedAt": "2026-08-08T22:52:37.261Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:24.060Z"
+      "finishedAt": "2026-08-08T22:52:37.339Z"
     },
     {
       "run": 29,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:24.060Z",
+      "startedAt": "2026-08-08T22:52:37.339Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:24.139Z"
+      "finishedAt": "2026-08-08T22:52:37.427Z"
     },
     {
       "run": 30,
       "scenario": "completed",
-      "startedAt": "2026-08-08T22:42:24.139Z",
+      "startedAt": "2026-08-08T22:52:37.427Z",
       "workflowVersion": 1,
       "outcome": "completed",
-      "finishedAt": "2026-08-08T22:42:24.224Z"
+      "finishedAt": "2026-08-08T22:52:37.510Z"
     },
     {
       "run": 31,
       "scenario": "changed-page",
-      "startedAt": "2026-08-08T22:42:24.224Z",
+      "startedAt": "2026-08-08T22:52:37.510Z",
       "workflowVersion": 1,
       "outcome": "paused",
       "pauseReason": "changed-page",
-      "finishedAt": "2026-08-08T22:42:24.225Z"
+      "finishedAt": "2026-08-08T22:52:37.512Z"
     },
     {
       "run": 32,
       "scenario": "changed-page",
-      "startedAt": "2026-08-08T22:42:24.225Z",
+      "startedAt": "2026-08-08T22:52:37.512Z",
       "workflowVersion": 1,
       "outcome": "paused",
       "pauseReason": "changed-page",
-      "finishedAt": "2026-08-08T22:42:24.226Z"
+      "finishedAt": "2026-08-08T22:52:37.513Z"
     },
     {
       "run": 33,
       "scenario": "changed-page",
-      "startedAt": "2026-08-08T22:42:24.226Z",
+      "startedAt": "2026-08-08T22:52:37.513Z",
       "workflowVersion": 1,
       "outcome": "paused",
       "pauseReason": "changed-page",
-      "finishedAt": "2026-08-08T22:42:24.227Z"
+      "finishedAt": "2026-08-08T22:52:37.514Z"
     },
     {
       "run": 34,
       "scenario": "changed-page",
-      "startedAt": "2026-08-08T22:42:24.227Z",
+      "startedAt": "2026-08-08T22:52:37.514Z",
       "workflowVersion": 1,
       "outcome": "paused",
       "pauseReason": "changed-page",
-      "finishedAt": "2026-08-08T22:42:24.228Z"
+      "finishedAt": "2026-08-08T22:52:37.515Z"
     },
     {
       "run": 35,
       "scenario": "changed-page",
-      "startedAt": "2026-08-08T22:42:24.228Z",
+      "startedAt": "2026-08-08T22:52:37.515Z",
       "workflowVersion": 1,
       "outcome": "paused",
       "pauseReason": "changed-page",
-      "finishedAt": "2026-08-08T22:42:24.229Z"
+      "finishedAt": "2026-08-08T22:52:37.516Z"
     },
     {
       "run": 36,
       "scenario": "changed-page",
-      "startedAt": "2026-08-08T22:42:24.229Z",
+      "startedAt": "2026-08-08T22:52:37.516Z",
       "workflowVersion": 1,
       "outcome": "paused",
       "pauseReason": "changed-page",
-      "finishedAt": "2026-08-08T22:42:24.231Z"
+      "finishedAt": "2026-08-08T22:52:37.518Z"
     },
     {
       "run": 37,
       "scenario": "changed-page",
-      "startedAt": "2026-08-08T22:42:24.231Z",
+      "startedAt": "2026-08-08T22:52:37.518Z",
       "workflowVersion": 1,
       "outcome": "paused",
       "pauseReason": "changed-page",
-      "finishedAt": "2026-08-08T22:42:24.232Z"
+      "finishedAt": "2026-08-08T22:52:37.519Z"
     },
     {
       "run": 38,
       "scenario": "changed-page",
-      "startedAt": "2026-08-08T22:42:24.232Z",
+      "startedAt": "2026-08-08T22:52:37.519Z",
       "workflowVersion": 1,
       "outcome": "paused",
       "pauseReason": "changed-page",
-      "finishedAt": "2026-08-08T22:42:24.233Z"
+      "finishedAt": "2026-08-08T22:52:37.520Z"
     },
     {
       "run": 39,
       "scenario": "changed-page",
-      "startedAt": "2026-08-08T22:42:24.233Z",
+      "startedAt": "2026-08-08T22:52:37.520Z",
       "workflowVersion": 1,
       "outcome": "paused",
       "pauseReason": "changed-page",
-      "finishedAt": "2026-08-08T22:42:24.234Z"
+      "finishedAt": "2026-08-08T22:52:37.521Z"
     },
     {
       "run": 40,
       "scenario": "changed-page",
-      "startedAt": "2026-08-08T22:42:24.234Z",
+      "startedAt": "2026-08-08T22:52:37.521Z",
       "workflowVersion": 1,
       "outcome": "paused",
       "pauseReason": "changed-page",
-      "finishedAt": "2026-08-08T22:42:24.235Z"
+      "finishedAt": "2026-08-08T22:52:37.521Z"
     },
     {
       "run": 41,
       "scenario": "slow-network",
-      "startedAt": "2026-08-08T22:42:24.235Z",
+      "startedAt": "2026-08-08T22:52:37.521Z",
       "workflowVersion": 1,
       "outcome": "paused",
       "pauseReason": "slow-network",
-      "finishedAt": "2026-08-08T22:42:24.319Z"
+      "finishedAt": "2026-08-08T22:52:37.598Z"
     },
     {
       "run": 42,
       "scenario": "slow-network",
-      "startedAt": "2026-08-08T22:42:24.319Z",
+      "startedAt": "2026-08-08T22:52:37.598Z",
       "workflowVersion": 1,
       "outcome": "paused",
       "pauseReason": "slow-network",
-      "finishedAt": "2026-08-08T22:42:24.397Z"
+      "finishedAt": "2026-08-08T22:52:37.679Z"
     },
     {
       "run": 43,
       "scenario": "slow-network",
-      "startedAt": "2026-08-08T22:42:24.397Z",
+      "startedAt": "2026-08-08T22:52:37.679Z",
       "workflowVersion": 1,
       "outcome": "paused",
       "pauseReason": "slow-network",
-      "finishedAt": "2026-08-08T22:42:24.475Z"
+      "finishedAt": "2026-08-08T22:52:37.761Z"
     },
     {
       "run": 44,
       "scenario": "slow-network",
-      "startedAt": "2026-08-08T22:42:24.475Z",
+      "startedAt": "2026-08-08T22:52:37.761Z",
       "workflowVersion": 1,
       "outcome": "paused",
       "pauseReason": "slow-network",
-      "finishedAt": "2026-08-08T22:42:24.561Z"
+      "finishedAt": "2026-08-08T22:52:37.850Z"
     },
     {
       "run": 45,
       "scenario": "slow-network",
-      "startedAt": "2026-08-08T22:42:24.561Z",
+      "startedAt": "2026-08-08T22:52:37.850Z",
       "workflowVersion": 1,
       "outcome": "paused",
       "pauseReason": "slow-network",
-      "finishedAt": "2026-08-08T22:42:24.638Z"
+      "finishedAt": "2026-08-08T22:52:37.935Z"
     },
     {
       "run": 46,
       "scenario": "unknown",
-      "startedAt": "2026-08-08T22:42:24.639Z",
+      "startedAt": "2026-08-08T22:52:37.935Z",
       "workflowVersion": 1,
       "outcome": "paused",
       "pauseReason": "unknown",
-      "finishedAt": "2026-08-08T22:42:24.640Z"
+      "finishedAt": "2026-08-08T22:52:37.936Z"
     },
     {
       "run": 47,
       "scenario": "unknown",
-      "startedAt": "2026-08-08T22:42:24.640Z",
+      "startedAt": "2026-08-08T22:52:37.936Z",
       "workflowVersion": 1,
       "outcome": "paused",
       "pauseReason": "unknown",
-      "finishedAt": "2026-08-08T22:42:24.641Z"
+      "finishedAt": "2026-08-08T22:52:37.937Z"
     },
     {
       "run": 48,
       "scenario": "unknown",
-      "startedAt": "2026-08-08T22:42:24.641Z",
+      "startedAt": "2026-08-08T22:52:37.937Z",
       "workflowVersion": 1,
       "outcome": "paused",
       "pauseReason": "unknown",
-      "finishedAt": "2026-08-08T22:42:24.642Z"
+      "finishedAt": "2026-08-08T22:52:37.938Z"
     },
     {
       "run": 49,
       "scenario": "unknown",
-      "startedAt": "2026-08-08T22:42:24.642Z",
+      "startedAt": "2026-08-08T22:52:37.938Z",
       "workflowVersion": 1,
       "outcome": "paused",
       "pauseReason": "unknown",
-      "finishedAt": "2026-08-08T22:42:24.643Z"
+      "finishedAt": "2026-08-08T22:52:37.939Z"
     },
     {
       "run": 50,
       "scenario": "unknown",
-      "startedAt": "2026-08-08T22:42:24.643Z",
+      "startedAt": "2026-08-08T22:52:37.939Z",
       "workflowVersion": 1,
       "outcome": "paused",
       "pauseReason": "unknown",
-      "finishedAt": "2026-08-08T22:42:24.644Z"
+      "finishedAt": "2026-08-08T22:52:37.940Z"
     }
   ]
 }

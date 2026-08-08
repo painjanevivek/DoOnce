@@ -18,6 +18,8 @@ test("capture policy excludes protected and hidden fields", () => {
 test("capture policy permits only safe field metadata and value-free event summaries", () => {
   assert.equal(canObserveField(field()), true);
   assert.deepEqual(safeEventSummary("input", "#report-label"), { eventKind: "input", selector: "#report-label" });
+  assert.deepEqual(safeEventSummary("click", "#download", "download"), { eventKind: "click", selector: "#download", actionHint: "download" });
+  assert.equal(safeEventSummary("click", "#download", "submit"), undefined);
   assert.equal(safeEventSummary("keydown", "#report-label"), undefined);
   assert.equal(safePath("/demo/reports"), "/demo/reports");
   assert.equal(safePath("//reports.example"), undefined);

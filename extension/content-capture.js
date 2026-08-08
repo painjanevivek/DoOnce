@@ -9,11 +9,15 @@ function safeSelector(target) {
   return captureId && /^[a-z0-9-]{1,64}$/i.test(captureId) ? `[data-doonce-capture-id="${captureId}"]` : undefined;
 }
 
+function safeActionHint(target) {
+  return target.getAttribute("data-doonce-safe-action") === "download" ? "download" : undefined;
+}
+
 function capture(event) {
   if (!recording || !(event.target instanceof HTMLElement)) return;
   if (["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName) && !DoOnceCapturePolicy.canObserveField(event.target)) return;
   const selector = safeSelector(event.target);
-  const summary = selector ? DoOnceCapturePolicy.safeEventSummary(event.type, selector) : undefined;
+  const summary = selector ? DoOnceCapturePolicy.safeEventSummary(event.type, selector, safeActionHint(event.target)) : undefined;
   const path = DoOnceCapturePolicy.safePath(location.pathname);
   if (summary && path) chrome.runtime.sendMessage({ type: "doonce.capture", origin: location.origin, path, summary });
 }

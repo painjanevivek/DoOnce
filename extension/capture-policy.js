@@ -12,9 +12,10 @@ function canObserveField(field) {
   return !["hidden", "password", "file"].includes(type) && !sensitiveName.test(identity) && !sensitiveAutocomplete.test(autocomplete);
 }
 
-function safeEventSummary(eventKind, selector) {
+function safeEventSummary(eventKind, selector, actionHint) {
   if (!["click", "change", "input"].includes(eventKind)) return undefined;
-  return { eventKind, selector };
+  if (actionHint !== undefined && actionHint !== "download") return undefined;
+  return { eventKind, selector, ...(actionHint === "download" ? { actionHint } : {}) };
 }
 
 function safePath(path) {
