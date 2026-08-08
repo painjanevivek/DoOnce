@@ -145,6 +145,7 @@ function isSupportReportResponse(value: unknown): value is { report: { id: strin
 
 export default function WorkflowCatalog() {
   const [state, setState] = useState<CatalogState>("loading");
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [draft, setDraft] = useState<WorkflowReview | null>(null);
   const [message, setMessage] = useState("");
@@ -176,6 +177,8 @@ export default function WorkflowCatalog() {
 
   useEffect(() => {
     const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 4_000);
+    let active = true;
     async function load() {
       try {
         const response = await fetch(`${apiBaseUrl}/api/v1/workflows`, { credentials: "include", headers: { Accept: "application/json" }, signal: controller.signal });
@@ -185,12 +188,18 @@ export default function WorkflowCatalog() {
         setWorkflows(body.workflows);
         setState("ready");
       } catch {
-        if (!controller.signal.aborted) setState("unavailable");
+        if (active) setState("unavailable");
+      } finally {
+        window.clearTimeout(timeout);
       }
     }
     void load();
-    return () => controller.abort();
-  }, []);
+    return () => {
+      active = false;
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [loadAttempt]);
 
   async function createSafeDraft(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
@@ -485,7 +494,7 @@ export default function WorkflowCatalog() {
 
   if (state === "loading") return <section className="workflow-panel" aria-live="polite"><p className="eyebrow">Workflow catalog</p><h2>Checking your workspace…</h2></section>;
   if (state === "signed-out") return <section className="workflow-panel"><p className="eyebrow">Workflow catalog</p><h2>Sign in to view a workspace.</h2><p>Workflow drafts are never shown until the server confirms your tenant session.</p><Link className="primary-link" href="/sign-up">Create workspace or sign in</Link></section>;
-  if (state === "unavailable") return <section className="workflow-panel workflow-panel--error" role="alert"><p className="eyebrow">Workflow catalog</p><h2>Workspace service unavailable.</h2><p>No workflow details are shown while the account or workflow service cannot be verified.</p></section>;
+  if (state === "unavailable") return <section className="workflow-panel workflow-panel--error" role="alert"><p className="eyebrow">Workflow catalog</p><h2>Workspace service unavailable.</h2><p>No workflow details are shown while the account or workflow service cannot be verified.</p><button onClick={() => { setState("loading"); setLoadAttempt((current) => current + 1); }} type="button">Retry workspace check</button></section>;
 
   return (
     <section className="workflow-panel" aria-labelledby="workflow-title">
