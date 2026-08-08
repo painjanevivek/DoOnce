@@ -23,6 +23,8 @@ npm run typecheck
 npm run build
 ```
 
+GitHub Actions runs these checks, including the extension test suite, for pull requests and every push to `main`.
+
 ## Safety boundary
 
 - Workflows stop when a page or action is uncertain.
