@@ -11,7 +11,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test:extension": "node --test extension/capture-policy.test.js extension/recording-state.test.js extension/run-policy.test.js extension/receipt-view.test.js extension/run-notification.test.js"
+    "test:extension": "node --test extension/capture-policy.test.js extension/recording-state.test.js extension/run-policy.test.js extension/receipt-view.test.js extension/run-notification.test.js",
+    "report:controlled-runs": "node extension/controlled-run-harness.js"
   },
   "dependencies": {
     "next": "^16.1.0",
