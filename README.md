@@ -34,6 +34,7 @@ GitHub Actions runs these checks, including the extension test suite, for pull r
 - Passwords, OTPs, payment details, deletion and final submission are outside version 1.
 - Reversible writes need a visible preview and explicit approval.
 - The extension can consent only HTTPS sites or the explicit local HTTP demo hosts; other URL schemes and public HTTP pages are rejected.
+- The dashboard safety status covers server validation for draft review and publication; the intentionally offline local extension demo remains a separate, manually approved fixture.
 - A local extension receipt remains in the browser until the user explicitly chooses an active workflow and saves it. Saved histories are loaded only for the selected tenant workflow and contain no page content or action values.
 - Before a draft can be published, the dashboard requires a completed local receipt to be confirmed for that exact draft version after its policy preview. A paused receipt never unlocks publication.
 - The runnable pilot draft creator accepts only the local demo report target: `localhost` or `127.0.0.1` at `/demo/reports`. Other imported captures remain review-only until their workflow pattern is implemented and independently reviewed.

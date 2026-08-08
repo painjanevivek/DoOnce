@@ -61,7 +61,7 @@ export default function PolicyServiceStatus() {
       <article className="status-card policy-status policy-status--available" aria-live="polite">
         <p className="card-label">Policy service</p>
         <h2>Safety rules online</h2>
-        <p>Browser actions will be checked by the server before they are ever eligible to run.</p>
+        <p>Draft review and publication are checked by the server before a workflow can be enabled.</p>
       </article>
     );
   }
@@ -80,7 +80,7 @@ export default function PolicyServiceStatus() {
     <article className="status-card policy-status policy-status--unavailable" role="alert">
       <p className="card-label">Policy service</p>
       <h2>Safety rules unavailable</h2>
-      <p>No workflow can be enabled while the server-side policy service is unavailable.</p>
+      <p>Draft review and publication remain unavailable until the server-side policy service is reachable.</p>
       <button type="button" onClick={() => setAttempt((current) => current + 1)}>Check again</button>
     </article>
   );
