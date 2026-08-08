@@ -30,7 +30,7 @@ export default function DemoReportPage() {
       </header>
 
       <section className="demo-intro" aria-labelledby="demo-title">
-        <p className="eyebrow">Safe browser pattern</p>
+        <p className="eyebrow">Controlled browser fixture</p>
         <h1 id="demo-title">Weekly sales report</h1>
         <p>This local-only fixture models a low-risk read-and-download workflow. It has no sign-in, hidden fields, final submission or real customer data.</p>
       </section>

@@ -61,7 +61,7 @@ export default function Home() {
           <WorkflowServiceStatus />
         </section>
 
-        <section className="safety-section" id="workflow" aria-labelledby="workflow-title">
+        <section className="workflow-section" id="workflow" aria-labelledby="workflow-title">
           <div className="section-heading">
             <p className="eyebrow">One workflow artifact</p>
             <h2 id="workflow-title">Every input becomes the same reusable workflow.</h2>

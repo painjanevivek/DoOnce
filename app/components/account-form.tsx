@@ -69,8 +69,8 @@ export default function AccountForm() {
       </div>
       <div className="account-card-intro">
         <p className="eyebrow">Secure account access</p>
-        <h2 id="account-form-title">{mode === "sign-up" ? "Start with a safe workspace." : "Continue to your workspace."}</h2>
-        <p>{mode === "sign-up" ? "Create the first owner account. Workflow creation remains gated by server policy checks and a verified local test." : "Use the account that owns your DoOnce workspace."}</p>
+        <h2 id="account-form-title">{mode === "sign-up" ? "Create your workspace." : "Continue to your workspace."}</h2>
+        <p>{mode === "sign-up" ? "Create the first owner account. Workflow publication requires server capability checks and a verified local test." : "Use the account that owns your DoOnce workspace."}</p>
       </div>
 
       <form className="account-form" onSubmit={submit}>

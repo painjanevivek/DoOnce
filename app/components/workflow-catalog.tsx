@@ -148,7 +148,7 @@ export default function WorkflowCatalog() {
       setPreviewState("idle");
       setWorkflows((current) => [{ id: body.workflow.id, title: body.workflow.title, activeVersion: null, draftVersion: body.workflow.version, updatedAt: new Date().toISOString() }, ...current]);
       setState("ready");
-      setMessage("Safe report-download draft created. Review it before publishing.");
+      setMessage("Report-download draft created. Review it before publishing.");
     } catch {
       setState("error");
       setMessage("The draft was not confirmed. No workflow was enabled.");

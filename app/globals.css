@@ -142,7 +142,7 @@ h2 { margin: 0; font-size: clamp(2rem, 4vw, 3.2rem); }
 .status-card h2 { font-size: 1.6rem; }
 .status-card p:last-child { margin-bottom: 0; color: var(--muted); }
 
-.safety-section { padding: 5rem 0; border-top: 1px solid var(--line); }
+.workflow-section { padding: 5rem 0; border-top: 1px solid var(--line); }
 .section-heading { max-width: 700px; }
 
 .rules-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0; margin: 3rem 0 0; border-top: 1px solid var(--line); border-left: 1px solid var(--line); }

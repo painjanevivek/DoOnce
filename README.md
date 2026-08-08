@@ -34,17 +34,17 @@ GitHub Actions runs these checks, including the extension test suite, for pull r
 - Passwords, OTPs, payment details, deletion and final submission are outside version 1.
 - Reversible writes need a visible preview and explicit approval.
 - The extension can consent only HTTPS sites or the explicit local HTTP demo hosts; other URL schemes and public HTTP pages are rejected.
-- The dashboard safety status covers server validation for draft review and publication; the intentionally offline local extension demo remains a separate, manually approved fixture.
-- The workflow workspace verifies the server safety status before showing tenant details. During a workflow-change freeze, it keeps inspection and emergency disable available but disables draft creation, policy previews, publication, and repair.
+- The dashboard capability status covers server validation for draft review and publication; the intentionally offline local extension demo remains a separate, manually approved fixture.
+- The workflow workspace verifies the server capability status before showing tenant details. During a workflow-change freeze, it keeps inspection and emergency disable available but disables draft creation, capability previews, publication, and repair.
 - The workspace also reads the server-confirmed membership role: owners can perform emergency disables, owners and builders can change workflows, runners can save local run receipts, and reviewers have read-only inspection access.
 - A local extension receipt remains in the browser until the user explicitly chooses an active workflow and saves it. Saved histories are loaded only for the selected tenant workflow and contain no page content or action values.
-- Before a draft can be published, the dashboard requires a completed local receipt to be confirmed for that exact draft version after its policy preview. A paused receipt never unlocks publication.
+- Before a draft can be published, the dashboard requires a completed local receipt to be confirmed for that exact draft version after its capability preview. A paused receipt never unlocks publication.
 - The runnable pilot draft creator accepts only the local demo report target: `localhost` or `127.0.0.1` at `/demo/reports`. Other imported captures remain review-only until their workflow pattern is implemented and independently reviewed.
-- Unpublished drafts can be resumed after a refresh from a tenant-scoped summary. The dashboard restores only server-derived policy-preview and completed-test status; it never treats local browser state as publication proof.
+- Unpublished drafts can be resumed after a refresh from a tenant-scoped summary. The dashboard restores only server-derived capability-preview and completed-test status; it never treats local browser state as publication proof.
 - Imported paused receipts accept only the stable `changed-page`, `slow-network`, or `unknown` reason codes; malformed review files are rejected before they reach the API.
 - Reconfirming an already-saved receipt does not create another record; the dashboard reports that it is already saved.
 - An owner can select and immediately disable one active workflow after an explicit confirmation. The dashboard retains its history; a new reviewed draft is required before it can run again.
-- Creating a repair draft only reconstructs the safe approved step as the next version. It never re-enables a workflow; the new draft needs a fresh policy preview and an explicit publication decision.
+- Creating a repair draft reconstructs the approved step as the next version. It never re-enables a workflow; the new draft needs a fresh capability preview and an explicit publication decision.
 - Any signed-in tenant member can send a categorized problem report from the dashboard. It sends no page content, selector, typed value, attachment, password, OTP, or free-form diagnostic text.
 - A reporter may explicitly include the selected active workflow's server-derived run-health aggregate; it contains only bounded counts and stable pause codes, never receipt IDs or browser data.
 - Support submissions are rate-limited. The dashboard tells users to wait rather than retrying automatically, so a report is never duplicated after a throttled response.
