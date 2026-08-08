@@ -4,4 +4,5 @@ out/
 .env*
 !.env.example
 coverage/
+extension/dist/
 *.tsbuildinfo

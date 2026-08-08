@@ -8,7 +8,7 @@ const path = require("node:path");
 
 const extensionDirectory = __dirname;
 const reportPath = path.join(extensionDirectory, "..", "docs", "reliability", "controlled-local-extension-runs.json");
-const expectedSourceFiles = ["service-worker.js", "demo-runner.js", "run-policy.js", "controlled-run-harness.js"];
+const expectedSourceFiles = ["src/service-worker.ts", "src/demo-runner.ts", "src/run-eligibility.ts", "controlled-run-harness.js"];
 
 function digest(filename) {
   return createHash("sha256").update(fs.readFileSync(path.join(extensionDirectory, filename))).digest("hex");

@@ -1,14 +1,14 @@
 {
   "manifest_version": 3,
-  "name": "DoOnce Safe Capture",
-  "description": "Consent-first onboarding for reviewed DoOnce browser workflows.",
-  "version": "0.1.0",
+  "name": "DoOnce Browser Automation Extension",
+  "description": "Record, review, and run reusable DoOnce browser workflows.",
+  "version": "0.2.0",
   "action": {
     "default_popup": "popup.html",
-    "default_title": "DoOnce Safe Capture"
+    "default_title": "DoOnce Browser Automation Extension"
   },
   "background": {
-    "service_worker": "service-worker.js"
+    "service_worker": "dist/service-worker.js"
   },
   "permissions": ["activeTab", "storage", "scripting", "notifications"]
 }

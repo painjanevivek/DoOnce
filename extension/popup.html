@@ -4,13 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none';">
-    <title>DoOnce Safe Capture</title>
+    <title>DoOnce Browser Automation Extension</title>
     <link rel="stylesheet" href="popup.css">
   </head>
   <body>
     <main class="panel" aria-labelledby="title">
-      <p class="eyebrow">DoOnce safe capture</p>
-      <h1 id="title">Review a site, then record safely</h1>
+      <p class="eyebrow">DoOnce browser workflow</p>
+      <h1 id="title">Approve a site, then record the task</h1>
       <p id="origin" class="origin" aria-live="polite">Checking the current tab…</p>
       <p class="explanation">DoOnce records only value-free interaction summaries after your explicit consent. The only available execution is the verified local report download; nothing is sent automatically.</p>
       <p class="boundary"><strong>Never captured:</strong> passwords, OTPs, payment details, or hidden page content.</p>
@@ -21,7 +21,7 @@
         <label><input id="run-approval" type="checkbox" disabled> I reviewed this local action and approve one run.</label>
       </section>
       <div class="actions">
-        <button id="consent" type="button" disabled>Allow safe capture on this site</button>
+        <button id="consent" type="button" disabled>Allow recording on this site</button>
         <button id="recording" type="button" class="secondary" disabled>Pause recording</button>
         <button id="run-demo" type="button" class="secondary" disabled>Approve and run local demo download</button>
         <button id="export-receipts" type="button" class="secondary" disabled>Export local receipts for dashboard review</button>
@@ -33,10 +33,6 @@
       <p id="last-run" class="receipt-summary" aria-live="polite">No verified local receipt is available.</p>
       <p id="status" class="status" role="status" aria-live="polite"></p>
     </main>
-    <script src="recording-state.js"></script>
-    <script src="run-policy.js"></script>
-    <script src="receipt-view.js"></script>
-    <script src="workflow-compiler.js"></script>
-    <script src="popup.js"></script>
+    <script src="dist/popup.js"></script>
   </body>
 </html>

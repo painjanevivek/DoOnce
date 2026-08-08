@@ -3,160 +3,36 @@
 import Link from "next/link";
 import { type FormEvent, useEffect, useState } from "react";
 
-type CatalogState = "loading" | "ready" | "signed-out" | "unavailable" | "creating" | "publishing" | "error";
-type Workflow = { id: string; title: string; activeVersion: number | null; draftVersion: number | null; updatedAt: string };
-type WorkflowVersion = { id: string; title: string; version: number };
-type WorkflowReview = WorkflowVersion & { status: "draft"; allowedDomains: string[]; steps: Array<{ id: string; kind: string; name: string; expectedOutcome: string; domain: string; path: string }>; policyPreviewed: boolean; testRunVerified: boolean };
-type SafeCaptureSummary = { origin: string; path?: string; eventKind: "click" | "change" | "input"; selector: string };
-type PauseReason = "changed-page" | "slow-network" | "unknown";
-type LocalReceipt = { id: string; origin: string; outcome: "completed" | "paused"; pauseReason?: PauseReason; finishedAt: string };
-type StoredReceipt = { id: string; outcome: "completed" | "paused"; pauseReason?: PauseReason; workflowVersion: number; finishedAt: string };
-type WorkflowAuditEvent = { id: string; version: number; eventType: "workflow.draft_created" | "workflow.policy_previewed" | "workflow.published" | "workflow.disabled" | "workflow.repair_draft_created"; createdAt: string };
-type SupportReportCategory = "workflow-paused" | "unexpected-result" | "safety-concern" | "other";
-type RunHealth = { workflowVersion: number; sampleSize: number; completedRuns: number; pausedRuns: number; successRate: number; pauseReasons: Partial<Record<PauseReason, number>>; meetsManualReliabilityThreshold: boolean };
-type MembershipRole = "owner" | "builder" | "runner" | "reviewer";
-
-const supportReportCategories: Array<{ value: SupportReportCategory; label: string }> = [
-  { value: "workflow-paused", label: "Workflow paused safely" },
-  { value: "unexpected-result", label: "Unexpected result" },
-  { value: "safety-concern", label: "Safety concern" },
-  { value: "other", label: "Other product problem" },
-];
+import {
+  isCurrentUser,
+  isDisableResponse,
+  isDraftTestReceiptResponse,
+  isLocalReceiptFile,
+  isReceiptHistory,
+  isRepairDraftResponse,
+  isRunHealthResponse,
+  isSupportReportResponse,
+  isSupportedDemoCapture,
+  isSupportedDemoTarget,
+  isWorkflowAuditHistory,
+  isWorkflowCapabilitiesSummary,
+  isWorkflowList,
+  isWorkflowReviewResponse,
+  isWorkflowVersionResponse,
+  parseCaptureImport,
+  supportReportCategories,
+  type CatalogState,
+  type LocalReceipt,
+  type MembershipRole,
+  type RunHealth,
+  type StoredReceipt,
+  type SupportReportCategory,
+  type Workflow,
+  type WorkflowAuditEvent,
+  type WorkflowReview,
+} from "../features/workflows/contracts";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:4000";
-
-function isSupportedDemoTarget(domain: string, path: string): boolean {
-  return (domain === "localhost" || domain === "127.0.0.1") && path === "/demo/reports";
-}
-
-function isSafeCapturePath(value: unknown): value is string {
-  return typeof value === "string" && value.length > 0 && value.length <= 2048 && value.startsWith("/") && !value.startsWith("//") && !value.includes("..");
-}
-
-function isUuid(value: unknown): value is string {
-  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-}
-
-function isTimestamp(value: unknown): value is string {
-  return typeof value === "string" && !Number.isNaN(Date.parse(value));
-}
-
-function isPauseReason(value: unknown): value is PauseReason {
-  return value === "changed-page" || value === "slow-network" || value === "unknown";
-}
-
-function isLocalOrigin(value: string): boolean {
-  try {
-    const origin = new URL(value);
-    return (origin.protocol === "http:" || origin.protocol === "https:") && ["localhost", "127.0.0.1"].includes(origin.hostname);
-  } catch {
-    return false;
-  }
-}
-
-function isSupportedDemoCapture(summaries: SafeCaptureSummary[]): boolean {
-  return summaries.every((summary) => summary.path === "/demo/reports") && summaries.some((summary) => summary.eventKind === "click" && summary.selector === "#download-csv");
-}
-
-function isWorkflow(value: unknown): value is Workflow {
-  if (typeof value !== "object" || value === null) return false;
-  const record = value as Record<string, unknown>;
-  return typeof record.id === "string" && typeof record.title === "string" && (typeof record.activeVersion === "number" || record.activeVersion === null) && ((typeof record.draftVersion === "number" && Number.isInteger(record.draftVersion) && record.draftVersion > 0) || record.draftVersion === null) && typeof record.updatedAt === "string";
-}
-
-function isWorkflowList(value: unknown): value is { workflows: Workflow[] } {
-  return typeof value === "object" && value !== null && Array.isArray((value as Record<string, unknown>).workflows) && (value as { workflows: unknown[] }).workflows.every(isWorkflow);
-}
-
-function isWorkflowSafetySummary(value: unknown): value is { workflowChangesEnabled: boolean } {
-  return typeof value === "object" && value !== null && typeof (value as Record<string, unknown>).workflowChangesEnabled === "boolean";
-}
-
-function isMembershipRole(value: unknown): value is MembershipRole {
-  return value === "owner" || value === "builder" || value === "runner" || value === "reviewer";
-}
-
-function isCurrentUser(value: unknown): value is { user: { role: MembershipRole } } {
-  if (typeof value !== "object" || value === null) return false;
-  const user = (value as Record<string, unknown>).user;
-  return typeof user === "object" && user !== null && isMembershipRole((user as Record<string, unknown>).role);
-}
-
-function isWorkflowVersionResponse(value: unknown): value is { workflow: WorkflowVersion } {
-  if (typeof value !== "object" || value === null) return false;
-  const workflow = (value as Record<string, unknown>).workflow;
-  if (typeof workflow !== "object" || workflow === null) return false;
-  const record = workflow as Record<string, unknown>;
-  return typeof record.id === "string" && typeof record.title === "string" && typeof record.version === "number";
-}
-
-function isWorkflowReviewResponse(value: unknown): value is { workflow: WorkflowReview } {
-  if (!isWorkflowVersionResponse(value)) return false;
-  const workflow = value.workflow as unknown as Record<string, unknown>;
-  return workflow.status === "draft" && typeof workflow.policyPreviewed === "boolean" && typeof workflow.testRunVerified === "boolean" && Array.isArray(workflow.allowedDomains) && workflow.allowedDomains.every((domain) => typeof domain === "string") && Array.isArray(workflow.steps) && workflow.steps.every((step) => typeof step === "object" && step !== null && typeof (step as Record<string, unknown>).name === "string" && typeof (step as Record<string, unknown>).domain === "string" && typeof (step as Record<string, unknown>).path === "string");
-}
-
-function isRepairDraftResponse(value: unknown): value is { workflow: WorkflowReview; repair: "reconfirm-safe-step" } {
-  return isWorkflowReviewResponse(value) && (value as Record<string, unknown>).repair === "reconfirm-safe-step";
-}
-
-function isDraftTestReceiptResponse(value: unknown): value is { workflow: WorkflowReview } {
-  return isWorkflowReviewResponse(value);
-}
-
-function isSafeCaptureFile(value: unknown): value is { format: "doonce.safe-capture.v1"; summaries: SafeCaptureSummary[] } {
-  if (typeof value !== "object" || value === null) return false;
-  const record = value as Record<string, unknown>;
-  return record.format === "doonce.safe-capture.v1" && Array.isArray(record.summaries) && record.summaries.length > 0 && record.summaries.every((summary) => typeof summary === "object" && summary !== null && typeof (summary as Record<string, unknown>).origin === "string" && ((summary as Record<string, unknown>).path === undefined || isSafeCapturePath((summary as Record<string, unknown>).path)) && ["click", "change", "input"].includes((summary as Record<string, unknown>).eventKind as string) && typeof (summary as Record<string, unknown>).selector === "string");
-}
-
-function isLocalReceiptFile(value: unknown): value is { format: "doonce.local-run-receipt.v1"; receipts: LocalReceipt[] } {
-  if (typeof value !== "object" || value === null) return false;
-  const record = value as Record<string, unknown>;
-  return record.format === "doonce.local-run-receipt.v1" && Array.isArray(record.receipts) && record.receipts.length > 0 && record.receipts.every((receipt) => { const item = receipt as Record<string, unknown>; return typeof receipt === "object" && receipt !== null && isUuid(item.id) && typeof item.origin === "string" && isLocalOrigin(item.origin) && ["completed", "paused"].includes(item.outcome as string) && isTimestamp(item.finishedAt) && (item.outcome !== "paused" || isPauseReason(item.pauseReason)); });
-}
-
-function isStoredReceipt(value: unknown): value is StoredReceipt {
-  if (typeof value !== "object" || value === null) return false;
-  const receipt = value as Record<string, unknown>;
-  return isUuid(receipt.id) && ["completed", "paused"].includes(receipt.outcome as string) && typeof receipt.workflowVersion === "number" && Number.isInteger(receipt.workflowVersion) && receipt.workflowVersion > 0 && isTimestamp(receipt.finishedAt) && (receipt.outcome !== "paused" || isPauseReason(receipt.pauseReason));
-}
-
-function isReceiptHistory(value: unknown): value is { receipts: StoredReceipt[] } {
-  return typeof value === "object" && value !== null && Array.isArray((value as Record<string, unknown>).receipts) && (value as { receipts: unknown[] }).receipts.every(isStoredReceipt);
-}
-
-function isRunHealthResponse(value: unknown): value is { health: RunHealth } {
-  if (typeof value !== "object" || value === null) return false;
-  const health = (value as Record<string, unknown>).health;
-  if (typeof health !== "object" || health === null || Array.isArray(health)) return false;
-  const record = health as Record<string, unknown>;
-  const pauseReasons = record.pauseReasons;
-  return typeof record.workflowVersion === "number" && Number.isInteger(record.workflowVersion) && record.workflowVersion > 0 && typeof record.sampleSize === "number" && Number.isInteger(record.sampleSize) && record.sampleSize >= 0 && record.sampleSize <= 50 && typeof record.completedRuns === "number" && Number.isInteger(record.completedRuns) && record.completedRuns >= 0 && typeof record.pausedRuns === "number" && Number.isInteger(record.pausedRuns) && record.pausedRuns >= 0 && record.completedRuns + record.pausedRuns === record.sampleSize && typeof record.successRate === "number" && Number.isInteger(record.successRate) && record.successRate >= 0 && record.successRate <= 100 && typeof record.meetsManualReliabilityThreshold === "boolean" && typeof pauseReasons === "object" && pauseReasons !== null && !Array.isArray(pauseReasons) && Object.entries(pauseReasons).every(([reason, count]) => isPauseReason(reason) && typeof count === "number" && Number.isInteger(count) && count > 0);
-}
-
-function isWorkflowAuditHistory(value: unknown): value is { events: WorkflowAuditEvent[] } {
-  if (typeof value !== "object" || value === null || !Array.isArray((value as Record<string, unknown>).events)) return false;
-  return (value as { events: unknown[] }).events.every((event) => {
-    if (typeof event !== "object" || event === null) return false;
-    const item = event as Record<string, unknown>;
-    return isUuid(item.id) && typeof item.version === "number" && Number.isInteger(item.version) && item.version > 0 && ["workflow.draft_created", "workflow.policy_previewed", "workflow.published", "workflow.disabled", "workflow.repair_draft_created"].includes(item.eventType as string) && isTimestamp(item.createdAt);
-  });
-}
-
-function isDisableResponse(value: unknown): value is { workflowId: string; disabledVersion: number } {
-  if (typeof value !== "object" || value === null) return false;
-  const record = value as Record<string, unknown>;
-  return isUuid(record.workflowId) && typeof record.disabledVersion === "number" && Number.isInteger(record.disabledVersion) && record.disabledVersion > 0;
-}
-
-function isSupportReportResponse(value: unknown): value is { report: { id: string; category: SupportReportCategory; createdAt: string; diagnosticIncluded: boolean } } {
-  if (typeof value !== "object" || value === null) return false;
-  const report = (value as Record<string, unknown>).report;
-  if (typeof report !== "object" || report === null) return false;
-  const record = report as Record<string, unknown>;
-  return isUuid(record.id) && supportReportCategories.some((category) => category.value === record.category) && isTimestamp(record.createdAt) && typeof record.diagnosticIncluded === "boolean";
-}
 
 export default function WorkflowCatalog() {
   const [state, setState] = useState<CatalogState>("loading");
@@ -198,16 +74,16 @@ export default function WorkflowCatalog() {
     let active = true;
     async function load() {
       try {
-        const [response, safetyResponse, accountResponse] = await Promise.all([
+        const [response, capabilitiesResponse, accountResponse] = await Promise.all([
           fetch(`${apiBaseUrl}/api/v1/workflows`, { credentials: "include", headers: { Accept: "application/json" }, signal: controller.signal }),
-          fetch(`${apiBaseUrl}/api/v1/system/safety`, { headers: { Accept: "application/json" }, signal: controller.signal }),
+          fetch(`${apiBaseUrl}/api/v1/system/capabilities`, { headers: { Accept: "application/json" }, signal: controller.signal }),
           fetch(`${apiBaseUrl}/api/v1/auth/me`, { credentials: "include", headers: { Accept: "application/json" }, signal: controller.signal }),
         ]);
         if (response.status === 401 || accountResponse.status === 401) return setState("signed-out");
-        const [body, safety, account]: unknown[] = await Promise.all([response.json(), safetyResponse.json(), accountResponse.json()]);
-        if (!response.ok || !isWorkflowList(body) || !safetyResponse.ok || !isWorkflowSafetySummary(safety) || !accountResponse.ok || !isCurrentUser(account)) return setState("unavailable");
+        const [body, capabilities, account]: unknown[] = await Promise.all([response.json(), capabilitiesResponse.json(), accountResponse.json()]);
+        if (!response.ok || !isWorkflowList(body) || !capabilitiesResponse.ok || !isWorkflowCapabilitiesSummary(capabilities) || !accountResponse.ok || !isCurrentUser(account)) return setState("unavailable");
         setWorkflows(body.workflows);
-        setWorkflowChangesEnabled(safety.workflowChangesEnabled);
+        setWorkflowChangesEnabled(capabilities.workflowChangesEnabled);
         setRole(account.user.role);
         setState("ready");
       } catch {
@@ -228,7 +104,7 @@ export default function WorkflowCatalog() {
   const canImportRunReceipts = canAuthor || role === "runner";
   const canDisable = role === "owner";
 
-  async function createSafeDraft(event?: FormEvent<HTMLFormElement>) {
+  async function createDraftFromCapture(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
     if (!canAuthor) {
       setState("error");
@@ -237,7 +113,7 @@ export default function WorkflowCatalog() {
     }
     if (!workflowChangesEnabled) {
       setState("error");
-      setMessage("Workflow changes are paused by the server safety control. Nothing was created.");
+      setMessage("Workflow changes are paused by the server capability control. Nothing was created.");
       return;
     }
     const normalizedDomain = domain.trim().toLowerCase();
@@ -281,12 +157,12 @@ export default function WorkflowCatalog() {
     if (!draft) return;
     if (!canAuthor) {
       setState("error");
-      setMessage("Your workspace role cannot record a policy preview.");
+      setMessage("Your workspace role cannot record a capability preview.");
       return;
     }
     if (!workflowChangesEnabled) {
       setState("error");
-      setMessage("Workflow changes are paused by the server safety control. This draft was not previewed.");
+      setMessage("Workflow changes are paused by the server capability control. This draft was not previewed.");
       return;
     }
     setPreviewState("running");
@@ -295,14 +171,14 @@ export default function WorkflowCatalog() {
       const response = await fetch(`${apiBaseUrl}/api/v1/workflows/${draft.id}/preview`, { method: "POST", credentials: "include", headers: { Accept: "application/json" } });
       const body: unknown = await response.json();
       if (response.status === 401) return setState("signed-out");
-      if (!response.ok || !isWorkflowReviewResponse(body) || (body as { preview?: unknown }).preview !== "policy-passed") throw new Error("Preview was not confirmed.");
+      if (!response.ok || !isWorkflowReviewResponse(body) || (body as { preview?: unknown }).preview !== "capabilities-passed") throw new Error("Preview was not confirmed.");
       setDraft(body.workflow);
-      setPreviewState(body.workflow.policyPreviewed ? "passed" : "idle");
-      setMessage("Policy preview passed. Review the saved steps once more before publishing.");
+      setPreviewState(body.workflow.capabilitiesPreviewed ? "passed" : "idle");
+      setMessage("Capability preview passed. Review the saved steps once more before publishing.");
     } catch {
       setPreviewState("idle");
       setState("error");
-      setMessage("Policy preview did not pass. Nothing was activated.");
+      setMessage("Capability preview did not pass. Nothing was activated.");
     }
   }
 
@@ -310,17 +186,18 @@ export default function WorkflowCatalog() {
     if (!file || file.size > 128_000) return setMessage("Choose a small DoOnce local review file.");
     try {
       const payload: unknown = JSON.parse(await file.text());
-      if (!isSafeCaptureFile(payload)) throw new Error("Invalid capture file.");
-      const origin = new URL(payload.summaries[0].origin);
-      if (!payload.summaries.every((summary) => summary.origin === origin.origin) || (origin.protocol !== "https:" && origin.hostname !== "localhost" && origin.hostname !== "127.0.0.1")) throw new Error("Unapproved origin.");
+      const capture = parseCaptureImport(payload);
+      if (!capture) throw new Error("Invalid capture file.");
+      const origin = new URL(capture.actions[0]!.origin);
+      if (!capture.actions.every((action) => action.origin === origin.origin) || (origin.protocol !== "https:" && origin.hostname !== "localhost" && origin.hostname !== "127.0.0.1")) throw new Error("Unapproved origin.");
       setDomain(origin.hostname);
-      if (isSupportedDemoCapture(payload.summaries)) {
+      if (isSupportedDemoCapture(capture.actions)) {
         setTitle("Download captured weekly sales report");
         setPath("/demo/reports");
-        setMessage("Recognized the safe local report-download pattern. Its domain and path are ready for review before creating a draft.");
+        setMessage(`${capture.migratedFromLegacy ? "Migrated the legacy capture and recognized" : "Recognized"} the local report-download pattern. Its domain and path are ready for review before creating a draft.`);
       } else {
         setTitle(`Review captured report from ${origin.hostname}`);
-        setMessage(`${payload.summaries.length} local, value-free event summaries imported. This capture is review-only and cannot create a runnable pilot draft until it matches the supported workflow pattern.`);
+        setMessage(`${capture.actions.length} local, value-free event summaries imported. This capture is review-only and cannot create a runnable pilot draft until it matches the supported workflow pattern.`);
       }
     } catch {
       setState("error");
@@ -337,7 +214,7 @@ export default function WorkflowCatalog() {
     }
     if (!workflowChangesEnabled) {
       setState("error");
-      setMessage("Workflow changes are paused by the server safety control. This draft remains unpublished.");
+      setMessage("Workflow changes are paused by the server capability control. This draft remains unpublished.");
       return;
     }
     setState("publishing");
@@ -386,8 +263,8 @@ export default function WorkflowCatalog() {
       if (!response.ok || !isWorkflowReviewResponse(body)) throw new Error("Draft review was not confirmed.");
       setDraft(body.workflow);
       setReceipt(null);
-      setPreviewState(body.workflow.policyPreviewed ? "passed" : "idle");
-      setMessage(`Draft version ${body.workflow.version} restored. ${body.workflow.policyPreviewed ? "Its server policy preview remains recorded." : "Run its server policy preview before publishing."}`);
+      setPreviewState(body.workflow.capabilitiesPreviewed ? "passed" : "idle");
+      setMessage(`Draft version ${body.workflow.version} restored. ${body.workflow.capabilitiesPreviewed ? "Its server capability preview remains recorded." : "Run its server capability preview before publishing."}`);
     } catch {
       setMessage("This saved draft could not be restored. It remains unpublished.");
     } finally {
@@ -527,7 +404,7 @@ export default function WorkflowCatalog() {
       return;
     }
     if (!workflowChangesEnabled) {
-      setMessage("Workflow changes are paused by the server safety control. The existing workflow was not changed.");
+      setMessage("Workflow changes are paused by the server capability control. The existing workflow was not changed.");
       return;
     }
     setRepairState("creating");
@@ -542,7 +419,7 @@ export default function WorkflowCatalog() {
       setWorkflows((current) => current.map((workflow) => workflow.id === body.workflow.id ? { ...workflow, draftVersion: body.workflow.version, updatedAt: new Date().toISOString() } : workflow));
       setResumeDraftId(body.workflow.id);
       setRepairWorkflowId("");
-      setMessage(`Repair draft version ${body.workflow.version} created. Reconfirm its safe step, run a fresh policy preview, then publish only if you approve it.`);
+      setMessage(`Repair draft version ${body.workflow.version} created. Reconfirm its step, run a fresh capability preview, then publish only if you approve it.`);
     } catch {
       setMessage("The repair draft was not confirmed. The existing workflow was not changed or enabled.");
     } finally {
@@ -584,11 +461,11 @@ export default function WorkflowCatalog() {
     <section className="workflow-panel" aria-labelledby="workflow-title">
       <div className="workflow-heading">
         <div><p className="eyebrow">Workflow catalog</p><h2 id="workflow-title">Start with one reviewed template.</h2></div>
-        <button className="workflow-create" disabled={!workflowChangesEnabled || !canAuthor || state === "creating" || state === "publishing"} onClick={() => void createSafeDraft()} type="button">{state === "creating" ? "Creating draft…" : "Create report-download draft"}</button>
+        <button className="workflow-create" disabled={!workflowChangesEnabled || !canAuthor || state === "creating" || state === "publishing"} onClick={() => void createDraftFromCapture()} type="button">{state === "creating" ? "Creating draft…" : "Create report-download draft"}</button>
       </div>
       <p className="workflow-copy">The only template available in this phase downloads a report from the DoOnce demo domain. It cannot submit, delete, pay, enter credentials, or run on another domain.</p>
       {role && <p className="workflow-role" role="status"><strong>{role[0].toUpperCase() + role.slice(1)} access.</strong> {role === "owner" ? "You can create, test, publish, repair, and immediately disable workflows." : role === "builder" ? "You can create, test, publish, and repair drafts. Only an owner can disable an active workflow." : role === "runner" ? "You can inspect workflows and save local run receipts. Workflow changes require an owner or builder." : "You can inspect workflows, receipts, and audit history. Workflow changes and receipt imports require another role."}</p>}
-      {!workflowChangesEnabled && <div className="workflow-review workflow-review--restricted" role="alert"><strong>Workflow changes paused</strong><span>The server safety control is active.</span><small>You can inspect workflows, receipts, and audit history. Creating, previewing, publishing, and repairing drafts is unavailable; owners can still disable an active workflow.</small></div>}
+      {!workflowChangesEnabled && <div className="workflow-review workflow-review--restricted" role="alert"><strong>Workflow changes paused</strong><span>The server capability control is active.</span><small>You can inspect workflows, receipts, and audit history. Creating, previewing, publishing, and repairing drafts is unavailable; owners can still disable an active workflow.</small></div>}
       <label className="workflow-import">Import a local capture for review<input type="file" accept="application/json" onChange={(event) => void importCapture(event.target.files?.[0])} /><small>Optional. This reads a local extension export in your browser; it is not uploaded until you create a draft.</small></label>
       <label className="workflow-import">Import a local run receipt<input type="file" accept="application/json" onChange={(event) => void importReceipt(event.target.files?.[0])} /><small>Receipts remain local until you select an active workflow and confirm saving.</small></label>
       {workflows.some((workflow) => workflow.draftVersion !== null) && <div className="workflow-review" aria-label="Resume an unpublished draft"><strong>Resume an unpublished draft</strong><label>Saved draft<select value={resumeDraftId} onChange={(event) => setResumeDraftId(event.target.value)}><option value="">Choose a saved draft</option>{workflows.filter((workflow) => workflow.draftVersion !== null).map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title} — version {workflow.draftVersion}</option>)}</select></label><small>Restores the server-confirmed draft and its publication prerequisites. It does not run or publish anything.</small><button disabled={!resumeDraftId || resumeState === "loading"} onClick={() => void resumeDraft()} type="button">{resumeState === "loading" ? "Restoring draft…" : "Resume draft review"}</button></div>}
@@ -609,7 +486,7 @@ export default function WorkflowCatalog() {
       <div className="workflow-review workflow-review--repair" aria-label="Create a reviewed repair draft">
         <strong>Review required: repair a workflow</strong>
         <label>Workflow to repair<select value={repairWorkflowId} onChange={(event) => setRepairWorkflowId(event.target.value)}><option value="">Choose a workflow</option>{workflows.map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title}</option>)}</select></label>
-        <small>Creates the next version as a draft from the approved safe step. It does not change or enable the existing workflow.</small>
+        <small>Creates the next version as a draft from the approved step. It does not change or enable the existing workflow.</small>
         <button disabled={!workflowChangesEnabled || !canAuthor || !repairWorkflowId || repairState === "creating"} onClick={() => void createRepairDraft()} type="button">{repairState === "creating" ? "Creating repair draft…" : "Create repair draft"}</button>
       </div>
       <div className="workflow-review" aria-label="Workflow version history">
@@ -624,7 +501,7 @@ export default function WorkflowCatalog() {
         <strong>Review saved receipts</strong>
         <label>Active workflow<select value={historyWorkflowId} onChange={(event) => { setHistoryWorkflowId(event.target.value); setReceiptHistory(null); }}><option value="">Choose an active workflow</option>{workflows.filter((workflow) => workflow.activeVersion).map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title}</option>)}</select></label>
         <button disabled={!historyWorkflowId || historyState === "loading"} onClick={() => void loadReceiptHistory()} type="button">{historyState === "loading" ? "Loading receipts…" : "Load saved receipts"}</button>
-        {receiptHistory && (receiptHistory.length ? <ul className="workflow-list">{receiptHistory.map((savedReceipt) => <li key={savedReceipt.id}><span><strong>{savedReceipt.outcome === "completed" ? "Verified completion" : "Paused safely"}</strong><small>Version {savedReceipt.workflowVersion} · {new Date(savedReceipt.finishedAt).toLocaleString()}{savedReceipt.pauseReason ? ` · ${savedReceipt.pauseReason}` : ""}</small></span><b>{savedReceipt.outcome}</b></li>)}</ul> : <p className="workflow-empty">No saved receipts for this active workflow yet.</p>)}
+        {receiptHistory && (receiptHistory.length ? <ul className="workflow-list">{receiptHistory.map((savedReceipt) => <li key={savedReceipt.id}><span><strong>{savedReceipt.outcome === "completed" ? "Verified completion" : "Paused run"}</strong><small>Version {savedReceipt.workflowVersion} · {new Date(savedReceipt.finishedAt).toLocaleString()}{savedReceipt.pauseReason ? ` · ${savedReceipt.pauseReason}` : ""}</small></span><b>{savedReceipt.outcome}</b></li>)}</ul> : <p className="workflow-empty">No saved receipts for this active workflow yet.</p>)}
       </div>
       <div className="workflow-review workflow-review--health" aria-label="Manual-run reliability evidence">
         <strong>Review manual-run reliability</strong>
@@ -633,17 +510,17 @@ export default function WorkflowCatalog() {
         <button disabled={!healthWorkflowId || healthState === "loading"} onClick={() => void loadRunHealth()} type="button">{healthState === "loading" ? "Loading reliability…" : "Load reliability"}</button>
         {runHealth && <div className="workflow-review-details"><p><b>{runHealth.successRate}% verified</b> · {runHealth.completedRuns} completed, {runHealth.pausedRuns} paused, from {runHealth.sampleSize}/50 recent manual runs.</p><p>{runHealth.meetsManualReliabilityThreshold ? "The 50-run / 90% manual reliability threshold is met. Scheduling remains disabled until a separate review." : "The 50-run / 90% manual reliability threshold is not met. Scheduling remains unavailable."}</p>{Object.keys(runHealth.pauseReasons).length > 0 && <p>Pause reasons: {Object.entries(runHealth.pauseReasons).map(([reason, count]) => `${reason} (${count})`).join(", ")}.</p>}</div>}
       </div>
-      <form className="workflow-form" onSubmit={(event) => void createSafeDraft(event)}>
+      <form className="workflow-form" onSubmit={(event) => void createDraftFromCapture(event)}>
         <label>Workflow name<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={120} required /></label>
         <label>Approved domain<input value={domain} onChange={(event) => setDomain(event.target.value)} inputMode="url" autoCapitalize="none" maxLength={253} required /></label>
         <label>Report path<input value={path} onChange={(event) => setPath(event.target.value)} maxLength={2048} required /></label>
         <small>This pilot creates runnable drafts only for the local demo at <code>localhost</code> or <code>127.0.0.1</code> with <code>/demo/reports</code>.</small>
         <button className="workflow-create" disabled={!workflowChangesEnabled || !canAuthor || state === "creating" || state === "publishing"} type="submit">{state === "creating" ? "Creating draft…" : "Create reviewed draft"}</button>
       </form>
-      {draft && <aside className="workflow-review" aria-label="Draft review"><strong>Server-confirmed draft · version {draft.version}</strong><span>{draft.title}</span><div className="workflow-review-details"><p><b>Approved domain:</b> {draft.allowedDomains.join(", ")}</p><ol>{draft.steps.map((step) => <li key={step.id}><b>{step.kind}</b> — {step.name}<small>{step.domain}{step.path} · {step.expectedOutcome}</small></li>)}</ol><p>{previewState === "passed" ? "Policy preview passed." : "Run a server policy preview before publishing."}</p><p>{draft.testRunVerified ? "A completed local test receipt is confirmed for this version." : "Import and confirm one completed local test receipt before publishing."}</p></div><div className="workflow-review-actions"><button disabled={!workflowChangesEnabled || !canAuthor || previewState === "running" || state === "publishing"} onClick={() => void previewDraft()} type="button">{previewState === "running" ? "Checking policy…" : "Run policy preview"}</button><button disabled={!workflowChangesEnabled || !canAuthor || previewState !== "passed" || !draft.testRunVerified || state === "publishing"} onClick={() => void publishDraft()} type="button">Publish reviewed draft</button></div></aside>}
+      {draft && <aside className="workflow-review" aria-label="Draft review"><strong>Server-confirmed draft · version {draft.version}</strong><span>{draft.title}</span><div className="workflow-review-details"><p><b>Approved domain:</b> {draft.allowedDomains.join(", ")}</p><ol>{draft.steps.map((step) => <li key={step.id}><b>{step.kind}</b> — {step.name}<small>{step.domain}{step.path} · {step.expectedOutcome}</small></li>)}</ol><p>{previewState === "passed" ? "Capability preview passed." : "Run a server capability preview before publishing."}</p><p>{draft.testRunVerified ? "A completed local test receipt is confirmed for this version." : "Import and confirm one completed local test receipt before publishing."}</p></div><div className="workflow-review-actions"><button disabled={!workflowChangesEnabled || !canAuthor || previewState === "running" || state === "publishing"} onClick={() => void previewDraft()} type="button">{previewState === "running" ? "Checking capabilities…" : "Run capability preview"}</button><button disabled={!workflowChangesEnabled || !canAuthor || previewState !== "passed" || !draft.testRunVerified || state === "publishing"} onClick={() => void publishDraft()} type="button">Publish reviewed draft</button></div></aside>}
       {auditWorkflowId && <a className="workflow-review-link" download href={`${apiBaseUrl}/api/v1/workflows/${auditWorkflowId}/audit-events/export`}>Download selected audit JSON</a>}
       <p className="workflow-feedback" aria-live="polite" data-state={state}>{message}</p>
-      {workflows.length === 0 ? <p className="workflow-empty">No workflows yet. The safe report-download template is ready when you are.</p> : <ul className="workflow-list">{workflows.map((workflow) => <li key={workflow.id}><span><strong>{workflow.title}</strong><small>{workflow.activeVersion ? `Active version ${workflow.activeVersion}` : "Not active"}</small></span><b>{workflow.activeVersion ? "Active" : "Not active"}</b></li>)}</ul>}
+      {workflows.length === 0 ? <p className="workflow-empty">No workflows yet. The report-download template is ready when you are.</p> : <ul className="workflow-list">{workflows.map((workflow) => <li key={workflow.id}><span><strong>{workflow.title}</strong><small>{workflow.activeVersion ? `Active version ${workflow.activeVersion}` : "Not active"}</small></span><b>{workflow.activeVersion ? "Active" : "Not active"}</b></li>)}</ul>}
     </section>
   );
 }

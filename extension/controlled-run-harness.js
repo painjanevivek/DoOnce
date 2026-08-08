@@ -11,11 +11,12 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const extensionDirectory = __dirname;
+const builtDirectory = path.join(extensionDirectory, "dist");
 const reportDirectory = path.join(extensionDirectory, "..", "docs", "reliability");
 const workflowVersion = 1;
 const fixtureOrigin = "http://127.0.0.1:3000";
 const fixtureUrl = `${fixtureOrigin}/demo/reports`;
-const sourceFiles = ["service-worker.js", "demo-runner.js", "run-policy.js", "controlled-run-harness.js"];
+const sourceFiles = ["src/service-worker.ts", "src/demo-runner.ts", "src/run-eligibility.ts", "controlled-run-harness.js"];
 const scenarios = [
   ...Array(30).fill("completed"),
   ...Array(10).fill("changed-page"),
@@ -24,11 +25,11 @@ const scenarios = [
 ];
 
 function readExtensionScript(filename) {
-  return fs.readFileSync(path.join(extensionDirectory, filename), "utf8");
+  return fs.readFileSync(path.join(builtDirectory, filename), "utf8");
 }
 
 function sourceDigests() {
-  return Object.fromEntries(sourceFiles.map((filename) => [`extension/${filename}`, createHash("sha256").update(readExtensionScript(filename)).digest("hex")]));
+  return Object.fromEntries(sourceFiles.map((filename) => [`extension/${filename}`, createHash("sha256").update(fs.readFileSync(path.join(extensionDirectory, filename), "utf8")).digest("hex")]));
 }
 
 function createStorage() {
@@ -161,7 +162,7 @@ function createWorkerRun(storage, scenario) {
 }
 
 async function runControlledBatch() {
-  const { canStartDemoRun } = require("./run-policy.js");
+  const { canStartDemoRun } = require("./dist/test/run-eligibility.cjs");
   const storage = createStorage();
   const startedAt = new Date().toISOString();
 
@@ -198,7 +199,7 @@ async function runControlledBatch() {
       manual: false,
       fixture: "local demo reports page",
       explicitApprovalRequired: true,
-      scriptsExercised: ["extension/service-worker.js", "extension/demo-runner.js", "extension/run-policy.js"],
+      scriptsExercised: ["extension/src/service-worker.ts", "extension/src/demo-runner.ts", "extension/src/run-eligibility.ts"],
       note: "The service worker intentionally retains only the latest 20 browser-storage receipts; this harness captures each receipt at its storage write without recording its ID, origin, step metadata, or page data.",
     },
     provenance: {

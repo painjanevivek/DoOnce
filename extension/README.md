@@ -1,28 +1,25 @@
-# DoOnce Safe Capture extension alpha
+# DoOnce Browser Automation Extension
 
-This Manifest V3 extension implements only consent-first onboarding. Load this folder as an unpacked Chrome extension for local testing.
+This Manifest V3 extension records approved browser interactions and runs the controlled local report workflow. Run `npm run build:extension`, then load this folder as an unpacked Chrome extension.
 
 ## Current boundary
 
-- It can read the current tab only while the user opens the extension (`activeTab`).
-- It stores approved origins locally in Chrome extension storage.
-- It does not request broad host permissions.
-- After explicit consent, it injects a recorder into the current tab only. It stores at most 50 local summaries containing an approved origin, event kind, and selector—never a typed value or page content.
+- It reads the current tab only while the user opens the extension (`activeTab`).
+- It stores approved origins in local Chrome extension storage and requests no broad host permissions.
+- It injects the recorder into the current approved tab only and keeps at most 50 local, value-free interaction summaries.
 - It accepts HTTPS origins and the local DoOnce demo (`localhost`/`127.0.0.1`) only.
-- Recording can be paused or resumed explicitly from the popup; a paused site produces no new capture summaries until the user resumes it.
+- Recording can be paused, resumed, or cleared explicitly from the popup.
 
-Each new summary also includes a bounded relative path. The service worker compares it with the sender tab's path before saving; query strings, typed values, and page content are not captured.
+Each summary contains a bounded relative path, event kind, stable locator candidate, and optional supported action hint. The service worker validates the sender origin and path before saving it. Query strings, typed values, and page content are never part of the capture contract.
 
-`capture-policy.js` is the fail-closed capture boundary for the next alpha increment. It permits only field metadata for explicitly safe controls and rejects passwords, OTP/security-code, payment, hidden, and file fields. Event summaries contain an event kind and selector only—never a typed value.
+`src/capture-eligibility.ts` is the fail-closed capture boundary. It rejects password, OTP/security-code, payment, hidden, and file fields. Cloud sync requires a separate reviewed extension-to-API contract.
 
-The recorder rejects password, OTP/security-code, payment, hidden, and file fields. It has no network API calls and does not execute workflow steps. Cloud sync requires a separate reviewed extension-to-API contract.
+The current runner is limited to the local `/demo/reports` CSV fixture. The user approves each run, the extension verifies the expected confirmation, and at most 20 redacted receipts are retained locally. Notifications use fixed text and never reflect raw page or error data.
 
-The one exception is a manual test fixture: after consent, the popup presents a pre-run review for the local `/demo/reports` CSV download only. The user must explicitly approve each run. The extension checks the exact local path and the fixture's explicit safe-action marker, pauses if the expected confirmation does not appear, and keeps at most 20 redacted receipts in local extension storage. It cannot run a captured workflow or any external site.
+Users can explicitly export `doonce.local-run-receipt.v1` receipts for dashboard review. New capture exports use `doonce.capture.v2`. The parser continues to read `doonce.safe-capture.v1` during one migration window, but the extension never writes the legacy format.
 
-The extension uses Chrome's `notifications` permission only to show one fixed system message when that verified local run completes or pauses. The message contains no origin, page content, selector, typed value, raw error, password, OTP, or receipt identifier. If notifications are unavailable, the receipt and popup result still work normally.
+## Build and verification
 
-The popup shows the latest local receipt's outcome, timestamp, and (when paused) one stable reason code. Invalid receipts are excluded before display and export, so it never displays raw page content, selectors, origins, typed values, or unrecognized error text.
-
-Users may explicitly export `doonce.local-run-receipt.v1` JSON for dashboard review. The extension never uploads receipts automatically.
-
-Users may explicitly download a local `doonce.safe-capture.v1` review file and import it into the dashboard. The dashboard validates its format and origin locally, then requires the user to review and create a normal server-validated draft; importing the file does not upload it.
+- `npm run build:extension` creates browser-ready bundles in `extension/dist`.
+- `npm run typecheck` validates the dashboard and strict extension TypeScript projects.
+- `npm run test:extension` builds the extension, runs module tests, and replays the controlled browser bundle harness.

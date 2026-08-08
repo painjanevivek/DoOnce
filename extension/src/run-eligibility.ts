@@ -1,4 +1,5 @@
-function isConsentableWebOrigin(url) {
+export function isConsentableWebOrigin(url: unknown): boolean {
+  if (typeof url !== "string") return false;
   try {
     const parsed = new URL(url);
     return parsed.protocol === "https:" || (parsed.protocol === "http:" && ["localhost", "127.0.0.1"].includes(parsed.hostname));
@@ -7,7 +8,8 @@ function isConsentableWebOrigin(url) {
   }
 }
 
-function canRunDemo(url, consentedOrigins) {
+export function canRunDemo(url: unknown, consentedOrigins: unknown): boolean {
+  if (typeof url !== "string") return false;
   try {
     const parsed = new URL(url);
     return isConsentableWebOrigin(url)
@@ -20,10 +22,6 @@ function canRunDemo(url, consentedOrigins) {
   }
 }
 
-function canStartDemoRun(url, consentedOrigins, approved) {
-  return approved === true && canRunDemo(url, consentedOrigins);
+export function canStartDemoRun(url: unknown, consentedOrigins: unknown, approved: boolean): boolean {
+  return approved && canRunDemo(url, consentedOrigins);
 }
-
-const DoOnceRunPolicy = { canRunDemo, canStartDemoRun, isConsentableWebOrigin };
-
-if (typeof module !== "undefined") module.exports = DoOnceRunPolicy;

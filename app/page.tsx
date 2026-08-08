@@ -1,7 +1,7 @@
 import Link from "next/link";
 import AccountStatus from "./components/account-status";
 import LegalFooter from "./components/legal-footer";
-import PolicyServiceStatus from "./components/policy-service-status";
+import WorkflowServiceStatus from "./components/workflow-service-status";
 
 const workflowCapabilities = [
   ["Record", "Capture meaningful browser actions as one ordered demonstration."],
@@ -58,7 +58,7 @@ export default function Home() {
             <h2>Versioned execution</h2>
             <p>Drafts, published versions, test results, and run history remain inspectable while the general runner is built.</p>
           </article>
-          <PolicyServiceStatus />
+          <WorkflowServiceStatus />
         </section>
 
         <section className="safety-section" id="workflow" aria-labelledby="workflow-title">
