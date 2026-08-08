@@ -219,6 +219,7 @@ th:nth-child(3), th:nth-child(4), td:nth-child(3), td:nth-child(4) { text-align:
 .account-note { margin-top: 1.5rem; margin-bottom: 2rem; font-size: .82rem; }
 
 .workflow-shell { min-height: 100vh; background: var(--paper); }
+.workflow-header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 1rem; }
 .workflow-main { width: min(920px, calc(100% - 2rem)); margin: 0 auto; padding: clamp(4rem, 9vw, 7rem) 0; }
 .workflow-panel { border: 1px solid var(--line); border-radius: .9rem; padding: clamp(1.5rem, 4vw, 3rem); background: var(--panel); }
 .workflow-panel--error { border-color: #dc9d84; background: #fff3ed; }
@@ -302,6 +303,8 @@ th:nth-child(3), th:nth-child(4), td:nth-child(3), td:nth-child(4) { text-align:
   .demo-intro { padding: 3.5rem 0 2rem; }
   .demo-controls { grid-template-columns: 1fr; align-items: stretch; }
   .account-main { grid-template-columns: 1fr; gap: 3rem; padding: 4rem 0; }
+  .account-header { min-height: 0; flex-wrap: wrap; gap: .75rem 1rem; padding: 1rem 0; }
+  .workflow-header-actions { flex: 1 1 200px; flex-wrap: wrap; gap: .6rem 1rem; }
   .account-context h1 { font-size: clamp(3rem, 14vw, 4.6rem); }
   .workflow-heading { align-items: stretch; flex-direction: column; }
   .workflow-heading .workflow-create, .workflow-form .workflow-create { width: 100%; }

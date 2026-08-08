@@ -9,10 +9,11 @@ type FormState = "idle" | "submitting" | "success" | "error";
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:4000";
 
 function errorMessageFor(status: number): string {
-  if (status === 400) return "Check the highlighted requirements and try again.";
+  if (status === 400) return "Check the required fields and try again.";
   if (status === 401) return "Email or password is incorrect.";
   if (status === 409) return "Unable to create this account. Try signing in instead.";
   if (status === 403) return "This browser origin is not approved for authentication.";
+  if (status === 429) return "Too many attempts. Wait one minute before trying again.";
   if (status === 503) return "Authentication is not configured on the service yet.";
   return "We could not complete that request. Please try again.";
 }
