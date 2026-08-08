@@ -51,7 +51,7 @@ export default function Home() {
           <article className="status-card">
             <p className="card-label">Browser recording</p>
             <h2>Demonstrate the task</h2>
-            <p>The extension captures an ordered local action timeline that will become an executable WorkflowSpec.</p>
+            <p>The extension captures an ordered local action timeline and can export an approval-first WorkflowSpec draft for review.</p>
           </article>
           <article className="status-card">
             <p className="card-label">Workflow runs</p>
