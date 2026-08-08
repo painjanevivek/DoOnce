@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 type AccountState = "checking" | "signed-in" | "signed-out" | "unavailable";
@@ -16,6 +17,7 @@ function isCurrentUser(value: unknown): value is { user: { email: string; role: 
 }
 
 export default function AccountStatus() {
+  const router = useRouter();
   const [state, setState] = useState<AccountState>("checking");
   const [email, setEmail] = useState("");
   const [attempt, setAttempt] = useState(0);
@@ -56,6 +58,7 @@ export default function AccountStatus() {
       if (!response.ok) throw new Error("Sign out was not confirmed.");
       setEmail("");
       setState("signed-out");
+      router.replace("/sign-up");
     } catch {
       setState("unavailable");
     }
