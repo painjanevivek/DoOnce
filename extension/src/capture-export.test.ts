@@ -11,7 +11,7 @@ test("writes only capture export v2", () => {
 });
 
 test("reads the legacy v1 fixture into the v2 shape", () => {
-  const { path: _legacyMissingPath, ...legacyAction } = action;
+  const legacyAction = { origin: action.origin, eventKind: action.eventKind, selector: action.selector };
   const result = parseCaptureExport({ format: legacyCaptureExportFormat, summaries: [legacyAction] });
   assert.equal(result.ok, true);
   if (result.ok) {

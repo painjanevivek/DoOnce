@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { type FormEvent, useEffect, useState } from "react";
+import { WorkflowDraftReview } from "../features/workflows/workflow-draft-review";
+import { WorkflowSummaryList } from "../features/workflows/workflow-summary-list";
 
 import {
   isCurrentUser,
@@ -517,10 +519,10 @@ export default function WorkflowCatalog() {
         <small>This pilot creates runnable drafts only for the local demo at <code>localhost</code> or <code>127.0.0.1</code> with <code>/demo/reports</code>.</small>
         <button className="workflow-create" disabled={!workflowChangesEnabled || !canAuthor || state === "creating" || state === "publishing"} type="submit">{state === "creating" ? "Creating draft…" : "Create reviewed draft"}</button>
       </form>
-      {draft && <aside className="workflow-review" aria-label="Draft review"><strong>Server-confirmed draft · version {draft.version}</strong><span>{draft.title}</span><div className="workflow-review-details"><p><b>Approved domain:</b> {draft.allowedDomains.join(", ")}</p><ol>{draft.steps.map((step) => <li key={step.id}><b>{step.kind}</b> — {step.name}<small>{step.domain}{step.path} · {step.expectedOutcome}</small></li>)}</ol><p>{previewState === "passed" ? "Capability preview passed." : "Run a server capability preview before publishing."}</p><p>{draft.testRunVerified ? "A completed local test receipt is confirmed for this version." : "Import and confirm one completed local test receipt before publishing."}</p></div><div className="workflow-review-actions"><button disabled={!workflowChangesEnabled || !canAuthor || previewState === "running" || state === "publishing"} onClick={() => void previewDraft()} type="button">{previewState === "running" ? "Checking capabilities…" : "Run capability preview"}</button><button disabled={!workflowChangesEnabled || !canAuthor || previewState !== "passed" || !draft.testRunVerified || state === "publishing"} onClick={() => void publishDraft()} type="button">Publish reviewed draft</button></div></aside>}
+      {draft && <WorkflowDraftReview canAuthor={canAuthor} draft={draft} onPreview={() => void previewDraft()} onPublish={() => void publishDraft()} previewState={previewState} state={state} workflowChangesEnabled={workflowChangesEnabled} />}
       {auditWorkflowId && <a className="workflow-review-link" download href={`${apiBaseUrl}/api/v1/workflows/${auditWorkflowId}/audit-events/export`}>Download selected audit JSON</a>}
       <p className="workflow-feedback" aria-live="polite" data-state={state}>{message}</p>
-      {workflows.length === 0 ? <p className="workflow-empty">No workflows yet. The report-download template is ready when you are.</p> : <ul className="workflow-list">{workflows.map((workflow) => <li key={workflow.id}><span><strong>{workflow.title}</strong><small>{workflow.activeVersion ? `Active version ${workflow.activeVersion}` : "Not active"}</small></span><b>{workflow.activeVersion ? "Active" : "Not active"}</b></li>)}</ul>}
+      <WorkflowSummaryList workflows={workflows} />
     </section>
   );
 }

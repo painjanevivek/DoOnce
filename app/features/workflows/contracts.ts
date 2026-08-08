@@ -31,8 +31,12 @@ export function parseCaptureImport(value: unknown): { format: "doonce.capture.v2
   const legacy = value.format === "doonce.safe-capture.v1";
   const actions = legacy ? value.summaries : value.format === "doonce.capture.v2" ? value.actions : undefined;
   if (!Array.isArray(actions) || actions.length === 0 || actions.length > 500) return undefined;
-  const parsed = actions.map((action) => normalizeRecordedAction(action, legacy));
-  if (parsed.some((action) => action === undefined)) return undefined;
+  const parsed: RecordedActionSummary[] = [];
+  for (const action of actions) {
+    const normalized = normalizeRecordedAction(action, legacy);
+    if (!normalized) return undefined;
+    parsed.push(normalized);
+  }
   return { format: "doonce.capture.v2", actions: parsed, migratedFromLegacy: legacy };
 }
 
