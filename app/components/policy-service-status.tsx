@@ -20,6 +20,7 @@ export default function PolicyServiceStatus() {
   useEffect(() => {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 4_000);
+    let active = true;
 
     async function checkPolicyService() {
       try {
@@ -31,7 +32,7 @@ export default function PolicyServiceStatus() {
         if (!response.ok || !isSafetySummary(summary)) throw new Error("Policy service returned an invalid response.");
         setState(summary.workflowChangesEnabled ? "available" : "restricted");
       } catch {
-        if (!controller.signal.aborted) setState("unavailable");
+        if (active) setState("unavailable");
       } finally {
         window.clearTimeout(timeout);
       }
@@ -39,6 +40,7 @@ export default function PolicyServiceStatus() {
 
     void checkPolicyService();
     return () => {
+      active = false;
       controller.abort();
       window.clearTimeout(timeout);
     };
