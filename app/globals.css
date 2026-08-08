@@ -229,6 +229,7 @@ th:nth-child(3), th:nth-child(4), td:nth-child(3), td:nth-child(4) { text-align:
 .workflow-create:hover:not(:disabled), .workflow-review button:hover:not(:disabled) { background: var(--accent-dark); }
 .workflow-create:disabled, .workflow-review button:disabled { cursor: wait; opacity: .72; }
 .workflow-copy { max-width: 690px; margin: 1.5rem 0 2rem; color: var(--muted); font-size: 1.05rem; }
+.workflow-role { margin: -1.1rem 0 1.5rem; color: var(--muted); font-size: .92rem; }
 .workflow-import { display: grid; gap: .4rem; margin: 0 0 1rem; color: var(--muted); font-size: .9rem; font-weight: 700; }
 .workflow-import input { max-width: 420px; font: inherit; font-weight: 400; }
 .workflow-import small { font-weight: 400; }

@@ -14,6 +14,7 @@ type StoredReceipt = { id: string; outcome: "completed" | "paused"; pauseReason?
 type WorkflowAuditEvent = { id: string; version: number; eventType: "workflow.draft_created" | "workflow.policy_previewed" | "workflow.published" | "workflow.disabled" | "workflow.repair_draft_created"; createdAt: string };
 type SupportReportCategory = "workflow-paused" | "unexpected-result" | "safety-concern" | "other";
 type RunHealth = { workflowVersion: number; sampleSize: number; completedRuns: number; pausedRuns: number; successRate: number; pauseReasons: Partial<Record<PauseReason, number>>; meetsManualReliabilityThreshold: boolean };
+type MembershipRole = "owner" | "builder" | "runner" | "reviewer";
 
 const supportReportCategories: Array<{ value: SupportReportCategory; label: string }> = [
   { value: "workflow-paused", label: "Workflow paused safely" },
@@ -69,6 +70,16 @@ function isWorkflowList(value: unknown): value is { workflows: Workflow[] } {
 
 function isWorkflowSafetySummary(value: unknown): value is { workflowChangesEnabled: boolean } {
   return typeof value === "object" && value !== null && typeof (value as Record<string, unknown>).workflowChangesEnabled === "boolean";
+}
+
+function isMembershipRole(value: unknown): value is MembershipRole {
+  return value === "owner" || value === "builder" || value === "runner" || value === "reviewer";
+}
+
+function isCurrentUser(value: unknown): value is { user: { role: MembershipRole } } {
+  if (typeof value !== "object" || value === null) return false;
+  const user = (value as Record<string, unknown>).user;
+  return typeof user === "object" && user !== null && isMembershipRole((user as Record<string, unknown>).role);
 }
 
 function isWorkflowVersionResponse(value: unknown): value is { workflow: WorkflowVersion } {
@@ -151,6 +162,7 @@ export default function WorkflowCatalog() {
   const [state, setState] = useState<CatalogState>("loading");
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [workflowChangesEnabled, setWorkflowChangesEnabled] = useState(false);
+  const [role, setRole] = useState<MembershipRole | null>(null);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [draft, setDraft] = useState<WorkflowReview | null>(null);
   const [message, setMessage] = useState("");
@@ -186,16 +198,17 @@ export default function WorkflowCatalog() {
     let active = true;
     async function load() {
       try {
-        const [response, safetyResponse] = await Promise.all([
+        const [response, safetyResponse, accountResponse] = await Promise.all([
           fetch(`${apiBaseUrl}/api/v1/workflows`, { credentials: "include", headers: { Accept: "application/json" }, signal: controller.signal }),
           fetch(`${apiBaseUrl}/api/v1/system/safety`, { headers: { Accept: "application/json" }, signal: controller.signal }),
+          fetch(`${apiBaseUrl}/api/v1/auth/me`, { credentials: "include", headers: { Accept: "application/json" }, signal: controller.signal }),
         ]);
-        if (response.status === 401) return setState("signed-out");
-        const body: unknown = await response.json();
-        const safety: unknown = await safetyResponse.json();
-        if (!response.ok || !isWorkflowList(body) || !safetyResponse.ok || !isWorkflowSafetySummary(safety)) return setState("unavailable");
+        if (response.status === 401 || accountResponse.status === 401) return setState("signed-out");
+        const [body, safety, account]: unknown[] = await Promise.all([response.json(), safetyResponse.json(), accountResponse.json()]);
+        if (!response.ok || !isWorkflowList(body) || !safetyResponse.ok || !isWorkflowSafetySummary(safety) || !accountResponse.ok || !isCurrentUser(account)) return setState("unavailable");
         setWorkflows(body.workflows);
         setWorkflowChangesEnabled(safety.workflowChangesEnabled);
+        setRole(account.user.role);
         setState("ready");
       } catch {
         if (active) setState("unavailable");
@@ -211,8 +224,17 @@ export default function WorkflowCatalog() {
     };
   }, [loadAttempt]);
 
+  const canAuthor = role === "owner" || role === "builder";
+  const canImportRunReceipts = canAuthor || role === "runner";
+  const canDisable = role === "owner";
+
   async function createSafeDraft(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
+    if (!canAuthor) {
+      setState("error");
+      setMessage("Your workspace role can inspect workflows but cannot create drafts.");
+      return;
+    }
     if (!workflowChangesEnabled) {
       setState("error");
       setMessage("Workflow changes are paused by the server safety control. Nothing was created.");
@@ -256,6 +278,11 @@ export default function WorkflowCatalog() {
 
   async function previewDraft() {
     if (!draft) return;
+    if (!canAuthor) {
+      setState("error");
+      setMessage("Your workspace role cannot record a policy preview.");
+      return;
+    }
     setPreviewState("running");
     setMessage("");
     try {
@@ -296,6 +323,11 @@ export default function WorkflowCatalog() {
 
   async function publishDraft() {
     if (!draft) return;
+    if (!canAuthor) {
+      setState("error");
+      setMessage("Your workspace role cannot publish drafts.");
+      return;
+    }
     if (!workflowChangesEnabled) {
       setState("error");
       setMessage("Workflow changes are paused by the server safety control. This draft remains unpublished.");
@@ -357,6 +389,11 @@ export default function WorkflowCatalog() {
 
   async function saveReceipt() {
     if (!receipt || !receiptWorkflowId) return;
+    if (!canImportRunReceipts) {
+      setState("error");
+      setMessage("Your workspace role can review receipts but cannot save them.");
+      return;
+    }
     setState("creating");
     try {
       const response = await fetch(`${apiBaseUrl}/api/v1/workflows/${receiptWorkflowId}/run-receipts/import`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ sourceId: receipt.id, outcome: receipt.outcome, ...(receipt.pauseReason ? { pauseReason: receipt.pauseReason } : {}) }) });
@@ -368,6 +405,11 @@ export default function WorkflowCatalog() {
 
   async function confirmDraftTestReceipt() {
     if (!receipt || !draft) return;
+    if (!canImportRunReceipts) {
+      setState("error");
+      setMessage("Your workspace role can review receipts but cannot confirm draft tests.");
+      return;
+    }
     if (receipt.outcome !== "completed") {
       setMessage("A paused receipt cannot unlock publication. Run the reviewed draft again and confirm a completed receipt.");
       return;
@@ -444,6 +486,10 @@ export default function WorkflowCatalog() {
   }
 
   async function disableActiveWorkflow() {
+    if (!canDisable) {
+      setMessage("Only an owner can disable an active workflow.");
+      return;
+    }
     if (!disableWorkflowId || !window.confirm("Disable this workflow immediately? It will stop accepting new runs, and you can create a new reviewed version later.")) return;
     setDisableState("disabling");
     setMessage("");
@@ -466,6 +512,10 @@ export default function WorkflowCatalog() {
 
   async function createRepairDraft() {
     if (!repairWorkflowId) return;
+    if (!canAuthor) {
+      setMessage("Your workspace role can inspect workflows but cannot create repair drafts.");
+      return;
+    }
     if (!workflowChangesEnabled) {
       setMessage("Workflow changes are paused by the server safety control. The existing workflow was not changed.");
       return;
@@ -524,9 +574,10 @@ export default function WorkflowCatalog() {
     <section className="workflow-panel" aria-labelledby="workflow-title">
       <div className="workflow-heading">
         <div><p className="eyebrow">Workflow catalog</p><h2 id="workflow-title">Start with one reviewed template.</h2></div>
-        <button className="workflow-create" disabled={!workflowChangesEnabled || state === "creating" || state === "publishing"} onClick={() => void createSafeDraft()} type="button">{state === "creating" ? "Creating draft…" : "Create report-download draft"}</button>
+        <button className="workflow-create" disabled={!workflowChangesEnabled || !canAuthor || state === "creating" || state === "publishing"} onClick={() => void createSafeDraft()} type="button">{state === "creating" ? "Creating draft…" : "Create report-download draft"}</button>
       </div>
       <p className="workflow-copy">The only template available in this phase downloads a report from the DoOnce demo domain. It cannot submit, delete, pay, enter credentials, or run on another domain.</p>
+      {role && <p className="workflow-role" role="status"><strong>{role[0].toUpperCase() + role.slice(1)} access.</strong> {role === "owner" ? "You can create, test, publish, repair, and immediately disable workflows." : role === "builder" ? "You can create, test, publish, and repair drafts. Only an owner can disable an active workflow." : role === "runner" ? "You can inspect workflows and save local run receipts. Workflow changes require an owner or builder." : "You can inspect workflows, receipts, and audit history. Workflow changes and receipt imports require another role."}</p>}
       {!workflowChangesEnabled && <div className="workflow-review workflow-review--restricted" role="alert"><strong>Workflow changes paused</strong><span>The server safety control is active.</span><small>You can inspect workflows, receipts, and audit history. Creating, publishing, and repairing drafts is unavailable; owners can still disable an active workflow.</small></div>}
       <label className="workflow-import">Import a local capture for review<input type="file" accept="application/json" onChange={(event) => void importCapture(event.target.files?.[0])} /><small>Optional. This reads a local extension export in your browser; it is not uploaded until you create a draft.</small></label>
       <label className="workflow-import">Import a local run receipt<input type="file" accept="application/json" onChange={(event) => void importReceipt(event.target.files?.[0])} /><small>Receipts remain local until you select an active workflow and confirm saving.</small></label>
@@ -543,13 +594,13 @@ export default function WorkflowCatalog() {
         <strong>Disable an active workflow</strong>
         <label>Active workflow<select value={disableWorkflowId} onChange={(event) => setDisableWorkflowId(event.target.value)}><option value="">Choose an active workflow</option>{workflows.filter((workflow) => workflow.activeVersion).map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title}</option>)}</select></label>
         <small>Owners can stop one workflow immediately. Its version and audit history are retained.</small>
-        <button disabled={!disableWorkflowId || disableState === "disabling"} onClick={() => void disableActiveWorkflow()} type="button">{disableState === "disabling" ? "Disabling workflow…" : "Disable immediately"}</button>
+        <button disabled={!canDisable || !disableWorkflowId || disableState === "disabling"} onClick={() => void disableActiveWorkflow()} type="button">{disableState === "disabling" ? "Disabling workflow…" : "Disable immediately"}</button>
       </div>
       <div className="workflow-review workflow-review--repair" aria-label="Create a reviewed repair draft">
         <strong>Review required: repair a workflow</strong>
         <label>Workflow to repair<select value={repairWorkflowId} onChange={(event) => setRepairWorkflowId(event.target.value)}><option value="">Choose a workflow</option>{workflows.map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title}</option>)}</select></label>
         <small>Creates the next version as a draft from the approved safe step. It does not change or enable the existing workflow.</small>
-        <button disabled={!workflowChangesEnabled || !repairWorkflowId || repairState === "creating"} onClick={() => void createRepairDraft()} type="button">{repairState === "creating" ? "Creating repair draft…" : "Create repair draft"}</button>
+        <button disabled={!workflowChangesEnabled || !canAuthor || !repairWorkflowId || repairState === "creating"} onClick={() => void createRepairDraft()} type="button">{repairState === "creating" ? "Creating repair draft…" : "Create repair draft"}</button>
       </div>
       <div className="workflow-review" aria-label="Workflow version history">
         <strong>Review workflow history</strong>
@@ -557,8 +608,8 @@ export default function WorkflowCatalog() {
         <button disabled={!auditWorkflowId || auditState === "loading"} onClick={() => void loadAuditHistory()} type="button">{auditState === "loading" ? "Loading historyâ€¦" : "Load workflow history"}</button>
         {auditEvents && (auditEvents.length ? <ol className="workflow-list">{auditEvents.map((event) => <li key={event.id}><span><strong>{event.eventType.replace("workflow.", "").replaceAll("_", " ")}</strong><small>Version {event.version} Â· {new Date(event.createdAt).toLocaleString()}</small></span><b>Recorded</b></li>)}</ol> : <p className="workflow-empty">No lifecycle history for this workflow yet.</p>)}
       </div>
-      {receipt && draft && <div className="workflow-review" aria-label="Confirm completed draft test"><strong>Test receipt ready for this draft</strong><span>{receipt.outcome} · {new Date(receipt.finishedAt).toLocaleString()}</span><small>{receipt.outcome === "completed" ? "Confirm this completed local receipt to unlock publication for the current draft version." : "Paused receipts are retained locally but cannot unlock publication. Run the reviewed draft again before publishing."}</small><button className="workflow-create" disabled={receipt.outcome !== "completed" || state === "creating"} onClick={() => void confirmDraftTestReceipt()} type="button">{state === "creating" ? "Confirming test…" : "Confirm completed draft test"}</button></div>}
-      {receipt && !draft && <div className="workflow-review"><strong>Receipt ready for confirmation</strong><span>{receipt.outcome} · {new Date(receipt.finishedAt).toLocaleString()}</span><label>Active workflow<select value={receiptWorkflowId} onChange={(event) => setReceiptWorkflowId(event.target.value)}><option value="">Choose an active workflow</option>{workflows.filter((workflow) => workflow.activeVersion).map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title}</option>)}</select></label><button className="workflow-create" disabled={!receiptWorkflowId || state === "creating"} onClick={() => void saveReceipt()} type="button">Save confirmed receipt</button></div>}
+      {receipt && draft && <div className="workflow-review" aria-label="Confirm completed draft test"><strong>Test receipt ready for this draft</strong><span>{receipt.outcome} · {new Date(receipt.finishedAt).toLocaleString()}</span><small>{receipt.outcome === "completed" ? "Confirm this completed local receipt to unlock publication for the current draft version." : "Paused receipts are retained locally but cannot unlock publication. Run the reviewed draft again before publishing."}</small><button className="workflow-create" disabled={!canImportRunReceipts || receipt.outcome !== "completed" || state === "creating"} onClick={() => void confirmDraftTestReceipt()} type="button">{state === "creating" ? "Confirming test…" : "Confirm completed draft test"}</button></div>}
+      {receipt && !draft && <div className="workflow-review"><strong>Receipt ready for confirmation</strong><span>{receipt.outcome} · {new Date(receipt.finishedAt).toLocaleString()}</span><label>Active workflow<select value={receiptWorkflowId} onChange={(event) => setReceiptWorkflowId(event.target.value)}><option value="">Choose an active workflow</option>{workflows.filter((workflow) => workflow.activeVersion).map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title}</option>)}</select></label><button className="workflow-create" disabled={!canImportRunReceipts || !receiptWorkflowId || state === "creating"} onClick={() => void saveReceipt()} type="button">Save confirmed receipt</button></div>}
       <div className="workflow-review" aria-label="Saved run receipt history">
         <strong>Review saved receipts</strong>
         <label>Active workflow<select value={historyWorkflowId} onChange={(event) => { setHistoryWorkflowId(event.target.value); setReceiptHistory(null); }}><option value="">Choose an active workflow</option>{workflows.filter((workflow) => workflow.activeVersion).map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title}</option>)}</select></label>
@@ -577,9 +628,9 @@ export default function WorkflowCatalog() {
         <label>Approved domain<input value={domain} onChange={(event) => setDomain(event.target.value)} inputMode="url" autoCapitalize="none" maxLength={253} required /></label>
         <label>Report path<input value={path} onChange={(event) => setPath(event.target.value)} maxLength={2048} required /></label>
         <small>This pilot creates runnable drafts only for the local demo at <code>localhost</code> or <code>127.0.0.1</code> with <code>/demo/reports</code>.</small>
-        <button className="workflow-create" disabled={!workflowChangesEnabled || state === "creating" || state === "publishing"} type="submit">{state === "creating" ? "Creating draft…" : "Create reviewed draft"}</button>
+        <button className="workflow-create" disabled={!workflowChangesEnabled || !canAuthor || state === "creating" || state === "publishing"} type="submit">{state === "creating" ? "Creating draft…" : "Create reviewed draft"}</button>
       </form>
-      {draft && <aside className="workflow-review" aria-label="Draft review"><strong>Server-confirmed draft · version {draft.version}</strong><span>{draft.title}</span><div className="workflow-review-details"><p><b>Approved domain:</b> {draft.allowedDomains.join(", ")}</p><ol>{draft.steps.map((step) => <li key={step.id}><b>{step.kind}</b> — {step.name}<small>{step.domain}{step.path} · {step.expectedOutcome}</small></li>)}</ol><p>{previewState === "passed" ? "Policy preview passed." : "Run a server policy preview before publishing."}</p><p>{draft.testRunVerified ? "A completed local test receipt is confirmed for this version." : "Import and confirm one completed local test receipt before publishing."}</p></div><div className="workflow-review-actions"><button disabled={previewState === "running" || state === "publishing"} onClick={() => void previewDraft()} type="button">{previewState === "running" ? "Checking policy…" : "Run policy preview"}</button><button disabled={!workflowChangesEnabled || previewState !== "passed" || !draft.testRunVerified || state === "publishing"} onClick={() => void publishDraft()} type="button">Publish reviewed draft</button></div></aside>}
+      {draft && <aside className="workflow-review" aria-label="Draft review"><strong>Server-confirmed draft · version {draft.version}</strong><span>{draft.title}</span><div className="workflow-review-details"><p><b>Approved domain:</b> {draft.allowedDomains.join(", ")}</p><ol>{draft.steps.map((step) => <li key={step.id}><b>{step.kind}</b> — {step.name}<small>{step.domain}{step.path} · {step.expectedOutcome}</small></li>)}</ol><p>{previewState === "passed" ? "Policy preview passed." : "Run a server policy preview before publishing."}</p><p>{draft.testRunVerified ? "A completed local test receipt is confirmed for this version." : "Import and confirm one completed local test receipt before publishing."}</p></div><div className="workflow-review-actions"><button disabled={!canAuthor || previewState === "running" || state === "publishing"} onClick={() => void previewDraft()} type="button">{previewState === "running" ? "Checking policy…" : "Run policy preview"}</button><button disabled={!workflowChangesEnabled || !canAuthor || previewState !== "passed" || !draft.testRunVerified || state === "publishing"} onClick={() => void publishDraft()} type="button">Publish reviewed draft</button></div></aside>}
       {auditWorkflowId && <a className="workflow-review-link" download href={`${apiBaseUrl}/api/v1/workflows/${auditWorkflowId}/audit-events/export`}>Download selected audit JSON</a>}
       <p className="workflow-feedback" aria-live="polite" data-state={state}>{message}</p>
       {workflows.length === 0 ? <p className="workflow-empty">No workflows yet. The safe report-download template is ready when you are.</p> : <ul className="workflow-list">{workflows.map((workflow) => <li key={workflow.id}><span><strong>{workflow.title}</strong><small>{workflow.activeVersion ? `Active version ${workflow.activeVersion}` : "Not active"}</small></span><b>{workflow.activeVersion ? "Active" : "Not active"}</b></li>)}</ul>}
