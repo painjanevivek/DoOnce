@@ -25,6 +25,10 @@ npm run build
 
 GitHub Actions runs these checks, including the extension test suite, for pull requests and every push to `main`.
 
+## Production operations
+
+Production builds require `NEXT_PUBLIC_API_BASE_URL` to be the public HTTPS API origin. The standalone container runs as a non-root user and CI publishes a CycloneDX SBOM after dependency, controlled-run, and container checks. See the [dashboard and extension deployment procedure](docs/reliability/production-deployment.md) for rollout, compatibility, evidence, and rollback requirements.
+
 ## Current capability boundary
 
 - Workflows stop when a page or action is uncertain.

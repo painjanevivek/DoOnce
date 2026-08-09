@@ -28,3 +28,17 @@ jobs:
       - run: npm run verify:controlled-runs
       - run: npm run build
       - run: docker build --tag doonce-frontend:ci .
+      - name: Generate CycloneDX software bill of materials
+        run: npm sbom --sbom-format cyclonedx > doonce-frontend.sbom.json
+      - name: Scan production container
+        uses: anchore/scan-action@v7
+        with:
+          image: doonce-frontend:ci
+          fail-build: true
+          severity-cutoff: critical
+          only-fixed: true
+      - uses: actions/upload-artifact@v6
+        with:
+          name: doonce-frontend-sbom
+          path: doonce-frontend.sbom.json
+          retention-days: 30
