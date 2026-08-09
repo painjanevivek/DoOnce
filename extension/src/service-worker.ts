@@ -7,6 +7,10 @@ import type { CaptureObservation } from "./content-capture";
 import { appendCaptureAction, createCaptureSession, transitionCaptureSession } from "./capture-session";
 import { discardCaptureSession, loadCaptureSession, saveCaptureSession } from "./capture-storage";
 import { createHttpCaptureTransport, synchronizeCaptureSession } from "./capture-sync";
+import { ChromeExecutorAdapter } from "./runtime/chrome-executor-adapter";
+import { executeWorkflow } from "./runtime/interpreter";
+import { createHttpRunTransport } from "./runtime/run-transport";
+import type { RunResult as ProtocolRunResult } from "../../contracts/protocol";
 
 interface CaptureMessage {
   type: "doonce.capture";
@@ -22,13 +26,15 @@ chrome.runtime.onInstalled.addListener(async () => {
   if (!Array.isArray(stored["doonce.recordingOrigins"])) initialValues["doonce.recordingOrigins"] = [];
   if (Object.keys(initialValues).length > 0) await chrome.storage.local.set(initialValues);
   await chrome.alarms.create("doonce.capture-sync", { periodInMinutes: 1 });
+  await chrome.alarms.create("doonce.run-poll", { periodInMinutes: 0.5 });
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === "doonce.capture-sync") void synchronizeStoredCapture(false);
+  if (alarm.name === "doonce.run-poll") void pollForWorkflowRun();
 });
 
-chrome.runtime.onStartup.addListener(() => { void synchronizeStoredCapture(false); });
+chrome.runtime.onStartup.addListener(() => { void synchronizeStoredCapture(false); void pollForWorkflowRun(); });
 
 chrome.downloads.onCreated.addListener(() => { void recordBrowserEvent("download-start"); });
 chrome.downloads.onChanged.addListener((delta) => {
@@ -253,4 +259,52 @@ function stringArray(value: unknown): string[] {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+let pollingRun = false;
+
+async function pollForWorkflowRun(): Promise<void> {
+  if (pollingRun) return;
+  pollingRun = true;
+  try {
+    const stored = await chrome.storage.local.get("doonce.captureToken");
+    const token = stored["doonce.captureToken"];
+    if (typeof token !== "string") return;
+    const transport = createHttpRunTransport("http://127.0.0.1:4000", token, chrome.runtime.getManifest().version);
+    const lease = await transport.claim();
+    if (!lease) return;
+    const checkpointKey = `doonce.run.${lease.run.id}.checkpoint`;
+    let cancellationRequested = false;
+    let leaseValid = true;
+    const heartbeat = async () => {
+      try {
+        const run = await transport.heartbeat(lease.run.id, lease.leaseToken);
+        leaseValid = Boolean(run);
+        cancellationRequested = !run || run.cancelRequested;
+      } catch { leaseValid = false; cancellationRequested = true; }
+    };
+    const heartbeatTimer = globalThis.setInterval(() => { void heartbeat(); }, 15_000);
+    let result: ProtocolRunResult;
+    try {
+      result = await executeWorkflow(lease.request, lease.workflow, new ChromeExecutorAdapter(lease.workflow.allowedDomains), {
+        ...(lease.checkpoint ? { checkpoint: lease.checkpoint } : {}),
+        isCancellationRequested: () => cancellationRequested || !leaseValid,
+        onCheckpoint: async (checkpoint) => {
+          await chrome.storage.session.set({ [checkpointKey]: checkpoint });
+          if (!await transport.checkpoint(lease.run.id, lease.leaseToken, checkpoint)) { leaseValid = false; cancellationRequested = true; }
+        },
+      });
+    } catch {
+      const now = new Date().toISOString();
+      result = { schemaVersion: 1, format: "doonce.run-result.v1", runId: lease.request.runId, workflowId: lease.request.workflowId, workflowVersion: lease.request.workflowVersion, status: "paused", reasonCode: "extension.attention-required", stepResults: lease.checkpoint?.stepResults ?? [], startedAt: now, finishedAt: now };
+    } finally { globalThis.clearInterval(heartbeatTimer); }
+    if (leaseValid) await transport.finish(lease.run.id, lease.leaseToken, result);
+    await chrome.storage.session.remove(checkpointKey);
+    void notifyWorkflowRun(result);
+  } finally { pollingRun = false; }
+}
+
+async function notifyWorkflowRun(result: ProtocolRunResult): Promise<void> {
+  const normalized: RunResult = result.status === "completed" ? { outcome: "completed" } : { outcome: "paused", reasonCode: result.reasonCode === "wait.timeout" ? "slow-network" : result.reasonCode?.startsWith("locator.") ? "changed-page" : "unknown", reason: `Workflow ${result.status}: ${result.reasonCode ?? "no reason supplied"}.` };
+  await notifyDemoRun(normalized);
 }

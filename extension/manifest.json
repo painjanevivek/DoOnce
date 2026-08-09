@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "DoOnce Browser Automation Extension",
   "description": "Record, review, and run reusable DoOnce browser workflows.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "action": {
     "default_popup": "popup.html",
     "default_title": "DoOnce Browser Automation Extension"
@@ -12,4 +12,5 @@
   },
   "permissions": ["activeTab", "storage", "scripting", "notifications", "alarms", "downloads", "tabs"],
   "host_permissions": ["http://127.0.0.1:4000/*", "http://localhost:4000/*"]
+  ,"optional_host_permissions": ["http://*/*", "https://*/*"]
 }

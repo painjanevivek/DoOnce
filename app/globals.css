@@ -67,6 +67,15 @@ button:disabled { cursor: not-allowed; opacity: .52; }
 .status-pill[data-status="draft"] { color: var(--amber); background: var(--amber-soft); }
 .status-pill[data-status="archived"] { color: var(--muted); background: #ecece7; }
 .table-action { border: 1px solid #9bb9c8; color: var(--blue); background: var(--blue-soft); white-space: nowrap; }
+.table-actions { display: flex; justify-content: flex-end; gap: .45rem; }
+.table-action--run { border-color: #91b6a2; color: var(--accent-dark); background: #e4f2eb; }
+.run-launcher { margin: 1.4rem 0; border: 1px solid #9bb9c8; border-radius: .75rem; padding: clamp(1rem, 3vw, 1.6rem); background: linear-gradient(135deg, #f5fbfd, #fbfbf5); box-shadow: 0 14px 34px rgba(16, 39, 51, .08); }
+.run-launcher__actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+.run-progress { display: grid; grid-template-columns: 1fr auto; gap: .2rem 1rem; margin-top: 1rem; border-left: 4px solid var(--blue); padding: .7rem .9rem; background: #eef7fa; }
+.run-progress strong { text-transform: capitalize; }
+.run-progress small { grid-column: 1 / -1; color: var(--muted); }
+.run-progress[data-status="completed"] { border-color: var(--accent); background: #edf7f1; }
+.run-progress[data-status="paused"], .run-progress[data-status="failed"], .run-progress[data-status="cancelled"] { border-color: var(--amber); background: var(--amber-soft); }
 .library-message, .studio-message, .test-message { min-height: 1.5rem; color: var(--muted); }
 .library-state, .studio-state { max-width: 720px; padding: 12vh 0; }
 .library-skeleton, .studio-loading { display: grid; gap: 1rem; margin-top: 3rem; }

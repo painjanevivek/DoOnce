@@ -110,6 +110,8 @@ async function loadCurrentOrigin(): Promise<void> {
 
 consentButton.addEventListener("click", async () => {
   if (!currentOrigin) return;
+  const permissionGranted = await chrome.permissions.request({ origins: [`${currentOrigin}/*`] });
+  if (!permissionGranted) { displayStatus("Browser access was not granted for this site."); return; }
   const stored = await chrome.storage.local.get("doonce.consentedOrigins");
   const allowedOrigins = new Set(stringArray(stored["doonce.consentedOrigins"]));
   allowedOrigins.add(currentOrigin);
@@ -178,6 +180,7 @@ revokeButton.addEventListener("click", async () => {
     "doonce.recordingOrigins": setRecording(recordingOrigins["doonce.recordingOrigins"], currentOrigin, false),
     "doonce.demoRunReceipts": removeOriginData(demoRunReceipts["doonce.demoRunReceipts"], currentOrigin),
   });
+  await chrome.permissions.remove({ origins: [`${currentOrigin}/*`] });
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (tab?.id) await chrome.tabs.sendMessage(tab.id, { type: "doonce.stop-capture" }).catch(() => undefined);
   revokeButton.disabled = true;

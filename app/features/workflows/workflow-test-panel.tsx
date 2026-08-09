@@ -10,17 +10,26 @@ export function WorkflowTestPanel({ apiBaseUrl, workflowId, spec, disabled }: { 
   const [preview, setPreview] = useState<TestPreview | null>(null);
   const [message, setMessage] = useState("");
   const [running, setRunning] = useState(false);
+
   async function prepare() {
     setRunning(true); setMessage(""); setPreview(null);
     try {
       const response = await fetch(`${apiBaseUrl}/api/v1/workflow-specs/${workflowId}/test-preview`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ executor, inputs }) });
       const body: unknown = await response.json();
       if (!response.ok || !isPreviewResponse(body)) throw new Error(readError(body));
-      setPreview(body.preview); setMessage(executor === "extension" ? "Test plan is ready. The deterministic extension runner will execute it when the runner phase is connected." : "Hosted-browser plan is ready. Hosted execution is intentionally unavailable until its runtime is deployed.");
+      setPreview(body.preview);
+      setMessage(executor === "extension" ? "Test plan is ready. Publish this version, then queue an attended extension run from the workflow library." : "Hosted-browser plan is ready. Hosted execution is intentionally unavailable until its runtime is deployed.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Test setup could not be verified."); }
     finally { setRunning(false); }
   }
-  return <section className="studio-section test-panel" aria-labelledby="test-title"><div className="studio-section__heading"><div><p className="eyebrow">Test mode</p><h2 id="test-title">Prepare a controlled run</h2><p>Inputs are validated now. This phase prepares the exact step plan; execution connects to the deterministic runner in the runner phase.</p></div><label className="runtime-select"><span>Runtime</span><select value={executor} onChange={(event) => setExecutor(event.target.value as typeof executor)}><option value="extension">Local Chrome extension</option><option value="hosted-browser">Hosted browser</option></select></label></div>{spec.inputs.length > 0 && <div className="test-inputs">{spec.inputs.map((input) => <label key={input.name}><span>{input.label}{input.required ? " *" : ""}</span>{input.kind === "select" ? <select value={inputs[input.name] ?? ""} onChange={(event) => setInputs((current) => ({ ...current, [input.name]: event.target.value }))}><option value="">Choose…</option>{input.options?.map((option) => <option key={option}>{option}</option>)}</select> : <input type={input.secret ? "password" : input.kind === "date" ? "date" : "text"} value={inputs[input.name] ?? ""} onChange={(event) => setInputs((current) => ({ ...current, [input.name]: event.target.value }))} />}</label>)}</div>}<button className="primary-button" disabled={disabled || running} onClick={() => void prepare()} type="button">{running ? "Checking test plan…" : "Prepare test plan"}</button><p className="test-message" role="status">{message}</p>{preview && <ol className="test-timeline">{preview.steps.map((step, index) => <li key={step.id}><span>{String(index + 1).padStart(2, "0")}</span><div><strong>{step.name}</strong><small>{step.message}</small></div><b data-readiness={step.readiness}>{step.readiness.replace("-", " ")}</b></li>)}</ol>}</section>;
+
+  return <section className="studio-section test-panel" aria-labelledby="test-title">
+    <div className="studio-section__heading"><div><p className="eyebrow">Test mode</p><h2 id="test-title">Prepare a controlled run</h2><p>Validate the exact input and step plan before publication. Published extension runs are queued from the workflow library.</p></div><label className="runtime-select"><span>Runtime</span><select value={executor} onChange={(event) => setExecutor(event.target.value as typeof executor)}><option value="extension">Local Chrome extension</option><option value="hosted-browser">Hosted browser</option></select></label></div>
+    {spec.inputs.length > 0 && <div className="test-inputs">{spec.inputs.map((input) => <label key={input.name}><span>{input.label}{input.required ? " *" : ""}</span>{input.kind === "select" ? <select value={inputs[input.name] ?? ""} onChange={(event) => setInputs((current) => ({ ...current, [input.name]: event.target.value }))}><option value="">Choose…</option>{input.options?.map((option) => <option key={option}>{option}</option>)}</select> : <input type={input.secret ? "password" : input.kind === "date" ? "date" : "text"} value={inputs[input.name] ?? ""} onChange={(event) => setInputs((current) => ({ ...current, [input.name]: event.target.value }))} />}</label>)}</div>}
+    <button className="primary-button" disabled={disabled || running} onClick={() => void prepare()} type="button">{running ? "Checking test plan…" : "Prepare test plan"}</button>
+    <p className="test-message" role="status">{message}</p>
+    {preview && <ol className="test-timeline">{preview.steps.map((step, index) => <li key={step.id}><span>{String(index + 1).padStart(2, "0")}</span><div><strong>{step.name}</strong><small>{step.message}</small></div><b data-readiness={step.readiness}>{step.readiness.replace("-", " ")}</b></li>)}</ol>}
+  </section>;
 }
 
 function isPreviewResponse(value: unknown): value is { preview: TestPreview } {
