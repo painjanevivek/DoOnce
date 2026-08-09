@@ -3,7 +3,7 @@
 import type { WorkflowInputDefinition, WorkflowSpec } from "../../../contracts/protocol";
 import type { ContractIssue } from "../../../contracts/validation";
 import { addWorkflowInput } from "./editor-model";
-import { EditorField } from "./workflow-step-editor";
+import { EditorField } from "./editor-field";
 
 export function WorkflowInputEditor({ spec, issues, onChange }: { spec: WorkflowSpec; issues: ContractIssue[]; onChange(spec: WorkflowSpec): void }) {
   function update(index: number, input: WorkflowInputDefinition) {

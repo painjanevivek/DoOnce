@@ -22,3 +22,13 @@ test("renders secret inputs without exposing a value", () => {
   assert.match(html, /Preview: ••••••••/);
   assert.doesNotMatch(html, /do-not-display/);
 });
+
+test("progressively discloses step and workflow verification criteria", () => {
+  const target = (spec.steps[0] as Extract<WorkflowSpec["steps"][number], { target: { locator: unknown } }>).target;
+  const assertionSpec: WorkflowSpec = { ...spec, steps: [{ ...spec.steps[0]!, assertions: [{ id: "20000000-0000-4000-8000-000000000002", name: "Search value entered", kind: "field-state", target, operator: "equals", expected: "${query}" }] }], successCriteria: [{ id: "30000000-0000-4000-8000-000000000003", name: "Results visible", kind: "element-present", target }] };
+  const html = renderToStaticMarkup(createElement(WorkflowStepEditor, { spec: assertionSpec, issues: [], onChange() {} }));
+  assert.match(html, /<details class="assertion-editor">/);
+  assert.match(html, /Verify this step/);
+  assert.match(html, /Verify the whole workflow/);
+  assert.match(html, /Actions and verification are separate/);
+});

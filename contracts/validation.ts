@@ -57,6 +57,16 @@ function workflowSemanticIssues(workflow: WorkflowSpec): ContractIssue[] {
       }
     }
   });
+  const assertionIds = new Set<string>();
+  const outputNames = new Set(workflow.steps.flatMap((step) => step.action === "read" ? [step.outputName] : []));
+  const groups = [...workflow.steps.flatMap((step, index) => (step.assertions ?? []).map((assertion, assertionIndex) => ({ assertion, path: `/steps/${index}/assertions/${assertionIndex}` }))), ...(workflow.successCriteria ?? []).map((assertion, index) => ({ assertion, path: `/successCriteria/${index}` }))];
+  for (const { assertion, path } of groups) {
+    if (assertionIds.has(assertion.id)) issues.push({ code: "workflow.assertion_id_duplicate", path: `${path}/id`, message: "Every assertion needs a unique identifier." });
+    assertionIds.add(assertion.id);
+    if ("target" in assertion && !allowedDomains.has(assertion.target.domain)) issues.push({ code: "workflow.assertion_domain_not_allowed", path: `${path}/target/domain`, message: "The assertion target must use an approved workflow domain." });
+    if (assertion.kind === "file-downloaded" && assertion.minBytes !== undefined && assertion.maxBytes !== undefined && assertion.minBytes > assertion.maxBytes) issues.push({ code: "workflow.assertion_size_invalid", path, message: "The minimum download size cannot exceed the maximum size." });
+    if (assertion.kind === "extracted-value" && !outputNames.has(assertion.outputName)) issues.push({ code: "workflow.assertion_output_missing", path: `${path}/outputName`, message: "The assertion must reference an output produced by a read step." });
+  }
   return issues;
 }
 

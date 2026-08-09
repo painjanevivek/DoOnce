@@ -1,4 +1,4 @@
-import type { LocatorCandidate, PageState, WorkflowActionKind, WorkflowStep } from "../../../contracts/protocol";
+import type { AssertionResult, LocatorCandidate, PageState, WorkflowActionKind, WorkflowAssertion, WorkflowStep } from "../../../contracts/protocol";
 
 export interface ExecutorCapabilities {
   executor: "extension";
@@ -29,6 +29,7 @@ export interface ExecutorAdapter {
   capabilities(): ExecutorCapabilities;
   prepare(context: ExecutionContext): Promise<void>;
   execute(step: WorkflowStep, context: ExecutionContext): Promise<ActionExecutionResult>;
+  verify(assertions: readonly WorkflowAssertion[], context: ExecutionContext): Promise<AssertionResult[]>;
   evidence?(step: WorkflowStep, result: ActionExecutionResult): Promise<string[]>;
   cancel(reason: string): Promise<void>;
   close(): Promise<void>;

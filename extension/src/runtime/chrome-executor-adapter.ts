@@ -1,11 +1,13 @@
-import type { WorkflowActionKind, WorkflowStep } from "../../../contracts/protocol";
+import type { AssertionResult, WorkflowActionKind, WorkflowAssertion, WorkflowStep } from "../../../contracts/protocol";
 import type { ActionExecutionResult, ExecutionContext, ExecutorAdapter, ExecutorCapabilities } from "./executor-adapter";
+import type { DownloadObservation } from "./assertion-evaluator";
 
 const actions: WorkflowActionKind[] = ["navigate", "wait", "read", "select", "type", "download", "compare", "branch", "ask-approval", "stop"];
 
 export class ChromeExecutorAdapter implements ExecutorAdapter {
   private tabId: number | undefined;
   private cancelled = false;
+  private readonly downloads: DownloadObservation[] = [];
   public constructor(private readonly allowedDomains: readonly string[]) {}
   public capabilities(): ExecutorCapabilities { return { executor: "extension", actions, maxSteps: 500, supportsDownloads: true, features: ["workflow-spec-v1", "semantic-locators", "event-waits", "checkpoints", "navigation-reinjection"] }; }
   public async prepare(): Promise<void> {
@@ -15,6 +17,16 @@ export class ChromeExecutorAdapter implements ExecutorAdapter {
   }
   public async cancel(): Promise<void> { this.cancelled = true; }
   public async close(): Promise<void> {}
+  public async verify(assertions: readonly WorkflowAssertion[], context: ExecutionContext): Promise<AssertionResult[]> {
+    const tabId = this.tabId;
+    if (!tabId) return assertions.map((assertion) => ({ schemaVersion: 1, assertionId: assertion.id, status: "failed", reasonCode: "tab.not-owned", verifiedAt: new Date().toISOString() }));
+    try { return await chrome.tabs.sendMessage(tabId, { type: "doonce.verify-assertions", assertions, context, downloads: this.downloads }); }
+    catch {
+      await chrome.scripting.executeScript({ target: { tabId, allFrames: false }, files: ["dist/content-runner.js"] });
+      try { return await chrome.tabs.sendMessage(tabId, { type: "doonce.verify-assertions", assertions, context, downloads: this.downloads }); }
+      catch { return assertions.map((assertion) => ({ schemaVersion: 1, assertionId: assertion.id, status: "failed", reasonCode: "content-script.unavailable", verifiedAt: new Date().toISOString() })); }
+    }
+  }
   public async execute(step: WorkflowStep, context: ExecutionContext): Promise<ActionExecutionResult> {
     if (this.cancelled) return { status: "paused", reasonCode: "run.cancelled" };
     const tabId = this.tabId;
@@ -39,7 +51,10 @@ export class ChromeExecutorAdapter implements ExecutorAdapter {
     const action = await this.executeInTab(tabId, step, context);
     if (action.status !== "verified") return action;
     const downloadId = await event;
-    return downloadId === undefined ? { ...action, status: "paused", reasonCode: this.cancelled ? "run.cancelled" : "download.not-observed", retryable: !this.cancelled } : { ...action, evidenceRefs: [...(action.evidenceRefs ?? []), `download:${downloadId}`] };
+    if (downloadId === undefined) return { ...action, status: "paused", reasonCode: this.cancelled ? "run.cancelled" : "download.not-observed", retryable: !this.cancelled };
+    const [item] = await chrome.downloads.search({ id: downloadId });
+    this.downloads.push({ fileName: item?.filename?.split(/[\\/]/).at(-1) ?? `download-${downloadId}`, bytes: item?.fileSize && item.fileSize > 0 ? item.fileSize : item?.totalBytes ?? 0, ...(item?.mime ? { contentType: item.mime } : {}), evidenceRefs: [`download:${downloadId}`] });
+    return { ...action, evidenceRefs: [...(action.evidenceRefs ?? []), `download:${downloadId}`] };
   }
 
   private async navigate(tabId: number, domain: string, path: string): Promise<ActionExecutionResult> {

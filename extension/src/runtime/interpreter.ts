@@ -1,4 +1,4 @@
-import type { RunRequest, RunResult, StepResult, WorkflowSpec, WorkflowStep } from "../../../contracts/protocol";
+import type { AssertionResult, RunRequest, RunResult, StepResult, WorkflowAssertion, WorkflowSpec, WorkflowStep } from "../../../contracts/protocol";
 import type { ExecutionContext, ExecutorAdapter } from "./executor-adapter";
 
 export interface InterpreterCheckpoint {
@@ -28,6 +28,7 @@ export async function executeWorkflow(request: RunRequest, workflow: WorkflowSpe
   let transitions = 0;
   let finalStatus: RunResult["status"] = "completed";
   let reasonCode: string | undefined;
+  let workflowAssertionResults: AssertionResult[] = [];
 
   try {
     await adapter.prepare(context(request.runId, request.inputs, variables));
@@ -63,18 +64,27 @@ export async function executeWorkflow(request: RunRequest, workflow: WorkflowSpe
         action = await adapter.execute(interpolateStep(step, variables), context(request.runId, request.inputs, variables));
       }
       if (finalStatus === "cancelled") break;
+      Object.assign(variables, action.outputs);
       const evidenceRefs = [...(action.evidenceRefs ?? []), ...(adapter.evidence ? await adapter.evidence(step, action) : [])];
+      const assertionResults = action.status === "verified" && step.assertions?.length ? await adapter.verify(interpolateAssertions(step.assertions, variables), context(request.runId, request.inputs, variables)) : [];
+      const assertionOutcome = assertionStatus(assertionResults);
+      const effectiveStatus = assertionOutcome === "failed" ? "failed" : assertionOutcome === "confirmation-required" ? "paused" : action.status;
+      const effectiveReason = assertionOutcome === "failed" ? "assertion.failed" : assertionOutcome === "confirmation-required" ? "assertion.confirmation-required" : action.reasonCode;
       const result: StepResult = {
-        schemaVersion: 1, stepId: step.id, status: action.status, startedAt: started, finishedAt: now().toISOString(), retryCount,
-        ...(action.reasonCode ? { reasonCode: action.reasonCode } : {}), ...(action.selectedLocator ? { selectedLocator: action.selectedLocator } : {}),
+        schemaVersion: 1, stepId: step.id, status: effectiveStatus, startedAt: started, finishedAt: now().toISOString(), retryCount,
+        ...(effectiveReason ? { reasonCode: effectiveReason } : {}), ...(action.selectedLocator ? { selectedLocator: action.selectedLocator } : {}),
         ...(action.locatorConfidence !== undefined ? { locatorConfidence: action.locatorConfidence } : {}), ...(action.outputs ? { outputs: action.outputs } : {}),
-        ...(evidenceRefs.length > 0 ? { evidenceRefs: [...new Set(evidenceRefs)] } : {}), ...(action.observedPage ? { observedPage: action.observedPage } : {}),
+        ...(evidenceRefs.length > 0 ? { evidenceRefs: [...new Set(evidenceRefs)] } : {}), ...(action.observedPage ? { observedPage: action.observedPage } : {}), ...(assertionResults.length > 0 ? { assertionResults } : {}),
       };
       stepResults.push(result);
-      Object.assign(variables, action.outputs);
-      if (action.status !== "verified") { finalStatus = action.status === "failed" ? "failed" : "paused"; reasonCode = action.reasonCode ?? "step.unverified"; break; }
+      if (effectiveStatus !== "verified") { finalStatus = effectiveStatus === "failed" ? "failed" : "paused"; reasonCode = effectiveReason ?? "step.unverified"; break; }
       index += 1;
       await checkpoint(options, index, stepResults, variables, action.observedPage?.origin ? `${action.observedPage.origin}${action.observedPage.path}` : undefined);
+    }
+    if (finalStatus === "completed" && workflow.successCriteria?.length) {
+      workflowAssertionResults = await adapter.verify(interpolateAssertions(workflow.successCriteria, variables), context(request.runId, request.inputs, variables));
+      const outcome = assertionStatus(workflowAssertionResults);
+      if (outcome !== "verified") { finalStatus = outcome === "failed" ? "failed" : "paused"; reasonCode = outcome === "failed" ? "assertion.workflow-failed" : "assertion.confirmation-required"; }
     }
   } catch {
     finalStatus = "failed";
@@ -84,7 +94,7 @@ export async function executeWorkflow(request: RunRequest, workflow: WorkflowSpe
   }
   return {
     schemaVersion: 1, format: "doonce.run-result.v1", runId: request.runId, workflowId: request.workflowId, workflowVersion: request.workflowVersion,
-    status: finalStatus, ...(reasonCode ? { reasonCode } : {}), stepResults, startedAt, finishedAt: now().toISOString(),
+    status: finalStatus, ...(reasonCode ? { reasonCode } : {}), stepResults, startedAt, finishedAt: now().toISOString(), ...(workflowAssertionResults.length > 0 ? { assertionResults: workflowAssertionResults } : {}),
   };
 }
 
@@ -105,3 +115,5 @@ function context(runId: string, inputs: Record<string, string>, variables: Recor
 function compare(actual: string, operator: "equals" | "contains" | "matches", expected: string): boolean { if (operator === "equals") return actual === expected; if (operator === "contains") return actual.includes(expected); try { return new RegExp(expected).test(actual); } catch { return false; } }
 function interpolate(value: string, variables: Record<string, string>): string { return value.replace(/\$\{([a-zA-Z][a-zA-Z0-9_-]{0,63})\}/g, (_match, name: string) => variables[name] ?? ""); }
 function interpolateStep(step: WorkflowStep, variables: Record<string, string>): WorkflowStep { const clone = structuredClone(step); if ("expected" in clone) clone.expected = interpolate(clone.expected, variables); if (clone.action === "ask-approval") clone.prompt = interpolate(clone.prompt, variables); return clone; }
+function interpolateAssertions(assertions: readonly WorkflowAssertion[], variables: Record<string, string>): WorkflowAssertion[] { return assertions.map((assertion) => { const clone = structuredClone(assertion); if ("expected" in clone) clone.expected = interpolate(clone.expected, variables); if (clone.kind === "user-confirmation") clone.prompt = interpolate(clone.prompt, variables); if (clone.kind === "file-downloaded" && clone.fileNamePattern) clone.fileNamePattern = interpolate(clone.fileNamePattern, variables); return clone; }); }
+function assertionStatus(results: readonly AssertionResult[]): "verified" | "failed" | "confirmation-required" { return results.some((result) => result.status === "failed") ? "failed" : results.some((result) => result.status === "confirmation-required") ? "confirmation-required" : "verified"; }

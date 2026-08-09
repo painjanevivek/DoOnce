@@ -298,7 +298,11 @@ async function pollForWorkflowRun(): Promise<void> {
       const now = new Date().toISOString();
       result = { schemaVersion: 1, format: "doonce.run-result.v1", runId: lease.request.runId, workflowId: lease.request.workflowId, workflowVersion: lease.request.workflowVersion, status: "paused", reasonCode: "extension.attention-required", stepResults: lease.checkpoint?.stepResults ?? [], startedAt: now, finishedAt: now };
     } finally { globalThis.clearInterval(heartbeatTimer); }
-    if (leaseValid) await transport.finish(lease.run.id, lease.leaseToken, result);
+    if (leaseValid) {
+      await transport.finish(lease.run.id, lease.leaseToken, result);
+      const evidence = new TextEncoder().encode(JSON.stringify(result));
+      await transport.uploadArtifact(lease.run.id, { fileName: `run-${lease.run.id}.json`, contentType: "application/json", retentionClass: lease.run.mode === "test" && result.status === "completed" ? "publication-evidence" : result.status === "completed" ? "workflow-output" : "debug", base64: bytesToBase64(evidence) });
+    }
     await chrome.storage.session.remove(checkpointKey);
     void notifyWorkflowRun(result);
   } finally { pollingRun = false; }
@@ -308,3 +312,4 @@ async function notifyWorkflowRun(result: ProtocolRunResult): Promise<void> {
   const normalized: RunResult = result.status === "completed" ? { outcome: "completed" } : { outcome: "paused", reasonCode: result.reasonCode === "wait.timeout" ? "slow-network" : result.reasonCode?.startsWith("locator.") ? "changed-page" : "unknown", reason: `Workflow ${result.status}: ${result.reasonCode ?? "no reason supplied"}.` };
   await notifyDemoRun(normalized);
 }
+function bytesToBase64(bytes: Uint8Array): string { let binary = ""; for (const byte of bytes) binary += String.fromCharCode(byte); return btoa(binary); }

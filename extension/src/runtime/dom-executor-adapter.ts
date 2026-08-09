@@ -1,15 +1,30 @@
-import type { ElementTarget, LocatorCandidate, PageState, WorkflowActionKind, WorkflowStep } from "../../../contracts/protocol";
+import type { AssertionResult, ElementTarget, LocatorCandidate, PageState, WorkflowActionKind, WorkflowAssertion, WorkflowStep } from "../../../contracts/protocol";
 import type { ActionExecutionResult, ExecutionContext, ExecutorAdapter, ExecutorCapabilities } from "./executor-adapter";
 import { resolveLocator } from "./locator-resolution";
+import { evaluateAssertions, type DownloadObservation } from "./assertion-evaluator";
 
 const supportedActions: WorkflowActionKind[] = ["navigate", "wait", "read", "select", "type", "download", "compare", "ask-approval", "stop", "branch"];
 
 export class DomExecutorAdapter implements ExecutorAdapter {
   private cancelled = false;
+  public constructor(private readonly downloadObservations: DownloadObservation[] = [], private readonly confirmOutcome: (assertion: Extract<WorkflowAssertion, { kind: "user-confirmation" }>) => boolean | undefined = () => undefined) {}
   public capabilities(): ExecutorCapabilities { return { executor: "extension", actions: supportedActions, maxSteps: 500, supportsDownloads: true, features: ["workflow-spec-v1", "semantic-locators", "event-waits", "checkpoints"] }; }
   public async prepare(): Promise<void> { this.cancelled = false; }
   public async cancel(): Promise<void> { this.cancelled = true; }
   public async close(): Promise<void> {}
+  public async verify(assertions: readonly WorkflowAssertion[], context: ExecutionContext): Promise<AssertionResult[]> {
+    return evaluateAssertions(assertions, {
+      currentUrl: () => location.href,
+      element: (locator) => {
+        const resolved = resolveLocator(locator, findElements);
+        if (resolved.status !== "resolved") return undefined;
+        const element = resolved.element;
+        return { text: (element.textContent ?? "").trim().slice(0, 1000), ...(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement ? { value: element.value } : {}), ...(element instanceof HTMLTableElement ? { rowCount: element.tBodies.length > 0 ? Array.from(element.tBodies).reduce((total, body) => total + body.rows.length, 0) : Math.max(element.rows.length - 1, 0) } : {}), evidenceRefs: [`dom:${resolved.candidate.strategy}:${resolved.candidate.value}`] };
+      },
+      downloads: () => this.downloadObservations,
+      confirmation: (assertion) => this.confirmOutcome(assertion),
+    }, context.variables);
+  }
 
   public async execute(step: WorkflowStep, context: ExecutionContext): Promise<ActionExecutionResult> {
     if (this.cancelled) return paused("run.cancelled");
