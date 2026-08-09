@@ -31,14 +31,23 @@ jobs:
       - name: Generate CycloneDX software bill of materials
         run: npm sbom --sbom-format cyclonedx > doonce-frontend.sbom.json
       - name: Scan production container
+        id: image-scan
+        continue-on-error: true
         uses: anchore/scan-action@v7
         with:
           image: doonce-frontend:ci
           fail-build: true
           severity-cutoff: critical
           only-fixed: true
+      - name: Inspect container scan report
+        if: always()
+        run: cat "${{ steps.image-scan.outputs.sarif }}"
       - uses: actions/upload-artifact@v6
+        if: always()
         with:
           name: doonce-frontend-sbom
           path: doonce-frontend.sbom.json
           retention-days: 30
+      - name: Enforce critical container vulnerability gate
+        if: steps.image-scan.outcome == 'failure'
+        run: exit 1
