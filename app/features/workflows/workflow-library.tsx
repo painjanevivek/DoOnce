@@ -7,6 +7,7 @@ import type { WorkflowSummary } from "./authoring-types";
 import { CapturePairingPanel } from "./capture-pairing-panel";
 import { CaptureSessionInbox } from "./capture-session-inbox";
 import { RunHistoryPanel } from "./run-history-panel";
+import { TextAuthoringPanel } from "./text-authoring-panel";
 import { WorkflowRunPanel } from "./workflow-run-panel";
 
 const apiBaseUrl =
@@ -153,6 +154,7 @@ export default function WorkflowLibrary() {
           <span>Need review</span>
         </div>
       </div>
+      <TextAuthoringPanel apiBaseUrl={apiBaseUrl} onDraftCreated={load} />
       <CapturePairingPanel />
       <CaptureSessionInbox />
       <RunHistoryPanel apiBaseUrl={apiBaseUrl} />
