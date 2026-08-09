@@ -8,6 +8,7 @@ import { CapturePairingPanel } from "./capture-pairing-panel";
 import { CaptureSessionInbox } from "./capture-session-inbox";
 import { RunHistoryPanel } from "./run-history-panel";
 import { TextAuthoringPanel } from "./text-authoring-panel";
+import { VideoAuthoringPanel } from "./video-authoring-panel";
 import { WorkflowRunPanel } from "./workflow-run-panel";
 
 const apiBaseUrl =
@@ -155,6 +156,7 @@ export default function WorkflowLibrary() {
         </div>
       </div>
       <TextAuthoringPanel apiBaseUrl={apiBaseUrl} onDraftCreated={load} />
+      <VideoAuthoringPanel apiBaseUrl={apiBaseUrl} onDraftCreated={load} />
       <CapturePairingPanel />
       <CaptureSessionInbox />
       <RunHistoryPanel apiBaseUrl={apiBaseUrl} />
