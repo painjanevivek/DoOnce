@@ -8,6 +8,7 @@ const actionLabels: Record<WorkflowStep["action"], string> = {
   type: "Enter value",
   download: "Download file",
   compare: "Compare values",
+  branch: "Choose a path",
   "ask-approval": "Request approval",
   stop: "Stop workflow",
 };
