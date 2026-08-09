@@ -147,7 +147,7 @@ button:disabled { cursor: not-allowed; opacity: .52; }
 .video-ready { display: flex; align-items: center; justify-content: space-between; gap: 1rem; border: 1px solid #8bbba9; border-radius: .55rem; padding: 1rem; background: #edf7f1; }
 .video-ready p { margin: .2rem 0 0; color: var(--muted); }
 .video-retention { margin: 0; color: var(--muted); font-size: .78rem; }
-.workflow-table-wrap { margin-top: 1.25rem; overflow-x: auto; border: 1px solid var(--line); border-radius: .75rem; background: var(--panel); }
+.workflow-table-wrap { min-width: 0; max-width: 100%; margin-top: 1.25rem; overflow-x: auto; border: 1px solid var(--line); border-radius: .75rem; background: var(--panel); }
 .workflow-table caption { padding: 1rem 1.25rem; border-bottom: 1px solid var(--line); }
 .workflow-table th, .workflow-table td { padding: 1rem 1.25rem; }
 .workflow-table td:first-child { min-width: 240px; }
@@ -202,6 +202,44 @@ button:disabled { cursor: not-allowed; opacity: .52; }
 .run-history { margin: 1.4rem 0; border: 1px solid var(--line); border-radius: .7rem; background: var(--panel); }
 .run-history > summary { display: flex; justify-content: space-between; padding: 1rem 1.15rem; color: var(--accent-dark); font-weight: 800; cursor: pointer; }
 .run-history > summary span { min-width: 1.7rem; border-radius: 999px; padding: .1rem .4rem; text-align: center; color: var(--blue); background: var(--blue-soft); }
+.beta-evidence { margin: 1.4rem 0; overflow: clip; border: 1px solid #b8a66b; border-radius: .75rem; background: #fffdf6; }
+.beta-evidence > summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 72px; padding: 1rem 1.2rem; cursor: pointer; }
+.beta-evidence > summary > span { display: grid; gap: .12rem; }
+.beta-evidence > summary small { color: var(--muted); font-weight: 500; }
+.beta-evidence > summary b { border-radius: 999px; padding: .25rem .62rem; color: #6b5209; background: #f3e5ae; font-size: .75rem; text-transform: uppercase; }
+.beta-evidence__body { display: grid; gap: 1rem; border-top: 1px solid #d7c68e; padding: clamp(1rem, 3vw, 1.5rem); }
+.beta-evidence__notice { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.beta-evidence__metrics { display: grid; grid-template-columns: repeat(4, 1fr); overflow: hidden; border: 1px solid #ded2a8; border-radius: .6rem; background: #fff; }
+.beta-evidence__metrics div { display: grid; gap: .15rem; padding: .9rem; border-right: 1px solid #e6ddbf; }
+.beta-evidence__metrics div:last-child { border-right: 0; }
+.beta-evidence__metrics strong { color: #6b5209; font-size: 1.45rem; }
+.beta-evidence__metrics span { color: var(--muted); font-size: .77rem; }
+.beta-enroll { display: grid; gap: 1rem; border-radius: .65rem; padding: 1rem; background: #f8f3df; }
+.beta-enroll h3, .beta-enroll p { margin: 0; }
+.beta-enroll__form { display: grid; grid-template-columns: 1.3fr 1fr .7fr .7fr; gap: .7rem; }
+.beta-enroll label, .beta-observation-form label { display: grid; gap: .35rem; color: var(--muted); font-size: .78rem; font-weight: 700; }
+.beta-enroll input, .beta-enroll select, .beta-observation-form input, .beta-observation-form select { width: 100%; min-height: 42px; border: 1px solid var(--line); border-radius: .4rem; padding: .55rem .65rem; color: var(--ink); background: #fff; font: inherit; }
+.beta-enroll .primary-button { justify-self: start; }
+.beta-workflows { display: grid; gap: .75rem; }
+.beta-workflow { overflow: hidden; border: 1px solid #d5c99f; border-radius: .6rem; background: #fff; }
+.beta-workflow > header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .85rem 1rem; }
+.beta-workflow > header div { display: grid; gap: .15rem; }
+.beta-workflow > header small { color: var(--muted); }
+.beta-workflow > header > span { border-radius: 999px; padding: .22rem .55rem; color: #6b5209; background: #f5e9ba; font-size: .72rem; font-weight: 800; text-transform: capitalize; }
+.beta-workflow__steps { display: grid; grid-template-columns: repeat(3, 1fr); border-block: 1px solid #eee6ca; background: #fffcf2; }
+.beta-workflow__steps span { padding: .65rem .8rem; border-right: 1px solid #eee6ca; color: var(--muted); font-size: .78rem; }
+.beta-workflow__steps span:last-child { border-right: 0; }
+.beta-workflow__steps span[data-complete="true"] { color: #176344; background: #eaf5ee; font-weight: 800; }
+.beta-workflow > details { padding: .75rem 1rem; }
+.beta-workflow > details > summary, .beta-compatibility > summary { min-height: 40px; color: #6b5209; font-weight: 800; cursor: pointer; }
+.beta-observation-form { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: .75rem; border-top: 1px solid #eee6ca; padding-top: .8rem; }
+.beta-checkbox { display: flex !important; align-items: center; gap: .5rem; }
+.beta-checkbox input { width: 1rem; min-height: auto; }
+.beta-observation-form button { align-self: end; }
+.beta-workflow > .library-message { padding-inline: 1rem; }
+.beta-compatibility { border-top: 1px solid #ded2a8; padding-top: .8rem; }
+.beta-compatibility ul { display: grid; gap: .4rem; padding-left: 1.2rem; color: var(--muted); }
+.beta-failures { margin: 0; border-radius: .4rem; padding: .7rem .8rem; color: #6b5209; background: #f8f3df; }
 .run-history__grid { display: grid; grid-template-columns: minmax(220px, .7fr) minmax(0, 1.5fr); border-top: 1px solid var(--line); min-height: 260px; }
 .run-history__grid > ol { margin: 0; padding: .6rem; border-right: 1px solid var(--line); list-style: none; }
 .run-history__grid > ol button { display: flex; width: 100%; justify-content: space-between; gap: .6rem; border: 0; border-radius: .45rem; padding: .7rem; text-align: left; background: transparent; }
@@ -720,6 +758,13 @@ th:nth-child(3), th:nth-child(4), td:nth-child(3), td:nth-child(4) { text-align:
   .video-observations summary, .video-ready { align-items: stretch; flex-direction: column; }
   .video-observations summary em { align-self: start; }
   .video-ready .primary-button { width: 100%; }
+  .beta-evidence__metrics { grid-template-columns: repeat(2, 1fr); }
+  .beta-evidence__metrics div:nth-child(2) { border-right: 0; }
+  .beta-evidence__metrics div:nth-child(-n+2) { border-bottom: 1px solid #e6ddbf; }
+  .beta-enroll__form, .beta-observation-form { grid-template-columns: 1fr; }
+  .beta-workflow__steps { grid-template-columns: 1fr; }
+  .beta-workflow__steps span { border-right: 0; border-bottom: 1px solid #eee6ca; }
+  .beta-workflow__steps span:last-child { border-bottom: 0; }
   .schedule-form, .schedule-form--profile, .schedule-preview { grid-template-columns: 1fr; }
   .schedule-list li { grid-template-columns: 1fr auto; }
   .schedule-list li > div { grid-column: 1 / -1; }

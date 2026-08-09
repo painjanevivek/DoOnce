@@ -10,6 +10,7 @@ import { RunHistoryPanel } from "./run-history-panel";
 import { TextAuthoringPanel } from "./text-authoring-panel";
 import { VideoAuthoringPanel } from "./video-authoring-panel";
 import { WorkflowRunPanel } from "./workflow-run-panel";
+import { BetaEvidencePanel } from "./beta-evidence-panel";
 
 const apiBaseUrl =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:4000";
@@ -160,6 +161,7 @@ export default function WorkflowLibrary() {
       <CapturePairingPanel />
       <CaptureSessionInbox />
       <RunHistoryPanel apiBaseUrl={apiBaseUrl} />
+      <BetaEvidencePanel apiBaseUrl={apiBaseUrl} workflows={workflows} />
       {selectedRun && (
         <WorkflowRunPanel
           apiBaseUrl={apiBaseUrl}
