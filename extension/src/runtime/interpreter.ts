@@ -74,7 +74,8 @@ export async function executeWorkflow(request: RunRequest, workflow: WorkflowSpe
         schemaVersion: 1, stepId: step.id, status: effectiveStatus, startedAt: started, finishedAt: now().toISOString(), retryCount,
         ...(effectiveReason ? { reasonCode: effectiveReason } : {}), ...(action.selectedLocator ? { selectedLocator: action.selectedLocator } : {}),
         ...(action.locatorConfidence !== undefined ? { locatorConfidence: action.locatorConfidence } : {}), ...(action.outputs ? { outputs: action.outputs } : {}),
-        ...(evidenceRefs.length > 0 ? { evidenceRefs: [...new Set(evidenceRefs)] } : {}), ...(action.observedPage ? { observedPage: action.observedPage } : {}), ...(assertionResults.length > 0 ? { assertionResults } : {}),
+        ...(evidenceRefs.length > 0 ? { evidenceRefs: [...new Set(evidenceRefs)] } : {}), ...(action.observedPage ? { observedPage: action.observedPage } : {}),
+        ...(action.repairCandidates?.length ? { repairCandidates: action.repairCandidates } : {}), ...(assertionResults.length > 0 ? { assertionResults } : {}),
       };
       stepResults.push(result);
       if (effectiveStatus !== "verified") { finalStatus = effectiveStatus === "failed" ? "failed" : "paused"; reasonCode = effectiveReason ?? "step.unverified"; break; }

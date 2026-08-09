@@ -1,4 +1,4 @@
-import type { AssertionResult, ElementTarget, LocatorCandidate, PageState, WorkflowActionKind, WorkflowAssertion, WorkflowStep } from "../../../contracts/protocol";
+import type { AssertionResult, ElementTarget, LocatorCandidate, LocatorSpec, PageState, WorkflowActionKind, WorkflowAssertion, WorkflowStep } from "../../../contracts/protocol";
 import type { ActionExecutionResult, ExecutionContext, ExecutorAdapter, ExecutorCapabilities } from "./executor-adapter";
 import { resolveLocator } from "./locator-resolution";
 import { evaluateAssertions, type DownloadObservation } from "./assertion-evaluator";
@@ -39,9 +39,9 @@ export class DomExecutorAdapter implements ExecutorAdapter {
     const resolved = resolveLocator(step.target.locator, findElements);
     if (resolved.status === "missing") {
       if (step.action === "wait") return this.waitForTarget(step.target, step.timeoutMs);
-      return { ...paused("locator.missing"), retryable: true, observedPage: pageState() };
+      return { ...paused("locator.missing"), retryable: true, observedPage: pageState(), repairCandidates: collectRepairCandidates(step.target.locator) };
     }
-    if (resolved.status === "ambiguous") return { ...paused("locator.ambiguous"), selectedLocator: resolved.candidate, locatorConfidence: resolved.candidate.confidence, observedPage: pageState() };
+    if (resolved.status === "ambiguous") return { ...paused("locator.ambiguous"), selectedLocator: resolved.candidate, locatorConfidence: resolved.candidate.confidence, observedPage: pageState(), repairCandidates: collectRepairCandidates(step.target.locator) };
     const element = resolved.element;
     const locator = { selectedLocator: resolved.candidate, locatorConfidence: resolved.confidence, observedPage: pageState() };
     if (!isVisible(element)) return { ...paused("element.not-visible"), ...locator, retryable: true };
@@ -65,8 +65,8 @@ export class DomExecutorAdapter implements ExecutorAdapter {
   private async waitForTarget(target: ElementTarget, timeoutMs: number): Promise<ActionExecutionResult> {
     const result = await waitFor(() => resolveLocator(target.locator, findElements), timeoutMs, () => this.cancelled);
     if (result.status === "resolved") return { status: "verified", selectedLocator: result.candidate, locatorConfidence: result.confidence, observedPage: pageState() };
-    if (result.status === "ambiguous") return { ...paused("locator.ambiguous"), selectedLocator: result.candidate, locatorConfidence: result.candidate.confidence, observedPage: pageState() };
-    return { ...paused(this.cancelled ? "run.cancelled" : "wait.timeout"), retryable: !this.cancelled, observedPage: pageState() };
+    if (result.status === "ambiguous") return { ...paused("locator.ambiguous"), selectedLocator: result.candidate, locatorConfidence: result.candidate.confidence, observedPage: pageState(), repairCandidates: collectRepairCandidates(target.locator) };
+    return { ...paused(this.cancelled ? "run.cancelled" : "wait.timeout"), retryable: !this.cancelled, observedPage: pageState(), repairCandidates: collectRepairCandidates(target.locator) };
   }
 }
 
@@ -79,6 +79,37 @@ function findElements(candidate: LocatorCandidate): Element[] {
   });
   return Array.from(document.querySelectorAll("button,a,input,select,textarea,[role]")).filter((element) => normalized(element.textContent ?? element.getAttribute("aria-label")).includes(normalized(candidate.value)));
 }
+
+function collectRepairCandidates(previous: LocatorSpec): LocatorCandidate[] {
+  const candidates: LocatorCandidate[] = [];
+  const seen = new Set<string>();
+  const elements = document.querySelectorAll("button,a,input,select,textarea,[role]");
+  for (let index = 0; index < Math.min(elements.length, 500); index += 1) {
+    const element = elements.item(index); if (!element) continue;
+    if (!isVisible(element)) continue;
+    const candidate = candidateFor(element);
+    if (!candidate) continue;
+    const key = `${candidate.strategy}:${candidate.value}`;
+    if (seen.has(key)) continue;
+    seen.add(key); candidates.push(candidate);
+  }
+  const previousValues = [previous.primary, ...previous.fallbacks].map((item) => normalized(item.value));
+  return candidates.sort((left, right) => candidateRelevance(right, previousValues) - candidateRelevance(left, previousValues)).slice(0, 12);
+}
+function candidateFor(element: Element): LocatorCandidate | undefined {
+  const id = element.getAttribute("id");
+  if (id && /^[A-Za-z][A-Za-z0-9_:-]{0,127}$/.test(id)) return { strategy: "id", value: id, confidence: .9 };
+  if (element instanceof HTMLInputElement || element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement) {
+    const label = element.labels?.[0]?.textContent; if (normalized(label) && !looksSensitive(label ?? null)) return { strategy: "label", value: normalizedText(label), confidence: .82 };
+  }
+  const text = element.getAttribute("aria-label") ?? element.textContent;
+  if (normalized(text) && !looksSensitive(text)) return { strategy: "text", value: normalizedText(text), confidence: .72 };
+  const role = element.getAttribute("role");
+  return role ? { strategy: "role", value: role.slice(0, 200), confidence: .55 } : undefined;
+}
+function normalizedText(value: string | null | undefined): string { return (value ?? "").trim().replace(/\s+/g, " ").slice(0, 200); }
+function candidateRelevance(candidate: LocatorCandidate, previousValues: string[]): number { const words = new Set(normalized(candidate.value).split(" ").filter(Boolean)); const overlap = Math.max(0, ...previousValues.map((value) => value.split(" ").filter(Boolean).filter((word) => words.has(word)).length)); return overlap + candidate.confidence; }
+function looksSensitive(value: string | null): boolean { const text = value ?? ""; return /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(text) || /\b\d{9,}\b/.test(text); }
 
 async function waitFor(check: () => ReturnType<typeof resolveLocator<Element>>, timeoutMs: number, cancelled: () => boolean): Promise<ReturnType<typeof resolveLocator<Element>>> {
   const initial = check(); if (initial.status !== "missing" || cancelled()) return initial;
@@ -96,6 +127,6 @@ function setValue(element: Element, value: string): boolean { if (element instan
 function readValue(element: Element): string { if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) return element.value; return (element.textContent ?? "").trim().slice(0, 10_000); }
 function compare(actual: string, operator: "equals" | "contains" | "matches", expected: string): boolean { if (operator === "equals") return actual === expected; if (operator === "contains") return actual.includes(expected); try { return new RegExp(expected).test(actual); } catch { return false; } }
 function isVisible(element: Element): boolean { const rect = element.getBoundingClientRect(); const style = getComputedStyle(element); return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none"; }
-function normalized(value: string | null): string { return (value ?? "").trim().replace(/\s+/g, " ").toLowerCase(); }
+function normalized(value: string | null | undefined): string { return (value ?? "").trim().replace(/\s+/g, " ").toLowerCase(); }
 function paused(reasonCode: string): ActionExecutionResult { return { status: "paused", reasonCode }; }
 function failed(reasonCode: string): ActionExecutionResult { return { status: "failed", reasonCode }; }

@@ -54,6 +54,13 @@ test("retries only explicitly retryable outcomes and reports a stable failure", 
   assert.equal(adapter.attempts.get(ids[2]!), 3);
 });
 
+test("persists bounded semantic repair candidates with a failed step", async () => {
+  const repairCandidates = [{ strategy: "text" as const, value: "Export report", confidence: .82 }];
+  const adapter = new FakeAdapter({ [ids[2]!]: { status: "paused", reasonCode: "locator.missing", repairCandidates } });
+  const result = await executeWorkflow(request, spec([navigate(ids[2]!)]), adapter);
+  assert.deepEqual(result.stepResults[0]?.repairCandidates, repairCandidates);
+});
+
 test("resumes after a persisted checkpoint without duplicating completed actions", async () => {
   const adapter = new FakeAdapter();
   const result = await executeWorkflow(request, spec([navigate(ids[2]!), navigate(ids[3]!)]), adapter, { checkpoint: { currentStepIndex: 1, stepResults: [{ schemaVersion: 1, stepId: ids[2]!, status: "verified", startedAt: request.requestedAt, finishedAt: request.requestedAt }], variables: {} } });

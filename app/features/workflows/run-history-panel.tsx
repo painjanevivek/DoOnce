@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { RepairProposalCard } from "./repair-proposal-card";
 import type { StepResult } from "../../../contracts/protocol";
 
 interface RunItem {
@@ -154,6 +155,7 @@ export function RunHistoryPanel({ apiBaseUrl }: { apiBaseUrl: string }) {
                   </li>
                 ))}
               </ol>
+              {["paused", "failed"].includes(timeline.run.status) && <RepairProposalCard apiBaseUrl={apiBaseUrl} runId={timeline.run.id} />}
               {timeline.artifacts.length > 0 && (
                 <div className="artifact-list">
                   <h4>Artifacts</h4>

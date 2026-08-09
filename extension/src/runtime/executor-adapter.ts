@@ -23,6 +23,7 @@ export interface ActionExecutionResult {
   outputs?: Record<string, string>;
   evidenceRefs?: string[];
   observedPage?: PageState;
+  repairCandidates?: LocatorCandidate[];
 }
 
 export interface ExecutorAdapter {

@@ -6,6 +6,7 @@ import type { WorkflowSpec } from "../../../contracts/protocol";
 import { WorkflowInputEditor } from "./workflow-input-editor";
 import { WorkflowStepEditor } from "./workflow-step-editor";
 import { TextAuthoringPanel } from "./text-authoring-panel";
+import { RepairProposalCard } from "./repair-proposal-card";
 
 const spec: WorkflowSpec = { schemaVersion: 1, format: "doonce.workflow-spec.v1", title: "Accessible editor", allowedDomains: ["example.com"], inputs: [{ name: "query", label: "Search query", kind: "text", required: true, secret: true }], steps: [{ id: "10000000-0000-4000-8000-000000000001", action: "type", name: "Enter query", expectedOutcome: "Query is entered", inputName: "query", target: { domain: "example.com", path: "/search", locator: { schemaVersion: 1, primary: { strategy: "label", value: "Search", confidence: .7 }, fallbacks: [] } } }] };
 
@@ -40,4 +41,11 @@ test("renders text authoring with plain-language progressive disclosure", () => 
   assert.match(html, /What should the browser do/);
   assert.match(html, /Reusable inputs and technical details/);
   assert.match(html, /Create editable draft/);
+});
+
+test("explains repair analysis without implying an automatic workflow change", () => {
+  const html = renderToStaticMarkup(createElement(RepairProposalCard, { apiBaseUrl: "http://127.0.0.1:4000", runId: "10000000-0000-4000-8000-000000000001" }));
+  assert.match(html, /Investigate this stopped run/);
+  assert.match(html, /Nothing is changed automatically/);
+  assert.match(html, /Analyze repair/);
 });
