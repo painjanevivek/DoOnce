@@ -236,6 +236,13 @@ th:nth-child(3), th:nth-child(4), td:nth-child(3), td:nth-child(4) { text-align:
 .workflow-import { display: grid; gap: .4rem; margin: 0 0 1rem; color: var(--muted); font-size: .9rem; font-weight: 700; }
 .workflow-import input { max-width: 420px; font: inherit; font-weight: 400; }
 .workflow-import small { font-weight: 400; }
+.workflow-pairing { margin: 0 0 1.25rem; border: 1px solid #a9bdcc; border-radius: .55rem; padding: .85rem 1rem; background: #f4f8fb; }
+.workflow-pairing summary { color: #315b79; font-weight: 750; cursor: pointer; }
+.workflow-pairing p { color: var(--muted); font-size: .9rem; }
+.workflow-pairing button { min-height: 42px; border: 0; border-radius: .4rem; padding: .55rem .8rem; color: #fff; background: #315b79; font: inherit; font-weight: 750; cursor: pointer; }
+.workflow-pairing output { display: grid; width: fit-content; margin-top: .75rem; border: 1px dashed #78a5c2; border-radius: .4rem; padding: .6rem .75rem; background: #fff; }
+.workflow-pairing output strong { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .08em; }
+.workflow-pairing output small { color: var(--muted); }
 .workflow-spec-preview { margin: 1rem 0 1.5rem; border: 1px solid #a9bdcc; border-radius: .7rem; padding: 1.1rem; background: #f4f8fb; }
 .workflow-spec-preview header { display: flex; align-items: start; justify-content: space-between; gap: 1rem; }
 .workflow-spec-preview h3 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.45rem; letter-spacing: -.025em; }

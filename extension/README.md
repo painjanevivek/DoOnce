@@ -1,5 +1,7 @@
 # DoOnce Browser Automation Extension
 
+Version 0.3 records explicit, recoverable capture sessions with semantic element and page evidence. Pair it from the signed-in dashboard, approve a site, demonstrate the task, review the progressive timeline, stop, synchronize, and finalize the session. If connectivity is unavailable, the bounded local session remains available for automatic retry or JSON export.
+
 This Manifest V3 extension records approved browser interactions and runs the controlled local report workflow. Run `npm run build:extension`, then load this folder as an unpacked Chrome extension.
 
 ## Current boundary

@@ -3,7 +3,7 @@ import addFormatsModule from "ajv-formats";
 import protocolSchema from "./protocol.v1.schema.json";
 import type { WorkflowSpec } from "./protocol";
 
-export type ContractName = "WorkflowSpec" | "LocatorSpec" | "WorkflowInputDefinition" | "RuntimeCapabilities" | "CaptureSession" | "RecordedAction" | "RunRequest" | "StepResult" | "RunResult" | "RepairProposal" | "ExtensionMessage" | "ApiError";
+export type ContractName = "WorkflowSpec" | "LocatorSpec" | "WorkflowInputDefinition" | "RuntimeCapabilities" | "CaptureSession" | "RecordedAction" | "CaptureHandshake" | "CaptureSyncRequest" | "CaptureSyncAck" | "RunRequest" | "StepResult" | "RunResult" | "RepairProposal" | "ExtensionMessage" | "ApiError";
 export interface ContractIssue { code: string; path: string; message: string }
 
 const schemaId = "https://doonce.dev/schemas/protocol.v1.schema.json";

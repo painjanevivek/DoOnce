@@ -132,12 +132,18 @@ function createWorkerRun(storage, scenario) {
   const chrome = {
     runtime: {
       onInstalled: { addListener() {} },
+      onStartup: { addListener() {} },
       onMessage: { addListener: (listener) => workerListeners.push(listener) },
       getURL: (filename) => `chrome-extension://controlled/${filename}`,
+      getManifest: () => ({ version: "0.3.0" }),
     },
+    alarms: { create: async () => undefined, onAlarm: { addListener() {} } },
+    downloads: { onCreated: { addListener() {} }, onChanged: { addListener() {} } },
     storage: { local: storage.local },
     notifications: { create: async () => undefined },
     tabs: {
+      onCreated: { addListener() {} },
+      onActivated: { addListener() {} },
       get: async () => ({ id: 1, url: fixtureUrl }),
       sendMessage: async (_tabId, message) => {
         if (scenario === "unknown") throw new Error("Injected message channel failure");
@@ -156,9 +162,14 @@ function createWorkerRun(storage, scenario) {
     importScripts: (...filenames) => filenames.forEach((filename) => vm.runInNewContext(readExtensionScript(filename), context, { filename })),
   };
   vm.runInNewContext(readExtensionScript("service-worker.js"), context, { filename: "service-worker.js" });
-  const listener = workerListeners.at(-1);
-  assert.ok(listener, "The service worker must register the local demo run listener.");
-  return () => sendMessageToListener(listener, { type: "doonce.run-demo-download", tabId: 1, origin: fixtureOrigin });
+  assert.ok(workerListeners.length > 0, "The service worker must register message listeners.");
+  return async () => {
+    for (const listener of [...workerListeners].reverse()) {
+      const result = await sendMessageToListener(listener, { type: "doonce.run-demo-download", tabId: 1, origin: fixtureOrigin });
+      if (result !== undefined) return result;
+    }
+    throw new Error("The service worker did not handle the local demo run message.");
+  };
 }
 
 async function runControlledBatch() {

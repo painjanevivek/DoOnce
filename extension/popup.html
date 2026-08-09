@@ -14,6 +14,13 @@
       <p id="origin" class="origin" aria-live="polite">Checking the current tab…</p>
       <p class="explanation">DoOnce records only value-free interaction summaries after your explicit consent. The only available execution is the verified local report download; nothing is sent automatically.</p>
       <p class="boundary"><strong>Never captured:</strong> passwords, OTPs, payment details, or hidden page content.</p>
+      <section class="run-preview" aria-labelledby="pair-title">
+        <p class="eyebrow" id="pair-title">Connect synchronization</p>
+        <label for="pairing-code">One-time dashboard code</label>
+        <input id="pairing-code" type="text" autocomplete="off" autocapitalize="characters" maxlength="32" placeholder="Paste pairing code">
+        <button id="pair-extension" type="button" class="secondary">Connect recorder</button>
+        <button id="disconnect-extension" type="button" class="secondary" disabled>Disconnect recorder</button>
+      </section>
       <section class="run-preview" aria-labelledby="run-preview-title">
         <p class="eyebrow" id="run-preview-title">Pre-run review</p>
         <p><strong>Action:</strong> download the local weekly-report CSV.</p>
@@ -23,12 +30,17 @@
       <div class="actions">
         <button id="consent" type="button" disabled>Allow recording on this site</button>
         <button id="recording" type="button" class="secondary" disabled>Pause recording</button>
+        <button id="stop-capture" type="button" class="secondary" disabled>Stop capture session</button>
+        <button id="sync-capture" type="button" class="secondary" disabled>Synchronize buffered capture</button>
+        <button id="finalize-capture" type="button" class="secondary" disabled>Finalize capture</button>
+        <button id="discard-capture" type="button" class="secondary" disabled>Discard capture</button>
         <button id="run-demo" type="button" class="secondary" disabled>Approve and run local demo download</button>
         <button id="export-receipts" type="button" class="secondary" disabled>Export local receipts for dashboard review</button>
         <button id="revoke" type="button" class="secondary" disabled>Remove consent</button>
         <button id="export" type="button" class="secondary" disabled>Export local capture for review</button>
       </div>
       <p id="capture-count" class="capture-count">No local events ready for review.</p>
+      <details class="timeline"><summary>Review captured timeline</summary><ol id="capture-timeline"><li>No structured events yet.</li></ol></details>
       <p id="run-count" class="capture-count">No local demo run receipts.</p>
       <p id="last-run" class="receipt-summary" aria-live="polite">No verified local receipt is available.</p>
       <p id="status" class="status" role="status" aria-live="polite"></p>

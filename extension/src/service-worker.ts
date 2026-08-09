@@ -1,6 +1,12 @@
 import { normalizeRecordedPath, type RecordedEventSummary } from "./capture-eligibility";
 import { canRunDemo } from "./run-eligibility";
 import { createRunNotification, type PauseReason, type RunResult } from "./run-notification";
+import type { CaptureSession, RecordedAction } from "../../contracts/protocol";
+import { validateContract } from "../../contracts/validation";
+import type { CaptureObservation } from "./content-capture";
+import { appendCaptureAction, createCaptureSession, transitionCaptureSession } from "./capture-session";
+import { discardCaptureSession, loadCaptureSession, saveCaptureSession } from "./capture-storage";
+import { createHttpCaptureTransport, synchronizeCaptureSession } from "./capture-sync";
 
 interface CaptureMessage {
   type: "doonce.capture";
@@ -15,12 +21,31 @@ chrome.runtime.onInstalled.addListener(async () => {
   if (!Array.isArray(stored["doonce.consentedOrigins"])) initialValues["doonce.consentedOrigins"] = [];
   if (!Array.isArray(stored["doonce.recordingOrigins"])) initialValues["doonce.recordingOrigins"] = [];
   if (Object.keys(initialValues).length > 0) await chrome.storage.local.set(initialValues);
+  await chrome.alarms.create("doonce.capture-sync", { periodInMinutes: 1 });
 });
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === "doonce.capture-sync") void synchronizeStoredCapture(false);
+});
+
+chrome.runtime.onStartup.addListener(() => { void synchronizeStoredCapture(false); });
+
+chrome.downloads.onCreated.addListener(() => { void recordBrowserEvent("download-start"); });
+chrome.downloads.onChanged.addListener((delta) => {
+  if (delta.state?.current === "complete") void recordBrowserEvent("download-complete");
+});
+chrome.tabs.onCreated.addListener((tab) => { void recordBrowserEvent("tab-create", tab.id); });
+chrome.tabs.onActivated.addListener((activeInfo) => { void recordBrowserEvent("tab-switch", activeInfo.tabId); });
 
 chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   if (!isCaptureMessage(message) || !sender.tab?.id || !sender.url) return;
   const senderUrl = new URL(sender.url);
   void storeCaptureSummary(message, senderUrl.origin, senderUrl.pathname);
+});
+
+chrome.runtime.onMessage.addListener((message: unknown, sender) => {
+  if (!isCaptureObservationMessage(message) || !sender.tab?.id || !sender.url) return;
+  void storeCaptureObservation(message.observation, sender.tab.id, sender.frameId ?? 0, new URL(sender.url));
 });
 
 chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
@@ -56,14 +81,89 @@ async function setRecording(tabId: number, origin: string, enabled: boolean): Pr
     await chrome.tabs.sendMessage(tabId, { type: enabled ? "doonce.start-capture" : "doonce.stop-capture" });
   } catch {
     if (!enabled) return false;
-    await chrome.scripting.executeScript({ target: { tabId }, files: ["dist/content-capture.js"] });
+    await chrome.scripting.executeScript({ target: { tabId, allFrames: true }, files: ["dist/content-capture.js"] });
     await chrome.tabs.sendMessage(tabId, { type: "doonce.start-capture" });
   }
   const recordingOrigins = new Set(stringArray(stored["doonce.recordingOrigins"]));
   if (enabled) recordingOrigins.add(origin);
   else recordingOrigins.delete(origin);
   await chrome.storage.local.set({ "doonce.recordingOrigins": [...recordingOrigins] });
+  await updateCaptureSession(origin, enabled);
   return true;
+}
+
+async function updateCaptureSession(origin: string, enabled: boolean): Promise<void> {
+  const existing = await loadCaptureSession(chrome.storage.local);
+  const now = new Date().toISOString();
+  let session: CaptureSession;
+  if (enabled) {
+    session = !existing || existing.status === "finalized" || existing.status === "discarded" || existing.status === "stopped"
+      ? createCaptureSession(origin, chrome.runtime.getManifest().version, now)
+      : existing.status === "paused" ? transitionCaptureSession(existing, "resume", now) : existing;
+  } else {
+    if (!existing || existing.status !== "recording") return;
+    session = transitionCaptureSession(existing, "pause", now);
+  }
+  await saveCaptureSession(chrome.storage.local, session);
+}
+
+async function storeCaptureObservation(observation: CaptureObservation, tabId: number, frameId: number, senderUrl: URL): Promise<void> {
+  if (observation.origin !== senderUrl.origin || observation.path !== senderUrl.pathname) return;
+  const session = await loadCaptureSession(chrome.storage.local);
+  if (!session || session.status !== "recording" || !session.approvedOrigins.includes(senderUrl.origin)) return;
+  const candidate: RecordedAction = { schemaVersion: 1, id: crypto.randomUUID(), sequence: session.actions.length, ...observation, tabId, frameId };
+  const valid = validateContract<RecordedAction>("RecordedAction", candidate);
+  if (!valid.ok) return;
+  const updated = appendCaptureAction(session, valid.value);
+  await saveCaptureSession(chrome.storage.local, updated);
+  if (updated.actions.length > 0 && updated.actions.length % 20 === 0) await synchronizeAndStore(updated, false);
+}
+
+async function recordBrowserEvent(eventKind: RecordedAction["eventKind"], tabId?: number): Promise<void> {
+  const session = await loadCaptureSession(chrome.storage.local);
+  if (!session || session.status !== "recording") return;
+  const previous = session.actions.at(-1);
+  const origin = previous?.origin ?? session.approvedOrigins[0];
+  if (!origin) return;
+  const path = previous?.path ?? "/";
+  const action: RecordedAction = { schemaVersion: 1, id: crypto.randomUUID(), sequence: session.actions.length, occurredAt: new Date().toISOString(), origin, path, eventKind, ...(tabId === undefined ? {} : { tabId }), ...(previous?.after ? { before: previous.after } : {}) };
+  const valid = validateContract<RecordedAction>("RecordedAction", action);
+  if (valid.ok) await saveCaptureSession(chrome.storage.local, appendCaptureAction(session, valid.value));
+}
+
+async function synchronizeStoredCapture(final: boolean): Promise<CaptureSession | undefined> {
+  const session = await loadCaptureSession(chrome.storage.local);
+  if (!session || session.status === "discarded" || session.status === "finalized" || (final && session.status !== "stopped")) return session;
+  return synchronizeAndStore(session, final);
+}
+
+async function synchronizeAndStore(session: CaptureSession, final: boolean): Promise<CaptureSession> {
+  const stored = await chrome.storage.local.get("doonce.captureToken");
+  const token = typeof stored["doonce.captureToken"] === "string" ? stored["doonce.captureToken"] : undefined;
+  const updated = await synchronizeCaptureSession(session, createHttpCaptureTransport("http://127.0.0.1:4000", token), final);
+  await saveCaptureSession(chrome.storage.local, updated);
+  return updated;
+}
+
+chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
+  if (!isRecord(message) || !["doonce.capture-stop", "doonce.capture-discard", "doonce.capture-sync", "doonce.capture-finalize", "doonce.capture-session"].includes(String(message.type))) return;
+  void handleCaptureCommand(String(message.type)).then((session) => sendResponse({ session }), () => sendResponse({ session: undefined }));
+  return true;
+});
+
+async function handleCaptureCommand(type: string): Promise<CaptureSession | undefined> {
+  const session = await loadCaptureSession(chrome.storage.local);
+  if (type === "doonce.capture-session") return session;
+  if (!session) return undefined;
+  if (type === "doonce.capture-discard") { await discardCaptureSession(chrome.storage.local); return undefined; }
+  if (type === "doonce.capture-stop") {
+    const stopped = session.status === "recording" || session.status === "paused" ? transitionCaptureSession(session, "stop") : session;
+    await saveCaptureSession(chrome.storage.local, stopped);
+    return stopped;
+  }
+  if (type === "doonce.capture-sync") return synchronizeAndStore(session, false);
+  if (type === "doonce.capture-finalize") return synchronizeAndStore(session, true);
+  return session;
 }
 
 async function runDemoDownload(tabId: number, origin: string): Promise<RunResult> {
@@ -136,6 +236,11 @@ function isCaptureMessage(value: unknown): value is CaptureMessage {
     && value.summary.selector.length <= 256
     && (value.summary.actionHint === undefined || value.summary.actionHint === "download")
     && Object.keys(value.summary).every((key) => ["eventKind", "selector", "actionHint"].includes(key));
+}
+
+function isCaptureObservationMessage(value: unknown): value is { type: "doonce.capture-observation"; observation: CaptureObservation } {
+  if (!isRecord(value) || value.type !== "doonce.capture-observation" || !isRecord(value.observation)) return false;
+  return typeof value.observation.occurredAt === "string" && typeof value.observation.origin === "string" && typeof value.observation.path === "string" && typeof value.observation.eventKind === "string";
 }
 
 function isPauseReason(value: unknown): value is PauseReason {

@@ -3,6 +3,8 @@ import { describePauseReason, describeReceipt, isReceipt, type LocalReceipt } fr
 import { isRecording, removeOriginData, setRecording } from "./recording-state";
 import { canRunDemo, canStartDemoRun, isConsentableWebOrigin } from "./run-eligibility";
 import { compileRecordedActions } from "./workflow-compiler";
+import type { CaptureSession, RecordedAction } from "../../contracts/protocol";
+import { loadCaptureSession } from "./capture-storage";
 
 const consentButton = element<HTMLButtonElement>("#consent");
 const recordingButton = element<HTMLButtonElement>("#recording");
@@ -11,6 +13,14 @@ const runApprovalInput = element<HTMLInputElement>("#run-approval");
 const exportReceiptsButton = element<HTMLButtonElement>("#export-receipts");
 const revokeButton = element<HTMLButtonElement>("#revoke");
 const exportButton = element<HTMLButtonElement>("#export");
+const stopCaptureButton = element<HTMLButtonElement>("#stop-capture");
+const syncCaptureButton = element<HTMLButtonElement>("#sync-capture");
+const finalizeCaptureButton = element<HTMLButtonElement>("#finalize-capture");
+const discardCaptureButton = element<HTMLButtonElement>("#discard-capture");
+const timelineElement = element<HTMLOListElement>("#capture-timeline");
+const pairingCodeInput = element<HTMLInputElement>("#pairing-code");
+const pairExtensionButton = element<HTMLButtonElement>("#pair-extension");
+const disconnectExtensionButton = element<HTMLButtonElement>("#disconnect-extension");
 const originElement = element<HTMLElement>("#origin");
 const statusElement = element<HTMLElement>("#status");
 const captureCountElement = element<HTMLElement>("#capture-count");
@@ -33,9 +43,27 @@ function updateDemoRunAvailability(allowedOrigins: string[]): void {
 
 async function updateCaptureCount(): Promise<void> {
   const stored = await chrome.storage.local.get("doonce.capturedSummaries");
+  const session = await loadCaptureSession(chrome.storage.local);
   const summaries = actionSummaries(stored["doonce.capturedSummaries"]).filter((summary) => summary.origin === currentOrigin);
-  exportButton.disabled = summaries.length === 0;
-  captureCountElement.textContent = summaries.length ? `${summaries.length} value-free local event${summaries.length === 1 ? "" : "s"} ready for review.` : "No local events ready for review.";
+  const sessionActions = session?.approvedOrigins.includes(currentOrigin ?? "") ? session.actions : [];
+  const count = sessionActions.length || summaries.length;
+  exportButton.disabled = count === 0;
+  stopCaptureButton.disabled = !session || (session.status !== "recording" && session.status !== "paused");
+  syncCaptureButton.disabled = !session || session.status === "discarded" || session.status === "finalized";
+  finalizeCaptureButton.disabled = !session || session.status !== "stopped";
+  discardCaptureButton.disabled = !session;
+  captureCountElement.textContent = count ? `${count} structured event${count === 1 ? "" : "s"} in the ${session?.status ?? "local"} capture session.` : "No local events ready for review.";
+  renderTimeline(sessionActions);
+}
+
+function renderTimeline(actions: readonly RecordedAction[]): void {
+  timelineElement.replaceChildren();
+  for (const action of actions.slice(-12)) {
+    const item = document.createElement("li");
+    const name = action.target?.accessibleName ?? action.target?.textHint ?? action.target?.tagName ?? "page";
+    item.textContent = `${action.sequence + 1}. ${action.eventKind.replaceAll("-", " ")} — ${name} (${action.path})`;
+    timelineElement.append(item);
+  }
 }
 
 async function updateRunCount(): Promise<void> {
@@ -67,7 +95,8 @@ async function loadCurrentOrigin(): Promise<void> {
 
   currentOrigin = new URL(tab.url).origin;
   originElement.textContent = currentOrigin;
-  const stored = await chrome.storage.local.get(["doonce.consentedOrigins", "doonce.recordingOrigins"]);
+  const stored = await chrome.storage.local.get(["doonce.consentedOrigins", "doonce.recordingOrigins", "doonce.captureToken"]);
+  disconnectExtensionButton.disabled = typeof stored["doonce.captureToken"] !== "string";
   const allowedOrigins = stringArray(stored["doonce.consentedOrigins"]);
   recording = isRecording(stored["doonce.recordingOrigins"], currentOrigin) && await isCurrentTabRecording(tab);
   consentButton.disabled = false;
@@ -165,11 +194,75 @@ revokeButton.addEventListener("click", async () => {
 exportButton.addEventListener("click", async () => {
   if (!currentOrigin) return;
   const stored = await chrome.storage.local.get("doonce.capturedSummaries");
-  const actions = actionSummaries(stored["doonce.capturedSummaries"]).filter((summary) => summary.origin === currentOrigin);
+  const session = await loadCaptureSession(chrome.storage.local);
+  const structured = session?.approvedOrigins.includes(currentOrigin) ? session.actions : [];
+  const actions = structured.length ? structuredActionSummaries(structured) : actionSummaries(stored["doonce.capturedSummaries"]).filter((summary) => summary.origin === currentOrigin);
   if (actions.length === 0) return;
   const compiled = compileRecordedActions(actions);
-  downloadJson({ ...createCaptureExport(actions), ...(compiled.ok ? { workflowSpec: compiled.value } : {}) }, "doonce-capture.json");
+  downloadJson({ ...createCaptureExport(actions), ...(session ? { session } : {}), ...(compiled.ok ? { workflowSpec: compiled.value } : {}) }, "doonce-capture.json");
   displayStatus(compiled.ok ? "Capture review file and workflow draft downloaded. Nothing was sent to DoOnce." : "Capture review file downloaded. Nothing was sent to DoOnce.");
+});
+
+stopCaptureButton.addEventListener("click", async () => {
+  if (currentOrigin && currentTab?.id && recording) await chrome.runtime.sendMessage({ type: "doonce.set-recording", origin: currentOrigin, tabId: currentTab.id, enabled: false });
+  await chrome.runtime.sendMessage({ type: "doonce.capture-stop" });
+  recording = false;
+  recordingButton.textContent = "Resume recording";
+  displayStatus("Capture stopped. Review the timeline, synchronize it, then finalize when ready.");
+  await updateCaptureCount();
+});
+
+syncCaptureButton.addEventListener("click", async () => {
+  displayStatus("Synchronizing buffered capture batches…");
+  const response: unknown = await chrome.runtime.sendMessage({ type: "doonce.capture-sync" });
+  displayStatus(isSessionResponse(response) && (response.session.syncCursor ?? -1) >= 0 ? "Buffered capture events synchronized." : "Capture remains stored locally and will retry after connectivity returns.");
+  await updateCaptureCount();
+});
+
+finalizeCaptureButton.addEventListener("click", async () => {
+  displayStatus("Synchronizing and finalizing this capture…");
+  const response: unknown = await chrome.runtime.sendMessage({ type: "doonce.capture-finalize" });
+  displayStatus(isSessionResponse(response) && response.session.status === "finalized" ? "Capture finalized and ready for workflow authoring." : "Finalization is pending; the capture remains available locally.");
+  await updateCaptureCount();
+});
+
+discardCaptureButton.addEventListener("click", async () => {
+  if (!window.confirm("Discard this capture session and its local timeline?")) return;
+  await chrome.runtime.sendMessage({ type: "doonce.capture-discard" });
+  displayStatus("Capture session discarded from this browser.");
+  await updateCaptureCount();
+});
+
+pairExtensionButton.addEventListener("click", async () => {
+  const code = pairingCodeInput.value.trim().toUpperCase();
+  if (!/^[A-Z0-9_-]{12,32}$/.test(code)) return displayStatus("Enter the complete pairing code from the dashboard.");
+  pairExtensionButton.disabled = true;
+  try {
+    const response = await fetch("http://127.0.0.1:4000/api/v1/capture-sessions/pair", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ code }) });
+    const body: unknown = await response.json();
+    if (!response.ok || !isRecord(body) || typeof body.token !== "string") throw new TypeError("Pairing was rejected.");
+    await chrome.storage.local.set({ "doonce.captureToken": body.token });
+    disconnectExtensionButton.disabled = false;
+    pairingCodeInput.value = "";
+    displayStatus("Browser recorder connected. Buffered capture sessions can now synchronize automatically.");
+  } catch {
+    displayStatus("Pairing failed. Generate a fresh dashboard code and try again.");
+  } finally {
+    pairExtensionButton.disabled = false;
+  }
+});
+
+disconnectExtensionButton.addEventListener("click", async () => {
+  const stored = await chrome.storage.local.get("doonce.captureToken");
+  const token = stored["doonce.captureToken"];
+  if (typeof token !== "string") return;
+  disconnectExtensionButton.disabled = true;
+  try {
+    await fetch("http://127.0.0.1:4000/api/v1/capture-sessions/unpair", { method: "POST", headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } });
+  } finally {
+    await chrome.storage.local.remove("doonce.captureToken");
+    displayStatus("Recorder disconnected. Existing local capture data was retained.");
+  }
 });
 
 void loadCurrentOrigin().catch(() => {
@@ -194,6 +287,20 @@ function actionSummaries(value: unknown): RecordedActionSummary[] {
     && (item.eventKind === "click" || item.eventKind === "change" || item.eventKind === "input")
     && typeof item.selector === "string"
     && (item.actionHint === undefined || item.actionHint === "download"));
+}
+
+function structuredActionSummaries(actions: readonly RecordedAction[]): RecordedActionSummary[] {
+  return actions.flatMap((action) => {
+    if (action.eventKind !== "click" && action.eventKind !== "change" && action.eventKind !== "input" && action.eventKind !== "select" && action.eventKind !== "toggle") return [];
+    const selector = action.target?.cssCandidate ?? action.locator?.primary.value;
+    if (!selector) return [];
+    const eventKind = action.eventKind === "select" || action.eventKind === "toggle" ? "change" : action.eventKind;
+    return [{ origin: action.origin, path: action.path, eventKind, selector, ...(action.actionHint ? { actionHint: action.actionHint } : {}) }];
+  });
+}
+
+function isSessionResponse(value: unknown): value is { session: CaptureSession } {
+  return isRecord(value) && isRecord(value.session) && typeof value.session.id === "string" && typeof value.session.status === "string";
 }
 
 function receiptList(value: unknown): LocalReceipt[] {

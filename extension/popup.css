@@ -19,3 +19,7 @@ button:disabled { cursor: not-allowed; opacity: .52; }
 .status { min-height: 20px; margin: 16px 0 0; color: #1f4325; font-size: 14px; font-weight: 700; }
 .capture-count { color: #4b554c; font-size: 13px; line-height: 1.4; }
 .receipt-summary { border-left: 3px solid #466449; color: #26342a; font-size: 13px; line-height: 1.45; margin: 12px 0; padding-left: 12px; }
+.timeline { margin: .75rem 0; border: 1px solid #c8d8e3; border-radius: .45rem; padding: .65rem; background: #f4f8fb; }
+.timeline summary { color: #315b79; font-weight: 750; cursor: pointer; }
+.timeline ol { display: grid; gap: .35rem; margin: .65rem 0 0; padding-left: 1.2rem; color: #4e5f6b; font-size: .82rem; }
+.run-preview input[type="text"] { width: 100%; min-height: 42px; margin: .35rem 0 .6rem; border: 1px solid #a9bdcc; border-radius: .35rem; padding: .5rem .6rem; color: #142736; background: #fff; font: inherit; text-transform: uppercase; }
