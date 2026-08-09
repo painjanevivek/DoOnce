@@ -9,6 +9,7 @@ RUN npm run build
 FROM node:24-alpine AS runner
 
 WORKDIR /app
+RUN apk upgrade --no-cache
 ENV NODE_ENV=production
 ENV PORT=3000
 COPY --from=build --chown=node:node /app/.next/standalone ./
