@@ -6,4 +6,6 @@ The browser extension negotiates capture capabilities, persists its active sessi
 
 The renderer is action-generic. A report download uses the same title, expected-outcome, page, and locator-strategy presentation as navigation, reads, input, comparisons, approvals, and stop steps. Importing a capture remains local and never saves, publishes, or executes it.
 
+The recorder inbox consumes bounded `CaptureSessionSummary` records and validates the complete `WorkflowCompilation` only after an author requests compilation. The review progressively discloses warnings, action coverage, source digest, and provenance rather than mixing raw capture events into the workflow definition.
+
 When the backend contract changes, use the backend export command to refresh this snapshot. Do not hand-edit `protocol.ts`, the schema snapshot, or their hashes independently. A breaking change must arrive as a new protocol version with an explicit compatibility path for stored captures.

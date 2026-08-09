@@ -1,9 +1,9 @@
 import { Ajv2020, type ErrorObject, type ValidateFunction } from "ajv/dist/2020";
 import addFormatsModule from "ajv-formats";
 import protocolSchema from "./protocol.v1.schema.json";
-import type { WorkflowSpec } from "./protocol";
+import type { WorkflowCompilation, WorkflowSpec } from "./protocol";
 
-export type ContractName = "WorkflowSpec" | "LocatorSpec" | "WorkflowInputDefinition" | "RuntimeCapabilities" | "CaptureSession" | "RecordedAction" | "CaptureHandshake" | "CaptureSyncRequest" | "CaptureSyncAck" | "RunRequest" | "StepResult" | "RunResult" | "RepairProposal" | "ExtensionMessage" | "ApiError";
+export type ContractName = "WorkflowSpec" | "LocatorSpec" | "WorkflowInputDefinition" | "RuntimeCapabilities" | "CaptureSession" | "CaptureSessionSummary" | "RecordedAction" | "CaptureHandshake" | "CaptureSyncRequest" | "CaptureSyncAck" | "WorkflowCompilation" | "RunRequest" | "StepResult" | "RunResult" | "RepairProposal" | "ExtensionMessage" | "ApiError";
 export interface ContractIssue { code: string; path: string; message: string }
 
 const schemaId = "https://doonce.dev/schemas/protocol.v1.schema.json";
@@ -23,6 +23,10 @@ export function validateContract<T>(name: ContractName, input: unknown): { ok: t
   if (name === "WorkflowSpec") {
     const semantic = workflowSemanticIssues(input as WorkflowSpec);
     if (semantic.length > 0) return { ok: false, errors: semantic };
+  }
+  if (name === "WorkflowCompilation") {
+    const semanticErrors = workflowSemanticIssues((input as WorkflowCompilation).workflow).map((error) => ({ ...error, path: `/workflow${error.path}` }));
+    if (semanticErrors.length > 0) return { ok: false, errors: semanticErrors };
   }
   return { ok: true, value: input as T };
 }

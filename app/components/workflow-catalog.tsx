@@ -5,6 +5,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { WorkflowDraftReview } from "../features/workflows/workflow-draft-review";
 import { WorkflowSpecPreview } from "../features/workflows/workflow-spec-preview";
 import { CapturePairingPanel } from "../features/workflows/capture-pairing-panel";
+import { CaptureSessionInbox } from "../features/workflows/capture-session-inbox";
 import { WorkflowSummaryList } from "../features/workflows/workflow-summary-list";
 import type { WorkflowSpec } from "../../contracts/protocol";
 
@@ -477,6 +478,7 @@ export default function WorkflowCatalog() {
       {!workflowChangesEnabled && <div className="workflow-review workflow-review--restricted" role="alert"><strong>Workflow changes paused</strong><span>The server capability control is active.</span><small>You can inspect workflows, receipts, and audit history. Creating, previewing, publishing, and repairing drafts is unavailable; owners can still disable an active workflow.</small></div>}
       <label className="workflow-import">Import a local capture for review<input type="file" accept="application/json" onChange={(event) => void importCapture(event.target.files?.[0])} /><small>Optional. This reads a local extension export in your browser; it is not uploaded until you create a draft.</small></label>
       <CapturePairingPanel />
+      <CaptureSessionInbox />
       {importedWorkflowSpec && <WorkflowSpecPreview spec={importedWorkflowSpec} />}
       <label className="workflow-import">Import a local run receipt<input type="file" accept="application/json" onChange={(event) => void importReceipt(event.target.files?.[0])} /><small>Receipts remain local until you select an active workflow and confirm saving.</small></label>
       {workflows.some((workflow) => workflow.draftVersion !== null) && <div className="workflow-review" aria-label="Resume an unpublished draft"><strong>Resume an unpublished draft</strong><label>Saved draft<select value={resumeDraftId} onChange={(event) => setResumeDraftId(event.target.value)}><option value="">Choose a saved draft</option>{workflows.filter((workflow) => workflow.draftVersion !== null).map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.title} — version {workflow.draftVersion}</option>)}</select></label><small>Restores the server-confirmed draft and its publication prerequisites. It does not run or publish anything.</small><button disabled={!resumeDraftId || resumeState === "loading"} onClick={() => void resumeDraft()} type="button">{resumeState === "loading" ? "Restoring draft…" : "Resume draft review"}</button></div>}
