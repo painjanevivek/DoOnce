@@ -1,5 +1,5 @@
-import Link from "next/link";
-import LegalFooter from "../components/legal-footer";
+import { SiteFooter } from "../features/site/site-footer";
+import { SiteHeader } from "../features/site/site-header";
 
 export const metadata = {
   title: "Privacy policy draft | DoOnce",
@@ -8,12 +8,9 @@ export const metadata = {
 
 export default function PrivacyPage() {
   return (
-    <div className="legal-shell">
+    <div className="legal-shell guided-legal">
       <a className="skip-link" href="#privacy-main">Skip to privacy policy</a>
-      <header className="account-header">
-        <Link className="brand" href="/" aria-label="DoOnce home">Do<span>Once</span></Link>
-        <div className="legal-header-links"><Link href="/terms">Terms</Link><Link className="back-link" href="/">Back to overview</Link></div>
-      </header>
+      <SiteHeader compact />
       <main id="privacy-main" className="legal-main">
         <p className="eyebrow">Pre-launch draft · August 2026</p>
         <h1>Privacy Policy</h1>
@@ -28,7 +25,7 @@ export default function PrivacyPage() {
         <section className="legal-section" aria-labelledby="privacy-safety"><h2 id="privacy-safety">Safety and incident handling</h2><p>The service is designed to keep tenant data behind tenant-scoped access controls and to pause workflow changes when safety is in doubt. A final incident-response process, notification obligations, and escalation contacts must be approved before launch.</p></section>
         <section className="legal-section legal-section--last" aria-labelledby="privacy-contact"><h2 id="privacy-contact">Questions about this draft</h2><p>The responsible legal entity and privacy contact are not yet established because DoOnce is not deployed. Do not submit sensitive personal information through this draft site. Once those details are approved, they will appear here with an effective date and version history.</p></section>
       </main>
-      <LegalFooter />
+      <SiteFooter />
     </div>
   );
 }

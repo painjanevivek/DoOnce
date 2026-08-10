@@ -337,21 +337,21 @@ feat(marketing): rebuild the guided proof homepage
 - Produces: `SystemState({ eyebrow, title, message, action })` for error and empty surfaces.
 - Consumes: existing account endpoints and form handlers without changing payloads.
 
-- [ ] **Step 1: Write failing static-state tests**
+- [x] **Step 1: Write failing static-state tests**
 
 Assert that `SystemState` renders a heading, recovery message, action link, and no marketing motion hooks. Add account-form assertions for visible labels, autocomplete, error association, and preserved submit behavior.
 
-- [ ] **Step 2: Run focused tests and confirm failure**
+- [x] **Step 2: Run focused tests and confirm failure**
 
 Run: `npx tsx --test app/features/site/system-state.test.ts`
 
 Expected: FAIL because `system-state.tsx` is absent.
 
-- [ ] **Step 3: Implement public supporting pages**
+- [x] **Step 3: Implement public supporting pages**
 
 Use the shared header/footer and two-column account/install composition. Keep privacy and terms content unchanged; only restructure landmarks and visual hierarchy. Each error states what happened, what remains preserved, and the next action.
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 Run: `npm run test:extension && npm run typecheck && npm run lint && npm run build`
 

@@ -77,19 +77,19 @@ export default function AccountForm() {
         {mode === "sign-up" && (
           <p className="field">
             <label htmlFor="tenantName">Workspace name</label>
-            <input autoComplete="organization" id="tenantName" maxLength={120} minLength={1} name="tenantName" placeholder="Example: Acme reporting" required type="text" />
+            <input aria-describedby="account-feedback" autoComplete="organization" id="tenantName" maxLength={120} minLength={1} name="tenantName" placeholder="Example: Acme reporting" required type="text" />
           </p>
         )}
         <p className="field">
           <label htmlFor="email">Work email</label>
-          <input autoComplete="email" id="email" maxLength={320} name="email" placeholder="name@company.com" required type="email" />
+          <input aria-describedby="account-feedback" autoComplete="email" id="email" maxLength={320} name="email" placeholder="name@company.com" required type="email" />
         </p>
         <p className="field">
           <label htmlFor="password">Password</label>
-          <input autoComplete={mode === "sign-up" ? "new-password" : "current-password"} id="password" maxLength={128} minLength={mode === "sign-up" ? 12 : 1} name="password" required type="password" />
+          <input aria-describedby="account-feedback" autoComplete={mode === "sign-up" ? "new-password" : "current-password"} id="password" maxLength={128} minLength={mode === "sign-up" ? 12 : 1} name="password" required type="password" />
           {mode === "sign-up" && <span className="field-hint">Use at least 12 characters. DoOnce never records passwords in workflows.</span>}
         </p>
-        <p className="account-feedback" aria-live="polite" data-state={state}>{message}</p>
+        <p className="account-feedback" aria-live="polite" data-state={state} id="account-feedback">{message}</p>
         {state === "success" ? (
           <Link className="account-submit" href="/workflows">Open workflow workspace</Link>
         ) : (
