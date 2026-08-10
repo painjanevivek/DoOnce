@@ -264,7 +264,7 @@ feat(install): add truthful extension acquisition
 - Consumes: shared content arrays, `SiteHeader`, `SiteFooter`, and internal `/install` CTA.
 - Produces: `LandingPage`, `AuthoringAccordion`, `ScenarioCarousel`, and `GuidedProofMotion`.
 
-- [ ] **Step 1: Write a failing server-rendered AIDA test**
+- [x] **Step 1: Write a failing server-rendered AIDA test**
 
 ```ts
 const html = renderToStaticMarkup(createElement(LandingPage));
@@ -276,23 +276,23 @@ assert.match(html, /example scenario/i);
 assert.doesNotMatch(html, /SECTION \d|trusted by/i);
 ```
 
-- [ ] **Step 2: Run the focused test and verify failure**
+- [x] **Step 2: Run the focused test and verify failure**
 
 Run: `npx tsx --test app/features/site/landing-page.test.ts`
 
 Expected: FAIL because `LandingPage` is missing.
 
-- [ ] **Step 3: Install and register motion dependencies**
+- [x] **Step 3: Install and register motion dependencies**
 
 Run: `npm install gsap@^3 @gsap/react@^2`
 
 Keep GSAP imports inside `guided-proof-motion.tsx`; no workflow component may depend on GSAP.
 
-- [ ] **Step 4: Implement the complete AIDA composition**
+- [x] **Step 4: Implement the complete AIDA composition**
 
 Build one semantic `<main className="guided-proof-page">` containing hero, 24-cell bento, task marquee, authoring accordion, scrubbed narrative, scenario carousel, install action, and footer. Use real product-language compositions made from HTML/CSS rather than fake screenshots.
 
-- [ ] **Step 5: Implement exact bento geometry and hero constraints**
+- [x] **Step 5: Implement exact bento geometry and hero constraints**
 
 ```css
 .guided-proof-bento { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(15rem, auto)); grid-auto-flow: dense; }
@@ -303,11 +303,11 @@ Build one semantic `<main className="guided-proof-page">` containing hero, 24-ce
 
 At mobile widths, convert cards to one column in source order without absolute positioning.
 
-- [ ] **Step 6: Implement keyboard accordion and carousel behavior**
+- [x] **Step 6: Implement keyboard accordion and carousel behavior**
 
 Use buttons with `aria-expanded`, labelled panels, roving carousel controls, and live-region-free slide updates. All scenario cards must say “Example scenario”; do not render quotation marks or customer attribution.
 
-- [ ] **Step 7: Verify and commit**
+- [x] **Step 7: Verify and commit**
 
 Run: `npm run test:extension && npm run typecheck && npm run lint && npm run build`
 
