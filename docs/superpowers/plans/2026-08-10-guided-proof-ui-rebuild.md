@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Preserve the existing `contracts/`, API response validation, authentication cookies, role checks, and WorkflowSpec behavior.
-- Use Satoshi variable typography from the official Fontshare distribution with its license stored beside the local WOFF2 files.
+- Use Satoshi typography through Fontshare's official API. Do not redistribute the proprietary font files from the application server.
 - Use deep ink, warm bone, and restrained electric-chartreuse tokens; all text and controls must remain readable in every state.
 - Public pages follow Navigation, Attention, Interest, Desire, and Action; authenticated pages prioritize progressive task completion.
 - The homepage title uses `.hero-title--wide`, `max-width: 78rem`, and `clamp(3.5rem, 7.4vw, 8rem)` and never exceeds three lines.
@@ -20,7 +20,7 @@
 - Do not add fake testimonials, partner logos, customer results, decorative stamps, generic meta-labels, or unverified performance claims.
 - No public control may hide sign-in, privacy, terms, keyboard focus, loading, error, or disabled states.
 - Install links route through `/install`; production requires `NEXT_PUBLIC_EXTENSION_INSTALL_URL` to use HTTPS on `chromewebstore.google.com`.
-- Do not modify `next.config.ts`; local fonts and product compositions remain self-origin and fit the existing content-security policy.
+- Permit only `https://api.fontshare.com` for the Fontshare stylesheet and `https://cdn.fontshare.com` for its font files in the content-security policy.
 
 ---
 
@@ -28,7 +28,7 @@
 
 **Create**
 
-- `app/fonts/Satoshi-Variable.woff2` and `app/fonts/LICENSE.txt` - self-hosted licensed typeface.
+- `docs/licenses/SATOSHI.md` - typeface source, license link, API URL, and fallback behavior.
 - `app/styles/tokens.css` - color, typography, spacing, elevation, focus, and motion variables.
 - `app/styles/foundation.css` - reset, body, shared controls, accessibility, navigation, and footer.
 - `app/styles/marketing.css` - homepage, install, account, and legal presentation.
@@ -53,7 +53,8 @@
 
 - `package.json`, `package-lock.json` - add GSAP dependencies and site tests.
 - `.env.example` - document `NEXT_PUBLIC_EXTENSION_INSTALL_URL`.
-- `app/layout.tsx` and `app/globals.css` - local font and layered style imports.
+- `app/layout.tsx` and `app/globals.css` - official Fontshare API link and layered style imports.
+- `next.config.ts` - narrowly allow Fontshare's stylesheet and font CDN origins.
 - `app/page.tsx`, `app/sign-up/page.tsx`, `app/privacy/page.tsx`, `app/terms/page.tsx` - new public compositions.
 - `app/not-found.tsx`, `app/error.tsx`, `app/global-error.tsx` - shared system states.
 - `app/workflows/page.tsx`, `app/workflows/[id]/page.tsx` - shared product navigation.
@@ -65,21 +66,21 @@
 ### Task 1: Guided Proof foundation and content model
 
 **Files:**
-- Create: `app/fonts/Satoshi-Variable.woff2`
-- Create: `app/fonts/LICENSE.txt`
+- Create: `docs/licenses/SATOSHI.md`
 - Create: `app/styles/tokens.css`
 - Create: `app/styles/foundation.css`
 - Create: `app/features/site/site-content.ts`
 - Test: `app/features/site/site-content.test.ts`
 - Modify: `app/layout.tsx`
 - Modify: `app/globals.css`
+- Modify: `next.config.ts`
 - Modify: `package.json`
 
 **Interfaces:**
 - Produces: `AuthoringPath`, `ExampleScenario`, `authoringPaths`, `exampleScenarios`, and `taskExamples` for public components.
 - Produces: CSS variables rooted at `--ink`, `--bone`, `--signal`, `--font-satoshi`, and shared focus/control classes.
 
-- [ ] **Step 1: Add the test command and write failing content tests**
+- [x] **Step 1: Add the test command and write failing content tests**
 
 Replace the `test:extension` script with `npm run build:extension && tsx --test extension/src/*.test.ts extension/src/runtime/*.test.ts app/features/site/*.test.ts app/features/workflows/*.test.ts && node --test extension/controlled-run-harness.test.js`, then create:
 
@@ -101,13 +102,13 @@ test("avoids banned generic labels and customer claims", () => {
 });
 ```
 
-- [ ] **Step 2: Run the focused test and verify it fails**
+- [x] **Step 2: Run the focused test and verify it fails**
 
 Run: `npx tsx --test app/features/site/site-content.test.ts`
 
 Expected: FAIL because `site-content.ts` does not exist.
 
-- [ ] **Step 3: Implement the immutable content model**
+- [x] **Step 3: Implement the immutable content model**
 
 ```ts
 export interface AuthoringPath {
@@ -141,32 +142,26 @@ Define three frozen `ExampleScenario` records:
 - Recruiting coordinator: describe copying shortlisted candidates into a tracker; verify required columns are populated; artifact is an updated recruiting sheet.
 - Finance analyst: upload a walkthrough of reconciling portal totals; verify the source and destination totals match; artifact is a reconciliation report.
 
-- [ ] **Step 4: Add font assets, tokens, and root font wiring**
+- [x] **Step 4: Add licensed font delivery, tokens, and root font wiring**
 
-Download Satoshi from the official Fontshare page at `https://www.fontshare.com/fonts/satoshi`, store the variable WOFF2 locally, and save the ITF Free Font License from `https://www.fontshare.com/licenses/itf-ffl` as `app/fonts/LICENSE.txt`. Record the download page and retrieval date in the license file, then configure:
+Use Fontshare's official API stylesheet so the application does not redistribute the proprietary font files. Add this to the root layout `<head>` and use a resilient system fallback:
 
 ```tsx
-import localFont from "next/font/local";
-
-const satoshi = localFont({
-  src: "./fonts/Satoshi-Variable.woff2",
-  variable: "--font-satoshi",
-  display: "swap",
-  weight: "300 900",
-});
-
-<body className={satoshi.variable}>{children}</body>
+<link
+  href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700,900&display=swap"
+  rel="stylesheet"
+/>
 ```
 
-Import the new style layers from `globals.css`. Define semantic tokens rather than raw colors inside components.
+Set `--font-satoshi: "Satoshi", "Segoe UI", Arial, sans-serif`. Update production CSP `style-src` with `https://api.fontshare.com` and `font-src` with `https://cdn.fontshare.com`; do not broaden any other directive. Document the official font page, ITF license URL, API URL, retrieval date, and system fallback in `docs/licenses/SATOSHI.md`. Import the new style layers from `globals.css`. Define semantic tokens rather than raw colors inside components.
 
-- [ ] **Step 5: Run foundation verification**
+- [x] **Step 5: Run foundation verification**
 
 Run: `npx tsx --test app/features/site/site-content.test.ts && npm run typecheck && npm run lint`
 
 Expected: all commands pass with no contract drift.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```text
 feat(design-system): add guided proof foundation

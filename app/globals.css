@@ -1,48 +1,5 @@
-:root {
-  --ink: #142736;
-  --muted: #5e6971;
-  --paper: #f5f3ed;
-  --panel: #fffef9;
-  --line: #d7d8cf;
-  --accent: #167057;
-  --accent-dark: #0f5140;
-  --focus: #c3541f;
-  --blue: #245a78;
-  --blue-soft: #eaf3f7;
-  --amber: #8a5a0a;
-  --amber-soft: #fff6dc;
-  --danger: #9b3d25;
-  --danger-soft: #fff0eb;
-}
-
-* { box-sizing: border-box; }
-
-html { scroll-behavior: smooth; }
-
-body {
-  margin: 0;
-  color: var(--ink);
-  background: var(--paper);
-  font-family: ui-sans-serif, system-ui, sans-serif;
-  line-height: 1.5;
-}
-
-a { color: inherit; }
-
-a:focus-visible, button:focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 3px;
-}
-
-input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 3px solid color-mix(in srgb, var(--focus) 55%, transparent); outline-offset: 1px; }
-.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-.primary-button, .secondary-button, .text-button, .table-action { min-height: 42px; border-radius: .45rem; padding: .58rem .85rem; font: inherit; font-weight: 750; cursor: pointer; }
-.primary-button { border: 1px solid var(--accent); color: #fff; background: var(--accent); }
-.primary-button:hover:not(:disabled) { background: var(--accent-dark); }
-.secondary-button { border: 1px solid var(--line); color: var(--ink); background: var(--panel); }
-.secondary-button:hover:not(:disabled) { border-color: #9eb4ad; background: #f2f6f3; }
-.text-button { border: 0; padding-inline: 0; color: var(--accent-dark); background: transparent; }
-button:disabled { cursor: not-allowed; opacity: .52; }
+@import "./styles/tokens.css";
+@import "./styles/foundation.css";
 
 /* Canonical workflow library */
 .workflow-main { width: min(1180px, calc(100% - 2rem)); }

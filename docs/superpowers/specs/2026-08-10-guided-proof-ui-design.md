@@ -18,7 +18,7 @@ All public install actions first open `/install`. That page explains browser com
 
 ## Design direction
 
-The approved direction is **Guided Proof**: a cinematic product narrative that demonstrates evidence before asking for installation. The style combines deep ink, warm bone, and restrained electric-chartreuse accents with self-hosted Satoshi typography. Product UI compositions provide the main imagery; decorative photography may only provide atmosphere and must never imply nonexistent customer proof.
+The approved direction is **Guided Proof**: a cinematic product narrative that demonstrates evidence before asking for installation. The style combines deep ink, warm bone, and restrained electric-chartreuse accents with Satoshi typography delivered by Fontshare's official API under the ITF Free Font License. Product UI compositions provide the main imagery; decorative photography may only provide atmosphere and must never imply nonexistent customer proof.
 
 The deterministic `gpt-taste` selection is:
 
