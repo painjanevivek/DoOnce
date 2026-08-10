@@ -11,7 +11,10 @@ const reportPath = path.join(extensionDirectory, "..", "docs", "reliability", "c
 const expectedSourceFiles = ["src/service-worker.ts", "src/demo-runner.ts", "src/run-eligibility.ts", "controlled-run-harness.js"];
 
 function digest(filename) {
-  return createHash("sha256").update(fs.readFileSync(path.join(extensionDirectory, filename))).digest("hex");
+  const source = fs
+    .readFileSync(path.join(extensionDirectory, filename), "utf8")
+    .replace(/\r\n/g, "\n");
+  return createHash("sha256").update(source, "utf8").digest("hex");
 }
 
 function main() {

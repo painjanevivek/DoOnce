@@ -1,8 +1,20 @@
 import { build } from "esbuild";
+import path from "node:path";
+
+const extensionValidationPlugin = {
+  name: "extension-runtime-validation",
+  setup(buildContext) {
+    buildContext.onResolve(
+      { filter: /^\.\.\/\.\.\/contracts\/validation$/ },
+      () => ({ path: path.resolve("contracts/validation-runtime.ts") }),
+    );
+  },
+};
 
 const shared = {
   bundle: true,
   logLevel: "info",
+  plugins: [extensionValidationPlugin],
   target: ["chrome120"],
 };
 

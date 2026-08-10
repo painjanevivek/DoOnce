@@ -1,5 +1,5 @@
 import type { CaptureSession, CaptureSyncAck, CaptureSyncRequest, RecordedAction } from "../../contracts/protocol";
-import { validateContract } from "../../contracts/validation";
+import { validateContract } from "../../contracts/validation-runtime";
 
 export const captureBatchSize = 50;
 export const maximumCaptureActions = 1000;

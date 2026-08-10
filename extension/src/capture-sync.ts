@@ -1,5 +1,5 @@
 import type { CaptureHandshake, CaptureSession, CaptureSyncAck, CaptureSyncRequest } from "../../contracts/protocol";
-import { validateContract } from "../../contracts/validation";
+import { validateContract } from "../../contracts/validation-runtime";
 import { acknowledgeCaptureBatch, nextCaptureBatch, transitionCaptureSession } from "./capture-session";
 
 export interface CaptureTransport {

@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const production = process.env.NODE_ENV === "production";
-const apiOrigin = origin(process.env.NEXT_PUBLIC_API_BASE_URL);
+const apiOrigin = origin(
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:4000",
+);
 const contentSecurityPolicy = production
   ? `default-src 'self'; base-uri 'self'; connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ""}; font-src 'self' https://cdn.fontshare.com; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://api.fontshare.com; upgrade-insecure-requests`
   : "base-uri 'self'; form-action 'self'; frame-ancestors 'none'";

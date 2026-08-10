@@ -80,8 +80,22 @@
 
 .workflow-library-view {
   display: grid;
+  width: 100%;
+  min-width: 0;
   gap: var(--space-7);
   font-family: var(--font-satoshi);
+}
+
+.workflow-library-view > *,
+.library-create__heading > *,
+.library-mode-switch > *,
+.library-authoring-panel {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.workflow-library-view :is(h1, h2, h3, p, strong, small) {
+  overflow-wrap: anywhere;
 }
 
 .product-kicker {
@@ -853,21 +867,31 @@
     text-transform: uppercase;
   }
 
-  .workflow-list-table td:last-child {
+  .workflow-list-table tbody tr td[data-label="Actions"] {
     display: block;
+    width: 100%;
     border-bottom: 0;
   }
 
-  .workflow-list-table td:last-child::before {
+  .workflow-list-table td[data-label="Actions"]::before {
     display: none;
   }
 
   .workflow-row-actions {
     display: grid;
+    width: 100%;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
   }
 
   .workflow-row-actions button {
+    width: 100%;
+    white-space: normal;
+  }
+
+  .workflow-list-table td:first-child strong {
+    min-width: 0;
+    word-break: break-word;
     white-space: normal;
   }
 

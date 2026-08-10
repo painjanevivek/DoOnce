@@ -4,9 +4,18 @@ import { useRef, type ReactNode } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { motionAllowed } from "./motion-policy";
 
 interface GuidedProofMotionProps {
   children: ReactNode;
+}
+
+let gsapPluginsRegistered = false;
+
+function registerGsapPlugins() {
+  if (gsapPluginsRegistered) return;
+  gsap.registerPlugin(ScrollTrigger);
+  gsapPluginsRegistered = true;
 }
 
 export function GuidedProofMotion({ children }: GuidedProofMotionProps) {
@@ -16,10 +25,15 @@ export function GuidedProofMotion({ children }: GuidedProofMotionProps) {
     () => {
       if (typeof window === "undefined") return;
 
-      gsap.registerPlugin(ScrollTrigger);
+      registerGsapPlugins();
       const media = gsap.matchMedia();
 
       media.add("(prefers-reduced-motion: no-preference)", () => {
+        const prefersReducedMotion = window.matchMedia(
+          "(prefers-reduced-motion: reduce)",
+        ).matches;
+        if (!motionAllowed(prefersReducedMotion)) return;
+
         gsap.utils.toArray<HTMLElement>("[data-proof-media]").forEach((item) => {
           gsap.fromTo(
             item,

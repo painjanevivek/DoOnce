@@ -463,7 +463,7 @@ feat(studio): add a focused workflow workspace
 - Produces: `motionAllowed(prefersReducedMotion: boolean): boolean` and a cleanup-safe `GuidedProofMotion` client boundary.
 - Consumes: data attributes emitted by `LandingPage`; no workflow state.
 
-- [ ] **Step 1: Write the reduced-motion policy test**
+- [x] **Step 1: Write the reduced-motion policy test**
 
 ```ts
 test("disables decorative motion when reduced motion is requested", () => {
@@ -472,17 +472,17 @@ test("disables decorative motion when reduced motion is requested", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and verify failure**
+- [x] **Step 2: Run the test and verify failure**
 
 Run: `npx tsx --test app/features/site/motion-policy.test.ts`
 
 Expected: FAIL until the policy is exported.
 
-- [ ] **Step 3: Implement GSAP lifecycle and static fallback**
+- [x] **Step 3: Implement GSAP lifecycle and static fallback**
 
 Use `useGSAP` with a scoped root, register `ScrollTrigger` once, call `gsap.matchMedia()`, and revert the context during cleanup. Animate only `[data-reveal-word]` opacity and `[data-proof-media]` scale/opacity. CSS must render both selectors fully visible by default and inside `prefers-reduced-motion: reduce`.
 
-- [ ] **Step 4: Run the complete automated suite**
+- [x] **Step 4: Run the complete automated suite**
 
 Run:
 
@@ -497,15 +497,15 @@ npm audit --omit=dev --audit-level=high
 
 Expected: all commands exit zero; controlled evidence remains bound to current extension source.
 
-- [ ] **Step 5: Perform desktop visual QA**
+- [x] **Step 5: Perform desktop visual QA**
 
 Start the production build with `npm run start -- --port 3107`. At 1440×1000, inspect `/`, `/install`, `/sign-up`, `/workflows`, and one `/workflows/{id}` state. Confirm the hero is at most three lines, all bento cells are filled, motion initializes without console errors, and the workflow controls remain reachable. Stop only this server process after QA.
 
-- [ ] **Step 6: Perform mobile and reduced-motion visual QA**
+- [x] **Step 6: Perform mobile and reduced-motion visual QA**
 
 At 390×844, confirm no horizontal overflow, no clipped text, 44px targets, readable forms, stacked bento order, usable workflow region tabs, and complete content with reduced motion enabled. Capture screenshots for the handoff.
 
-- [ ] **Step 7: Commit final hardening**
+- [x] **Step 7: Commit final hardening**
 
 ```text
 fix(ui): harden guided proof responsiveness
@@ -517,8 +517,8 @@ fix(ui): harden guided proof responsiveness
 
 ## Final Release Gate
 
-- [ ] `git diff --check` reports no whitespace or conflict errors.
-- [ ] Frontend worktree contains only intentional changes.
-- [ ] Every commit uses `feat(scope): summary`, `fix(scope): summary`, or `test(scope): summary` with a bullet-list body.
-- [ ] Chrome extension installation is the dominant public action and never claims installation without an approved HTTPS destination.
+- [x] `git diff --check` reports no whitespace or conflict errors.
+- [x] Frontend worktree contains only intentional changes.
+- [x] Every commit uses `feat(scope): summary`, `fix(scope): summary`, or `test(scope): summary` with a bullet-list body.
+- [x] Chrome extension installation is the dominant public action and never claims installation without an approved HTTPS destination.
 - [ ] The final GitHub Actions run passes lint, typecheck, tests, controlled-run verification, production Docker build, SBOM generation, and critical vulnerability scanning.
