@@ -189,7 +189,7 @@ feat(design-system): add guided proof foundation
 - Produces: `ExtensionInstallCta({ destination, label })` and `InstallPanel({ destination })`.
 - Consumes: existing `AccountStatus` and legal routes.
 
-- [ ] **Step 1: Write failing destination tests**
+- [x] **Step 1: Write failing destination tests**
 
 ```ts
 test("accepts only the official HTTPS Chrome Web Store destination", () => {
@@ -204,13 +204,13 @@ test("accepts only the official HTTPS Chrome Web Store destination", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests and confirm the missing-module failure**
+- [x] **Step 2: Run tests and confirm the missing-module failure**
 
 Run: `npx tsx --test app/features/site/install-destination.test.ts`
 
 Expected: FAIL because the resolver is absent.
 
-- [ ] **Step 3: Implement safe resolution**
+- [x] **Step 3: Implement safe resolution**
 
 ```ts
 export type InstallDestination =
@@ -228,15 +228,15 @@ export function resolveInstallDestination(value = process.env.NEXT_PUBLIC_EXTENS
 }
 ```
 
-- [ ] **Step 4: Test and build configured/unavailable install panels**
+- [x] **Step 4: Test and build configured/unavailable install panels**
 
 Server-render both states and assert that external links include `target="_blank"` and `rel="noreferrer noopener"`, while unavailable state contains “Extension distribution is not configured” and links to `/sign-up`.
 
-- [ ] **Step 5: Add shared site chrome and `/install`**
+- [x] **Step 5: Add shared site chrome and `/install`**
 
 Use `SiteHeader` on public pages. All install buttons link internally to `/install`; only `InstallPanel` emits the external destination. Document `NEXT_PUBLIC_EXTENSION_INSTALL_URL=` in `.env.example` with an HTTPS-only production note.
 
-- [ ] **Step 6: Verify and commit**
+- [x] **Step 6: Verify and commit**
 
 Run: `npm run test:extension && npm run typecheck && npm run lint`
 
