@@ -419,25 +419,25 @@ feat(workflows): redesign the workflow library
 - Produces: `WorkflowWorkspace({ outline, canvas, inspector, activeRegion, onRegionChange })`.
 - Consumes: current editor history, WorkflowSpec, validation issues, run state, versions, and all existing editor panels.
 
-- [ ] **Step 1: Write failing workspace layout tests**
+- [x] **Step 1: Write failing workspace layout tests**
 
 Render the workspace with three labelled regions. Assert desktop landmarks, mobile tab buttons with `aria-selected`, one `h1`, and stable source order: outline, canvas, inspector.
 
-- [ ] **Step 2: Run the focused test and verify failure**
+- [x] **Step 2: Run the focused test and verify failure**
 
 Run: `npx tsx --test app/features/workflows/workflow-workspace.test.ts`
 
 Expected: FAIL because the workspace component is missing.
 
-- [ ] **Step 3: Introduce the workspace shell without moving state ownership**
+- [x] **Step 3: Introduce the workspace shell without moving state ownership**
 
 Keep loading, saving, undo/redo, publish, testing, versioning, and validation in `workflow-studio.tsx`. Supply the current outline, step editor, and contextual panels as region nodes. Desktop uses three columns; narrow widths display one region at a time through accessible tabs while retaining mounted form state.
 
-- [ ] **Step 4: Collapse secondary tools deliberately**
+- [x] **Step 4: Collapse secondary tools deliberately**
 
 The canvas shows the selected step and validation first. The inspector exposes inputs, assertions, versions, runs, schedules, repair, and evidence through named disclosures. Publish and run buttons keep their current server-confirmed behavior and disabled reasons.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 Run: `npm run test:extension && npm run typecheck && npm run lint && npm run build`
 

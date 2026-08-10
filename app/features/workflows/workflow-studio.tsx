@@ -18,10 +18,13 @@ import { WorkflowInputEditor } from "./workflow-input-editor";
 import { WorkflowStepEditor } from "./workflow-step-editor";
 import { WorkflowTestPanel } from "./workflow-test-panel";
 import { WorkflowVersionHistory } from "./workflow-version-history";
+import {
+  WorkflowWorkspace,
+  type StudioView,
+} from "./workflow-workspace";
 
 const apiBaseUrl =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:4000";
-type StudioView = "overview" | "steps" | "inputs" | "test" | "history" | "json";
 
 export default function WorkflowStudio({ workflowId }: { workflowId: string }) {
   const router = useRouter();
@@ -369,84 +372,124 @@ export default function WorkflowStudio({ workflowId }: { workflowId: string }) {
           </span>
         </div>
       )}
-      <nav className="studio-tabs" aria-label="Workflow editor sections">
-        {(
-          [
-            "overview",
-            "steps",
-            "inputs",
-            "test",
-            "history",
-            "json",
-          ] as StudioView[]
-        ).map((tab) => (
-          <button
-            aria-current={view === tab ? "page" : undefined}
-            key={tab}
-            onClick={() => setView(tab)}
-            type="button"
-          >
-            {tab === "json"
-              ? "Developer JSON"
-              : `${tab[0]!.toUpperCase()}${tab.slice(1)}`}
-            {tab === "steps" &&
-            issues.some((issue) => issue.path.startsWith("/steps")) ? (
-              <i aria-label="Has errors" />
-            ) : null}
-            {tab === "inputs" &&
-            issues.some((issue) => issue.path.startsWith("/inputs")) ? (
-              <i aria-label="Has errors" />
-            ) : null}
-          </button>
-        ))}
-      </nav>
-      <main className="studio-main">
-        {view === "overview" && (
-          <WorkflowOverview spec={spec} onChange={edit} />
-        )}
-        {view === "steps" && (
-          <WorkflowStepEditor issues={issues} onChange={edit} spec={spec} />
-        )}
-        {view === "inputs" && (
-          <WorkflowInputEditor issues={issues} onChange={edit} spec={spec} />
-        )}
-        {view === "test" && (
-          <WorkflowTestPanel
-            apiBaseUrl={apiBaseUrl}
-            disabled={dirty || issues.length > 0}
-            key={`${checksum}-${spec.inputs.map((input) => input.name).join()}`}
-            onPassingTest={markPassingTest}
-            spec={spec}
-            workflowId={workflowId}
-          />
-        )}
-        {view === "history" && (
-          <WorkflowVersionHistory draft={spec} versions={versions} />
-        )}
-        {view === "json" && (
-          <section className="studio-section">
-            <div className="studio-section__heading">
-              <div>
-                <p className="eyebrow">Diagnostics</p>
-                <h2>Developer JSON</h2>
-                <p>
-                  Read-only canonical data for troubleshooting. Use the visual
-                  fields for edits.
-                </p>
-              </div>
+      <WorkflowWorkspace
+        activeView={view}
+        inspector={
+          <>
+            <div className="workspace-inspector__heading">
+              <p className="product-kicker">Readiness</p>
+              <h2>Review before publishing.</h2>
+              <p>
+                The active version changes only after this exact saved draft
+                passes a test.
+              </p>
             </div>
-            <textarea
-              aria-label="WorkflowSpec JSON"
-              className="json-view"
-              readOnly
-              value={JSON.stringify(spec, null, 2)}
+            <dl className="workspace-facts">
+              <div>
+                <dt>Draft</dt>
+                <dd>Version {version}</dd>
+              </div>
+              <div>
+                <dt>Steps</dt>
+                <dd>{spec.steps.length}</dd>
+              </div>
+              <div>
+                <dt>Inputs</dt>
+                <dd>{spec.inputs.length}</dd>
+              </div>
+              <div>
+                <dt>Issues</dt>
+                <dd>{issues.length}</dd>
+              </div>
+            </dl>
+            <ol className="workspace-checklist">
+              <li data-complete={!dirty && saveState === "saved"}>
+                <i aria-hidden="true" />
+                <span>
+                  <strong>Draft saved</strong>
+                  <small>{saveLabel(saveState)}</small>
+                </span>
+              </li>
+              <li data-complete={issues.length === 0}>
+                <i aria-hidden="true" />
+                <span>
+                  <strong>Fields valid</strong>
+                  <small>
+                    {issues.length === 0
+                      ? "No blocking validation issues"
+                      : `${issues.length} issue${issues.length === 1 ? "" : "s"} to fix`}
+                  </small>
+                </span>
+              </li>
+              <li data-complete={testEvidenceVerified}>
+                <i aria-hidden="true" />
+                <span>
+                  <strong>Passing test</strong>
+                  <small>
+                    {testEvidenceVerified
+                      ? "This saved draft passed"
+                      : "Run the Test region successfully"}
+                  </small>
+                </span>
+              </li>
+            </ol>
+            <p className="workspace-message" role="status">
+              {message || "Changes are autosaved after validation."}
+            </p>
+          </>
+        }
+        issueViews={
+          new Set<StudioView>([
+            ...(issues.some((issue) => issue.path.startsWith("/steps"))
+              ? (["steps"] as StudioView[])
+              : []),
+            ...(issues.some((issue) => issue.path.startsWith("/inputs"))
+              ? (["inputs"] as StudioView[])
+              : []),
+          ])
+        }
+        onViewChange={setView}
+        panels={{
+          overview: <WorkflowOverview spec={spec} onChange={edit} />,
+          steps: (
+            <WorkflowStepEditor issues={issues} onChange={edit} spec={spec} />
+          ),
+          inputs: (
+            <WorkflowInputEditor issues={issues} onChange={edit} spec={spec} />
+          ),
+          test: (
+            <WorkflowTestPanel
+              apiBaseUrl={apiBaseUrl}
+              disabled={dirty || issues.length > 0}
+              key={`${checksum}-${spec.inputs.map((input) => input.name).join()}`}
+              onPassingTest={markPassingTest}
+              spec={spec}
+              workflowId={workflowId}
             />
-          </section>
-        )}
-      </main>
-      <p className="studio-message" role="status">
-        {message}
-      </p>
+          ),
+          history: <WorkflowVersionHistory draft={spec} versions={versions} />,
+          json: (
+            <section className="studio-section">
+              <div className="studio-section__heading">
+                <div>
+                  <p className="eyebrow">Diagnostics</p>
+                  <h2>Developer JSON</h2>
+                  <p>
+                    Read-only canonical data for troubleshooting. Use the
+                    visual fields for edits.
+                  </p>
+                </div>
+              </div>
+              <textarea
+                aria-label="WorkflowSpec JSON"
+                className="json-view"
+                readOnly
+                value={JSON.stringify(spec, null, 2)}
+              />
+            </section>
+          ),
+        }}
+      />
     </div>
   );
 }
