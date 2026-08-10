@@ -377,25 +377,25 @@ feat(account): align public and recovery experiences
 - Produces: `WorkflowLibraryView({ workflows, state, activeMode, onModeChange, children })`.
 - Consumes: existing `Workflow`, account role, capabilities, authoring panels, and API handlers.
 
-- [ ] **Step 1: Write a failing presentation test**
+- [x] **Step 1: Write a failing presentation test**
 
 Server-render `WorkflowLibraryView` with one workflow and assert presence of workflow title, status, latest action area, creation modes, and a `<details>` disclosure for advanced evidence. Assert audit, scheduling, beta, and support labels are not expanded by default.
 
-- [ ] **Step 2: Run test and verify the missing-component failure**
+- [x] **Step 2: Run test and verify the missing-component failure**
 
 Run: `npx tsx --test app/features/workflows/workflow-library-view.test.ts`
 
 Expected: FAIL because the view component does not exist.
 
-- [ ] **Step 3: Extract presentation without changing data behavior**
+- [x] **Step 3: Extract presentation without changing data behavior**
 
 Keep fetch, validation, authorization, abort, and mutation functions in `workflow-library.tsx`. Pass validated data and existing panels into `WorkflowLibraryView`. The initial viewport contains: library heading, create-workflow control, workflow list, current status, and next action. Place evidence, schedules, repair, beta, and support in labelled native disclosures.
 
-- [ ] **Step 4: Implement responsive product shell**
+- [x] **Step 4: Implement responsive product shell**
 
 Use a compact product header, clear selected state, minimum 44px targets, table-to-card adaptation below 760px, and independent loading/error regions. Do not let beta or audit failure replace the workflow list.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 Run: `npm run test:extension && npm run typecheck && npm run lint && npm run build`
 
