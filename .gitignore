@@ -7,3 +7,12 @@ coverage/
 extension/dist/
 .worktrees/
 *.tsbuildinfo
+
+# Local contributor and design guidance
+AGENTS.md
+agents.md
+DESIGN.md
+DESIGNS.md
+design.md
+designs.md
+docs/superpowers/specs/*-design.md
