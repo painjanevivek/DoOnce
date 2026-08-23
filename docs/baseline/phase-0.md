@@ -1,13 +1,13 @@
 # Phase 0 baseline
 
-**Recorded:** 2026-08-09  
-**Frontend commit before Phase 0:** `9ff60e9`
+**Recorded:** 2026-08-24
+**Baseline branch:** `feat/product-implementation`
 
 ## Verified commands
 
 - `npm run lint` — passed.
 - `npm run typecheck` — passed.
-- `npm run test:extension` — 14 tests passed, including the controlled-run evidence matrix.
+- `npm run test:extension` — 73 tests passed, plus the controlled-run harness.
 - `npm run verify:controlled-runs` — generated evidence verified.
 - `npm run build` — passed with nine statically generated Next.js routes.
 
@@ -17,4 +17,4 @@ The local report-download fixture remains the vertical slice used to prove recor
 
 ## Known boundary
 
-The current extension records bounded summaries and can run only the explicit local report fixture. General capture-to-workflow compilation and arbitrary WorkflowSpec execution are not yet implemented.
+The dashboard and extension now contain broader authoring and execution foundations, while controlled proof remains limited to the report fixture. The [capability matrix](../capability-matrix.md) is authoritative and deliberately separates implementation from deployment and customer proof.

@@ -4,7 +4,7 @@ DoOnce turns a browser task demonstrated once into an editable, reusable workflo
 
 ## Current alpha foundation
 
-The current vertical slice supports the lifecycle around one local report-download workflow: capture review, draft creation, test evidence, immutable publication, run receipts, disabling, and repair drafts. General recording-to-workflow compilation and execution are planned but are not represented as complete.
+The repository contains a broader alpha foundation for recording, text and video authoring, draft review, immutable publication, attended execution, hosted qualification, verification evidence, repair, and scheduling. Controlled proof remains limited, distribution is conditional, and no capability is described as deployed or customer-proven without the evidence recorded in the [capability matrix](docs/capability-matrix.md).
 
 ## Local development
 
