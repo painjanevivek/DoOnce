@@ -302,7 +302,7 @@ async function pollForWorkflowRun(): Promise<void> {
     if (leaseValid) {
       await transport.finish(lease.run.id, lease.leaseToken, result);
       const evidence = new TextEncoder().encode(JSON.stringify(result));
-      await transport.uploadArtifact(lease.run.id, lease.leaseToken, { fileName: `run-${lease.run.id}.json`, contentType: "application/json", retentionClass: lease.run.mode === "test" && result.status === "completed" ? "publication-evidence" : result.status === "completed" ? "workflow-output" : "debug", base64: bytesToBase64(evidence) });
+      await transport.uploadArtifact(lease.run.id, lease.leaseToken, { fileName: `run-${lease.run.id}-receipt.json`, contentType: "application/json", retentionClass: "debug", base64: bytesToBase64(evidence) });
     }
     await chrome.storage.session.remove(checkpointKey);
     void notifyWorkflowRun(result);

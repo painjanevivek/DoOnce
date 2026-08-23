@@ -53,7 +53,9 @@ export class ChromeExecutorAdapter implements ExecutorAdapter {
   }
 
   private async download(tabId: number, step: Extract<WorkflowStep, { action: "download" }>, context: ExecutionContext): Promise<ActionExecutionResult> {
-    const event = waitForDownload(15_000, () => this.cancelled, step.target.domain);
+    const initiatingTab = await chrome.tabs.get(tabId);
+    if (!initiatingTab.url) return { status: "paused", reasonCode: "download.context-unavailable" };
+    const event = waitForDownload(15_000, () => this.cancelled, step.target.domain, initiatingTab.url, Date.now());
     const action = await this.executeInTab(tabId, step, context);
     if (action.status !== "verified") return action;
     const item = await event;
@@ -83,11 +85,11 @@ export class ChromeExecutorAdapter implements ExecutorAdapter {
   }
 }
 
-function waitForDownload(timeoutMs: number, cancelled: () => boolean, expectedDomain: string): Promise<chrome.downloads.DownloadItem | undefined> {
+function waitForDownload(timeoutMs: number, cancelled: () => boolean, expectedDomain: string, initiatingUrl: string, startedAt: number): Promise<chrome.downloads.DownloadItem | undefined> {
   return new Promise((resolve) => {
     let settled = false;
     const finish = (value?: chrome.downloads.DownloadItem) => { if (settled) return; settled = true; clearTimeout(timer); chrome.downloads.onCreated.removeListener(listener); resolve(value); };
-    const listener = (item: chrome.downloads.DownloadItem) => { if (downloadMatchesDomain(item, expectedDomain)) finish(cancelled() ? undefined : item); };
+    const listener = (item: chrome.downloads.DownloadItem) => { if (downloadMatchesAction(item, expectedDomain, initiatingUrl, startedAt)) finish(cancelled() ? undefined : item); };
     const timer = setTimeout(() => finish(), timeoutMs);
     chrome.downloads.onCreated.addListener(listener);
   });
@@ -104,11 +106,24 @@ export function isAllowedExtensionUrl(value: string | undefined, allowedDomains:
   }
 }
 
-export function downloadMatchesDomain(item: Pick<chrome.downloads.DownloadItem, "url" | "finalUrl" | "referrer">, expectedDomain: string): boolean {
-  return [item.url, item.finalUrl, item.referrer].some((value) => {
+export function downloadMatchesAction(
+  item: Pick<chrome.downloads.DownloadItem, "url" | "finalUrl" | "referrer" | "startTime">,
+  expectedDomain: string,
+  initiatingUrl: string,
+  startedAt: number,
+): boolean {
+  const destinationMatches = [item.url, item.finalUrl].some((value) => {
     if (!value) return false;
     try { return new URL(value).hostname === expectedDomain; } catch { return false; }
   });
+  if (!destinationMatches || !item.referrer || Date.parse(item.startTime) < startedAt - 1_000) return false;
+  try {
+    const expected = new URL(initiatingUrl);
+    const observed = new URL(item.referrer);
+    return observed.origin === expected.origin && observed.pathname === expected.pathname;
+  } catch {
+    return false;
+  }
 }
 
 function waitForTabComplete(tabId: number, timeoutMs: number, cancelled: () => boolean): Promise<boolean> {
