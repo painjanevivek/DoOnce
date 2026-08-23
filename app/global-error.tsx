@@ -1,5 +1,25 @@
 "use client";
 
-export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset(): void }) {
-  return <html lang="en"><body><main style={{ maxWidth: 720, margin: "0 auto", padding: "10vh 1rem", fontFamily: "system-ui, sans-serif" }}><h1>DoOnce could not open this page.</h1><p>No workflow change was made. Retry once, then contact support if the problem continues.</p><button type="button" onClick={reset} style={{ minHeight: 44, padding: ".6rem 1rem" }}>Try again</button></main></body></html>;
+import { SystemState } from "./features/site/system-state";
+
+export default function GlobalError({ reset }: { error: Error; reset(): void }) {
+  return (
+    <html lang="en">
+      <body className="global-error-body">
+        <main className="state-page state-page--boundary">
+          <SystemState
+            action={
+              <button onClick={reset} type="button">
+                Try DoOnce again
+              </button>
+            }
+            eyebrow="Application interrupted"
+            message="No workflow change was confirmed. Retry once, then contact support if the problem continues."
+            role="alert"
+            title="DoOnce could not open this page."
+          />
+        </main>
+      </body>
+    </html>
+  );
 }

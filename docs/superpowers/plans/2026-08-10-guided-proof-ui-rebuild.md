@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Preserve the existing `contracts/`, API response validation, authentication cookies, role checks, and WorkflowSpec behavior.
-- Use Satoshi variable typography from the official Fontshare distribution with its license stored beside the local WOFF2 files.
+- Use Satoshi typography through Fontshare's official API. Do not redistribute the proprietary font files from the application server.
 - Use deep ink, warm bone, and restrained electric-chartreuse tokens; all text and controls must remain readable in every state.
 - Public pages follow Navigation, Attention, Interest, Desire, and Action; authenticated pages prioritize progressive task completion.
 - The homepage title uses `.hero-title--wide`, `max-width: 78rem`, and `clamp(3.5rem, 7.4vw, 8rem)` and never exceeds three lines.
@@ -20,7 +20,7 @@
 - Do not add fake testimonials, partner logos, customer results, decorative stamps, generic meta-labels, or unverified performance claims.
 - No public control may hide sign-in, privacy, terms, keyboard focus, loading, error, or disabled states.
 - Install links route through `/install`; production requires `NEXT_PUBLIC_EXTENSION_INSTALL_URL` to use HTTPS on `chromewebstore.google.com`.
-- Do not modify `next.config.ts`; local fonts and product compositions remain self-origin and fit the existing content-security policy.
+- Permit only `https://api.fontshare.com` for the Fontshare stylesheet and `https://cdn.fontshare.com` for its font files in the content-security policy.
 
 ---
 
@@ -28,7 +28,7 @@
 
 **Create**
 
-- `app/fonts/Satoshi-Variable.woff2` and `app/fonts/LICENSE.txt` - self-hosted licensed typeface.
+- `docs/licenses/SATOSHI.md` - typeface source, license link, API URL, and fallback behavior.
 - `app/styles/tokens.css` - color, typography, spacing, elevation, focus, and motion variables.
 - `app/styles/foundation.css` - reset, body, shared controls, accessibility, navigation, and footer.
 - `app/styles/marketing.css` - homepage, install, account, and legal presentation.
@@ -53,7 +53,8 @@
 
 - `package.json`, `package-lock.json` - add GSAP dependencies and site tests.
 - `.env.example` - document `NEXT_PUBLIC_EXTENSION_INSTALL_URL`.
-- `app/layout.tsx` and `app/globals.css` - local font and layered style imports.
+- `app/layout.tsx` and `app/globals.css` - official Fontshare API link and layered style imports.
+- `next.config.ts` - narrowly allow Fontshare's stylesheet and font CDN origins.
 - `app/page.tsx`, `app/sign-up/page.tsx`, `app/privacy/page.tsx`, `app/terms/page.tsx` - new public compositions.
 - `app/not-found.tsx`, `app/error.tsx`, `app/global-error.tsx` - shared system states.
 - `app/workflows/page.tsx`, `app/workflows/[id]/page.tsx` - shared product navigation.
@@ -65,21 +66,21 @@
 ### Task 1: Guided Proof foundation and content model
 
 **Files:**
-- Create: `app/fonts/Satoshi-Variable.woff2`
-- Create: `app/fonts/LICENSE.txt`
+- Create: `docs/licenses/SATOSHI.md`
 - Create: `app/styles/tokens.css`
 - Create: `app/styles/foundation.css`
 - Create: `app/features/site/site-content.ts`
 - Test: `app/features/site/site-content.test.ts`
 - Modify: `app/layout.tsx`
 - Modify: `app/globals.css`
+- Modify: `next.config.ts`
 - Modify: `package.json`
 
 **Interfaces:**
 - Produces: `AuthoringPath`, `ExampleScenario`, `authoringPaths`, `exampleScenarios`, and `taskExamples` for public components.
 - Produces: CSS variables rooted at `--ink`, `--bone`, `--signal`, `--font-satoshi`, and shared focus/control classes.
 
-- [ ] **Step 1: Add the test command and write failing content tests**
+- [x] **Step 1: Add the test command and write failing content tests**
 
 Replace the `test:extension` script with `npm run build:extension && tsx --test extension/src/*.test.ts extension/src/runtime/*.test.ts app/features/site/*.test.ts app/features/workflows/*.test.ts && node --test extension/controlled-run-harness.test.js`, then create:
 
@@ -101,13 +102,13 @@ test("avoids banned generic labels and customer claims", () => {
 });
 ```
 
-- [ ] **Step 2: Run the focused test and verify it fails**
+- [x] **Step 2: Run the focused test and verify it fails**
 
 Run: `npx tsx --test app/features/site/site-content.test.ts`
 
 Expected: FAIL because `site-content.ts` does not exist.
 
-- [ ] **Step 3: Implement the immutable content model**
+- [x] **Step 3: Implement the immutable content model**
 
 ```ts
 export interface AuthoringPath {
@@ -141,32 +142,26 @@ Define three frozen `ExampleScenario` records:
 - Recruiting coordinator: describe copying shortlisted candidates into a tracker; verify required columns are populated; artifact is an updated recruiting sheet.
 - Finance analyst: upload a walkthrough of reconciling portal totals; verify the source and destination totals match; artifact is a reconciliation report.
 
-- [ ] **Step 4: Add font assets, tokens, and root font wiring**
+- [x] **Step 4: Add licensed font delivery, tokens, and root font wiring**
 
-Download Satoshi from the official Fontshare page at `https://www.fontshare.com/fonts/satoshi`, store the variable WOFF2 locally, and save the ITF Free Font License from `https://www.fontshare.com/licenses/itf-ffl` as `app/fonts/LICENSE.txt`. Record the download page and retrieval date in the license file, then configure:
+Use Fontshare's official API stylesheet so the application does not redistribute the proprietary font files. Add this to the root layout `<head>` and use a resilient system fallback:
 
 ```tsx
-import localFont from "next/font/local";
-
-const satoshi = localFont({
-  src: "./fonts/Satoshi-Variable.woff2",
-  variable: "--font-satoshi",
-  display: "swap",
-  weight: "300 900",
-});
-
-<body className={satoshi.variable}>{children}</body>
+<link
+  href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700,900&display=swap"
+  rel="stylesheet"
+/>
 ```
 
-Import the new style layers from `globals.css`. Define semantic tokens rather than raw colors inside components.
+Set `--font-satoshi: "Satoshi", "Segoe UI", Arial, sans-serif`. Update production CSP `style-src` with `https://api.fontshare.com` and `font-src` with `https://cdn.fontshare.com`; do not broaden any other directive. Document the official font page, ITF license URL, API URL, retrieval date, and system fallback in `docs/licenses/SATOSHI.md`. Import the new style layers from `globals.css`. Define semantic tokens rather than raw colors inside components.
 
-- [ ] **Step 5: Run foundation verification**
+- [x] **Step 5: Run foundation verification**
 
 Run: `npx tsx --test app/features/site/site-content.test.ts && npm run typecheck && npm run lint`
 
 Expected: all commands pass with no contract drift.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```text
 feat(design-system): add guided proof foundation
@@ -194,7 +189,7 @@ feat(design-system): add guided proof foundation
 - Produces: `ExtensionInstallCta({ destination, label })` and `InstallPanel({ destination })`.
 - Consumes: existing `AccountStatus` and legal routes.
 
-- [ ] **Step 1: Write failing destination tests**
+- [x] **Step 1: Write failing destination tests**
 
 ```ts
 test("accepts only the official HTTPS Chrome Web Store destination", () => {
@@ -209,13 +204,13 @@ test("accepts only the official HTTPS Chrome Web Store destination", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests and confirm the missing-module failure**
+- [x] **Step 2: Run tests and confirm the missing-module failure**
 
 Run: `npx tsx --test app/features/site/install-destination.test.ts`
 
 Expected: FAIL because the resolver is absent.
 
-- [ ] **Step 3: Implement safe resolution**
+- [x] **Step 3: Implement safe resolution**
 
 ```ts
 export type InstallDestination =
@@ -233,15 +228,15 @@ export function resolveInstallDestination(value = process.env.NEXT_PUBLIC_EXTENS
 }
 ```
 
-- [ ] **Step 4: Test and build configured/unavailable install panels**
+- [x] **Step 4: Test and build configured/unavailable install panels**
 
 Server-render both states and assert that external links include `target="_blank"` and `rel="noreferrer noopener"`, while unavailable state contains “Extension distribution is not configured” and links to `/sign-up`.
 
-- [ ] **Step 5: Add shared site chrome and `/install`**
+- [x] **Step 5: Add shared site chrome and `/install`**
 
 Use `SiteHeader` on public pages. All install buttons link internally to `/install`; only `InstallPanel` emits the external destination. Document `NEXT_PUBLIC_EXTENSION_INSTALL_URL=` in `.env.example` with an HTTPS-only production note.
 
-- [ ] **Step 6: Verify and commit**
+- [x] **Step 6: Verify and commit**
 
 Run: `npm run test:extension && npm run typecheck && npm run lint`
 
@@ -269,7 +264,7 @@ feat(install): add truthful extension acquisition
 - Consumes: shared content arrays, `SiteHeader`, `SiteFooter`, and internal `/install` CTA.
 - Produces: `LandingPage`, `AuthoringAccordion`, `ScenarioCarousel`, and `GuidedProofMotion`.
 
-- [ ] **Step 1: Write a failing server-rendered AIDA test**
+- [x] **Step 1: Write a failing server-rendered AIDA test**
 
 ```ts
 const html = renderToStaticMarkup(createElement(LandingPage));
@@ -281,23 +276,23 @@ assert.match(html, /example scenario/i);
 assert.doesNotMatch(html, /SECTION \d|trusted by/i);
 ```
 
-- [ ] **Step 2: Run the focused test and verify failure**
+- [x] **Step 2: Run the focused test and verify failure**
 
 Run: `npx tsx --test app/features/site/landing-page.test.ts`
 
 Expected: FAIL because `LandingPage` is missing.
 
-- [ ] **Step 3: Install and register motion dependencies**
+- [x] **Step 3: Install and register motion dependencies**
 
 Run: `npm install gsap@^3 @gsap/react@^2`
 
 Keep GSAP imports inside `guided-proof-motion.tsx`; no workflow component may depend on GSAP.
 
-- [ ] **Step 4: Implement the complete AIDA composition**
+- [x] **Step 4: Implement the complete AIDA composition**
 
 Build one semantic `<main className="guided-proof-page">` containing hero, 24-cell bento, task marquee, authoring accordion, scrubbed narrative, scenario carousel, install action, and footer. Use real product-language compositions made from HTML/CSS rather than fake screenshots.
 
-- [ ] **Step 5: Implement exact bento geometry and hero constraints**
+- [x] **Step 5: Implement exact bento geometry and hero constraints**
 
 ```css
 .guided-proof-bento { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(15rem, auto)); grid-auto-flow: dense; }
@@ -308,11 +303,11 @@ Build one semantic `<main className="guided-proof-page">` containing hero, 24-ce
 
 At mobile widths, convert cards to one column in source order without absolute positioning.
 
-- [ ] **Step 6: Implement keyboard accordion and carousel behavior**
+- [x] **Step 6: Implement keyboard accordion and carousel behavior**
 
 Use buttons with `aria-expanded`, labelled panels, roving carousel controls, and live-region-free slide updates. All scenario cards must say “Example scenario”; do not render quotation marks or customer attribution.
 
-- [ ] **Step 7: Verify and commit**
+- [x] **Step 7: Verify and commit**
 
 Run: `npm run test:extension && npm run typecheck && npm run lint && npm run build`
 
@@ -342,21 +337,21 @@ feat(marketing): rebuild the guided proof homepage
 - Produces: `SystemState({ eyebrow, title, message, action })` for error and empty surfaces.
 - Consumes: existing account endpoints and form handlers without changing payloads.
 
-- [ ] **Step 1: Write failing static-state tests**
+- [x] **Step 1: Write failing static-state tests**
 
 Assert that `SystemState` renders a heading, recovery message, action link, and no marketing motion hooks. Add account-form assertions for visible labels, autocomplete, error association, and preserved submit behavior.
 
-- [ ] **Step 2: Run focused tests and confirm failure**
+- [x] **Step 2: Run focused tests and confirm failure**
 
 Run: `npx tsx --test app/features/site/system-state.test.ts`
 
 Expected: FAIL because `system-state.tsx` is absent.
 
-- [ ] **Step 3: Implement public supporting pages**
+- [x] **Step 3: Implement public supporting pages**
 
 Use the shared header/footer and two-column account/install composition. Keep privacy and terms content unchanged; only restructure landmarks and visual hierarchy. Each error states what happened, what remains preserved, and the next action.
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 Run: `npm run test:extension && npm run typecheck && npm run lint && npm run build`
 
@@ -382,25 +377,25 @@ feat(account): align public and recovery experiences
 - Produces: `WorkflowLibraryView({ workflows, state, activeMode, onModeChange, children })`.
 - Consumes: existing `Workflow`, account role, capabilities, authoring panels, and API handlers.
 
-- [ ] **Step 1: Write a failing presentation test**
+- [x] **Step 1: Write a failing presentation test**
 
 Server-render `WorkflowLibraryView` with one workflow and assert presence of workflow title, status, latest action area, creation modes, and a `<details>` disclosure for advanced evidence. Assert audit, scheduling, beta, and support labels are not expanded by default.
 
-- [ ] **Step 2: Run test and verify the missing-component failure**
+- [x] **Step 2: Run test and verify the missing-component failure**
 
 Run: `npx tsx --test app/features/workflows/workflow-library-view.test.ts`
 
 Expected: FAIL because the view component does not exist.
 
-- [ ] **Step 3: Extract presentation without changing data behavior**
+- [x] **Step 3: Extract presentation without changing data behavior**
 
 Keep fetch, validation, authorization, abort, and mutation functions in `workflow-library.tsx`. Pass validated data and existing panels into `WorkflowLibraryView`. The initial viewport contains: library heading, create-workflow control, workflow list, current status, and next action. Place evidence, schedules, repair, beta, and support in labelled native disclosures.
 
-- [ ] **Step 4: Implement responsive product shell**
+- [x] **Step 4: Implement responsive product shell**
 
 Use a compact product header, clear selected state, minimum 44px targets, table-to-card adaptation below 760px, and independent loading/error regions. Do not let beta or audit failure replace the workflow list.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 Run: `npm run test:extension && npm run typecheck && npm run lint && npm run build`
 
@@ -424,25 +419,25 @@ feat(workflows): redesign the workflow library
 - Produces: `WorkflowWorkspace({ outline, canvas, inspector, activeRegion, onRegionChange })`.
 - Consumes: current editor history, WorkflowSpec, validation issues, run state, versions, and all existing editor panels.
 
-- [ ] **Step 1: Write failing workspace layout tests**
+- [x] **Step 1: Write failing workspace layout tests**
 
 Render the workspace with three labelled regions. Assert desktop landmarks, mobile tab buttons with `aria-selected`, one `h1`, and stable source order: outline, canvas, inspector.
 
-- [ ] **Step 2: Run the focused test and verify failure**
+- [x] **Step 2: Run the focused test and verify failure**
 
 Run: `npx tsx --test app/features/workflows/workflow-workspace.test.ts`
 
 Expected: FAIL because the workspace component is missing.
 
-- [ ] **Step 3: Introduce the workspace shell without moving state ownership**
+- [x] **Step 3: Introduce the workspace shell without moving state ownership**
 
 Keep loading, saving, undo/redo, publish, testing, versioning, and validation in `workflow-studio.tsx`. Supply the current outline, step editor, and contextual panels as region nodes. Desktop uses three columns; narrow widths display one region at a time through accessible tabs while retaining mounted form state.
 
-- [ ] **Step 4: Collapse secondary tools deliberately**
+- [x] **Step 4: Collapse secondary tools deliberately**
 
 The canvas shows the selected step and validation first. The inspector exposes inputs, assertions, versions, runs, schedules, repair, and evidence through named disclosures. Publish and run buttons keep their current server-confirmed behavior and disabled reasons.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 Run: `npm run test:extension && npm run typecheck && npm run lint && npm run build`
 
@@ -468,7 +463,7 @@ feat(studio): add a focused workflow workspace
 - Produces: `motionAllowed(prefersReducedMotion: boolean): boolean` and a cleanup-safe `GuidedProofMotion` client boundary.
 - Consumes: data attributes emitted by `LandingPage`; no workflow state.
 
-- [ ] **Step 1: Write the reduced-motion policy test**
+- [x] **Step 1: Write the reduced-motion policy test**
 
 ```ts
 test("disables decorative motion when reduced motion is requested", () => {
@@ -477,17 +472,17 @@ test("disables decorative motion when reduced motion is requested", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and verify failure**
+- [x] **Step 2: Run the test and verify failure**
 
 Run: `npx tsx --test app/features/site/motion-policy.test.ts`
 
 Expected: FAIL until the policy is exported.
 
-- [ ] **Step 3: Implement GSAP lifecycle and static fallback**
+- [x] **Step 3: Implement GSAP lifecycle and static fallback**
 
 Use `useGSAP` with a scoped root, register `ScrollTrigger` once, call `gsap.matchMedia()`, and revert the context during cleanup. Animate only `[data-reveal-word]` opacity and `[data-proof-media]` scale/opacity. CSS must render both selectors fully visible by default and inside `prefers-reduced-motion: reduce`.
 
-- [ ] **Step 4: Run the complete automated suite**
+- [x] **Step 4: Run the complete automated suite**
 
 Run:
 
@@ -502,15 +497,15 @@ npm audit --omit=dev --audit-level=high
 
 Expected: all commands exit zero; controlled evidence remains bound to current extension source.
 
-- [ ] **Step 5: Perform desktop visual QA**
+- [x] **Step 5: Perform desktop visual QA**
 
 Start the production build with `npm run start -- --port 3107`. At 1440×1000, inspect `/`, `/install`, `/sign-up`, `/workflows`, and one `/workflows/{id}` state. Confirm the hero is at most three lines, all bento cells are filled, motion initializes without console errors, and the workflow controls remain reachable. Stop only this server process after QA.
 
-- [ ] **Step 6: Perform mobile and reduced-motion visual QA**
+- [x] **Step 6: Perform mobile and reduced-motion visual QA**
 
 At 390×844, confirm no horizontal overflow, no clipped text, 44px targets, readable forms, stacked bento order, usable workflow region tabs, and complete content with reduced motion enabled. Capture screenshots for the handoff.
 
-- [ ] **Step 7: Commit final hardening**
+- [x] **Step 7: Commit final hardening**
 
 ```text
 fix(ui): harden guided proof responsiveness
@@ -522,8 +517,8 @@ fix(ui): harden guided proof responsiveness
 
 ## Final Release Gate
 
-- [ ] `git diff --check` reports no whitespace or conflict errors.
-- [ ] Frontend worktree contains only intentional changes.
-- [ ] Every commit uses `feat(scope): summary`, `fix(scope): summary`, or `test(scope): summary` with a bullet-list body.
-- [ ] Chrome extension installation is the dominant public action and never claims installation without an approved HTTPS destination.
+- [x] `git diff --check` reports no whitespace or conflict errors.
+- [x] Frontend worktree contains only intentional changes.
+- [x] Every commit uses `feat(scope): summary`, `fix(scope): summary`, or `test(scope): summary` with a bullet-list body.
+- [x] Chrome extension installation is the dominant public action and never claims installation without an approved HTTPS destination.
 - [ ] The final GitHub Actions run passes lint, typecheck, tests, controlled-run verification, production Docker build, SBOM generation, and critical vulnerability scanning.

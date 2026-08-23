@@ -1,5 +1,5 @@
-import Link from "next/link";
-import LegalFooter from "../components/legal-footer";
+import { SiteFooter } from "../features/site/site-footer";
+import { SiteHeader } from "../features/site/site-header";
 
 export const metadata = {
   title: "Terms of service draft | DoOnce",
@@ -8,12 +8,9 @@ export const metadata = {
 
 export default function TermsPage() {
   return (
-    <div className="legal-shell">
+    <div className="legal-shell guided-legal">
       <a className="skip-link" href="#terms-main">Skip to terms of service</a>
-      <header className="account-header">
-        <Link className="brand" href="/" aria-label="DoOnce home">Do<span>Once</span></Link>
-        <div className="legal-header-links"><Link href="/privacy">Privacy</Link><Link className="back-link" href="/">Back to overview</Link></div>
-      </header>
+      <SiteHeader compact />
       <main id="terms-main" className="legal-main">
         <p className="eyebrow">Pre-launch draft · August 2026</p>
         <h1>Terms of Service</h1>
@@ -27,7 +24,7 @@ export default function TermsPage() {
         <section className="legal-section" aria-labelledby="terms-changes"><h2 id="terms-changes">Changes to this draft</h2><p>Because this is a pre-launch draft, it may change without notice as the company, markets, data practices, and service design are confirmed. A final version will include an effective date, a legal entity, a notice address, and a process for material changes.</p></section>
         <section className="legal-section legal-section--last" aria-labelledby="terms-contact"><h2 id="terms-contact">Questions about this draft</h2><p>The provider and legal contact are not yet established because DoOnce is not deployed. Do not rely on this draft as a final agreement. The approved terms will provide the contact details, applicable law, and notices required for the launch markets.</p></section>
       </main>
-      <LegalFooter />
+      <SiteFooter />
     </div>
   );
 }
