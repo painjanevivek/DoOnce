@@ -154,12 +154,145 @@
 
 .library-create,
 .library-workflows,
+.first-workflow-guide,
 .product-state {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   padding: clamp(1.25rem, 3vw, 2.25rem);
   background: var(--panel);
   box-shadow: var(--shadow-sm);
+}
+
+.first-workflow-guide {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(20rem, 1fr);
+  gap: clamp(1.5rem, 4vw, 4rem);
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 8% 0%, rgb(216 255 62 / 18%), transparent 28rem),
+    var(--panel);
+}
+
+.first-workflow-guide__intro {
+  align-self: center;
+}
+
+.first-workflow-guide__intro h2 {
+  max-width: 15ch;
+  margin: 0;
+  font: 500 clamp(2rem, 4.5vw, 3.8rem)/0.98 var(--font-satoshi);
+  letter-spacing: -0.055em;
+}
+
+.first-workflow-guide__intro > p:not(.product-kicker) {
+  max-width: 42rem;
+  margin: var(--space-5) 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.first-workflow-guide__intro > small {
+  display: block;
+  max-width: 38rem;
+  margin-top: var(--space-4);
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.first-workflow-guide__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+
+.first-workflow-guide__actions :is(button, a) {
+  min-height: 2.75rem;
+  padding: 0.78rem 1rem;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-sm);
+  font: 750 0.78rem/1 var(--font-satoshi);
+  text-decoration: none;
+}
+
+.first-workflow-guide__actions button {
+  background: var(--ink);
+  color: var(--panel-strong);
+  cursor: pointer;
+}
+
+.first-workflow-guide__actions a {
+  background: transparent;
+  color: var(--ink);
+}
+
+.first-workflow-guide__steps {
+  display: grid;
+  gap: var(--space-2);
+  align-content: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.first-workflow-guide__steps li {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgb(255 255 255 / 58%);
+}
+
+.first-workflow-guide__steps li[data-current="true"] {
+  border-color: var(--ink);
+  box-shadow: inset 0.2rem 0 0 var(--signal-strong);
+}
+
+.first-workflow-guide__steps li[data-complete="true"] {
+  border-color: color-mix(in srgb, var(--success) 45%, var(--line));
+  background: var(--success-soft);
+}
+
+.first-workflow-guide__steps li > span {
+  display: grid;
+  width: 1.8rem;
+  height: 1.8rem;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--panel-strong);
+  font: 800 0.68rem/1 var(--font-mono);
+}
+
+.first-workflow-guide__steps li[data-complete="true"] > span {
+  background: var(--success);
+}
+
+.first-workflow-guide__steps div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.first-workflow-guide__steps strong {
+  font-size: 0.82rem;
+}
+
+.first-workflow-guide__steps p,
+.first-workflow-guide__steps small {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.first-workflow-guide__steps li > small {
+  padding-top: 0.35rem;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
 }
 
 .library-create h2,
@@ -720,6 +853,10 @@
 }
 
 @media (max-width: 1120px) {
+  .first-workflow-guide {
+    grid-template-columns: 1fr;
+  }
+
   .workflow-workspace {
     grid-template-columns: 12rem minmax(0, 1fr) 14rem;
   }

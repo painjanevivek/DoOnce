@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { WorkflowSummary } from "./authoring-types";
+import { FirstWorkflowGuide } from "./first-workflow-guide";
 
 export type WorkflowLibraryState =
   | "loading"
@@ -116,6 +117,13 @@ export function WorkflowLibraryView({
           Refresh library
         </button>
       </header>
+
+      <FirstWorkflowGuide
+        onChooseRecording={() => onModeChange("record")}
+        onOpenWorkflow={onOpenWorkflow}
+        onRun={onRun}
+        workflows={workflows}
+      />
 
       <section className="library-create" aria-labelledby="create-workflow-title">
         <div className="library-create__heading">
