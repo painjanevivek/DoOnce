@@ -1,6 +1,10 @@
 import { build } from "esbuild";
 import path from "node:path";
 
+const release = process.argv.includes("--release");
+const apiBaseUrl = process.env.DOONCE_EXTENSION_API_BASE_URL ?? "http://127.0.0.1:4000";
+if (release && !apiBaseUrl.startsWith("https://")) throw new Error("Release extension builds require an HTTPS DOONCE_EXTENSION_API_BASE_URL.");
+
 const extensionValidationPlugin = {
   name: "extension-runtime-validation",
   setup(buildContext) {
@@ -16,6 +20,7 @@ const shared = {
   logLevel: "info",
   plugins: [extensionValidationPlugin],
   target: ["chrome120"],
+  define: { __DOONCE_API_BASE_URL__: JSON.stringify(apiBaseUrl) },
 };
 
 await build({

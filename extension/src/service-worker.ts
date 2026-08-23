@@ -11,6 +11,7 @@ import { ChromeExecutorAdapter } from "./runtime/chrome-executor-adapter";
 import { executeWorkflow } from "./runtime/interpreter";
 import { createHttpRunTransport } from "./runtime/run-transport";
 import type { RunResult as ProtocolRunResult } from "../../contracts/protocol";
+import { extensionApiBaseUrl } from "./api-config";
 
 interface CaptureMessage {
   type: "doonce.capture";
@@ -146,7 +147,7 @@ async function synchronizeStoredCapture(final: boolean): Promise<CaptureSession 
 async function synchronizeAndStore(session: CaptureSession, final: boolean): Promise<CaptureSession> {
   const stored = await chrome.storage.local.get("doonce.captureToken");
   const token = typeof stored["doonce.captureToken"] === "string" ? stored["doonce.captureToken"] : undefined;
-  const updated = await synchronizeCaptureSession(session, createHttpCaptureTransport("http://127.0.0.1:4000", token), final);
+  const updated = await synchronizeCaptureSession(session, createHttpCaptureTransport(extensionApiBaseUrl, token), final);
   await saveCaptureSession(chrome.storage.local, updated);
   return updated;
 }
@@ -270,7 +271,7 @@ async function pollForWorkflowRun(): Promise<void> {
     const stored = await chrome.storage.local.get("doonce.captureToken");
     const token = stored["doonce.captureToken"];
     if (typeof token !== "string") return;
-    const transport = createHttpRunTransport("http://127.0.0.1:4000", token, chrome.runtime.getManifest().version);
+    const transport = createHttpRunTransport(extensionApiBaseUrl, token, chrome.runtime.getManifest().version);
     const lease = await transport.claim();
     if (!lease) return;
     const checkpointKey = `doonce.run.${lease.run.id}.checkpoint`;
@@ -301,7 +302,7 @@ async function pollForWorkflowRun(): Promise<void> {
     if (leaseValid) {
       await transport.finish(lease.run.id, lease.leaseToken, result);
       const evidence = new TextEncoder().encode(JSON.stringify(result));
-      await transport.uploadArtifact(lease.run.id, { fileName: `run-${lease.run.id}.json`, contentType: "application/json", retentionClass: lease.run.mode === "test" && result.status === "completed" ? "publication-evidence" : result.status === "completed" ? "workflow-output" : "debug", base64: bytesToBase64(evidence) });
+      await transport.uploadArtifact(lease.run.id, lease.leaseToken, { fileName: `run-${lease.run.id}.json`, contentType: "application/json", retentionClass: lease.run.mode === "test" && result.status === "completed" ? "publication-evidence" : result.status === "completed" ? "workflow-output" : "debug", base64: bytesToBase64(evidence) });
     }
     await chrome.storage.session.remove(checkpointKey);
     void notifyWorkflowRun(result);

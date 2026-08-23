@@ -1,4 +1,5 @@
 import type { AssertionResult, LocatorSpec, WorkflowAssertion } from "../../../contracts/protocol";
+import { matchesBoundedPattern } from "./bounded-pattern";
 
 export interface AssertionElement { text: string; value?: string; rowCount?: number; evidenceRefs?: string[] }
 export interface DownloadObservation { fileName: string; contentType?: string; bytes: number; evidenceRefs?: string[] }
@@ -43,5 +44,5 @@ function matchResult(id: string, actual: string, operator: "equals" | "contains"
   return result(id, matches ? "verified" : "failed", verifiedAt, matches ? undefined : failure, actual.slice(0, 1000), evidenceRefs);
 }
 function result(assertionId: string, status: AssertionResult["status"], verifiedAt: string, reasonCode?: string, observed?: string, evidenceRefs?: string[]): AssertionResult { return { schemaVersion: 1, assertionId, status, verifiedAt, ...(reasonCode ? { reasonCode } : {}), ...(observed ? { observed } : {}), ...(evidenceRefs?.length ? { evidenceRefs } : {}) }; }
-function compare(actual: string, operator: "equals" | "contains" | "matches", expected: string): boolean { if (operator === "equals") return actual === expected; if (operator === "contains") return actual.includes(expected); try { return new RegExp(expected).test(actual); } catch { return false; } }
-function downloadMatches(download: DownloadObservation, assertion: Extract<WorkflowAssertion, { kind: "file-downloaded" }>): boolean { if (download.bytes < (assertion.minBytes ?? 0) || download.bytes > (assertion.maxBytes ?? Number.MAX_SAFE_INTEGER)) return false; if (assertion.contentTypes && (!download.contentType || !assertion.contentTypes.includes(download.contentType))) return false; if (assertion.fileNamePattern) { try { if (!new RegExp(assertion.fileNamePattern).test(download.fileName)) return false; } catch { return false; } } return true; }
+function compare(actual: string, operator: "equals" | "contains" | "matches", expected: string): boolean { if (operator === "equals") return actual === expected; if (operator === "contains") return actual.includes(expected); return matchesBoundedPattern(expected, actual); }
+function downloadMatches(download: DownloadObservation, assertion: Extract<WorkflowAssertion, { kind: "file-downloaded" }>): boolean { if (download.bytes < (assertion.minBytes ?? 0) || download.bytes > (assertion.maxBytes ?? Number.MAX_SAFE_INTEGER)) return false; if (assertion.contentTypes && (!download.contentType || !assertion.contentTypes.includes(download.contentType))) return false; return !assertion.fileNamePattern || matchesBoundedPattern(assertion.fileNamePattern, download.fileName); }

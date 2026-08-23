@@ -1,6 +1,6 @@
 # DoOnce Browser Automation Extension
 
-Version 0.3 records explicit, recoverable capture sessions with semantic element and page evidence. Pair it from the signed-in dashboard, approve a site, demonstrate the task, review the progressive timeline, stop, synchronize, and finalize the session. If connectivity is unavailable, the bounded local session remains available for automatic retry or JSON export.
+Version 0.4 records explicit, recoverable capture sessions with semantic element and page evidence. Pair it from the signed-in dashboard, approve a site, demonstrate the task, review the progressive timeline, stop, synchronize, and finalize the session. If connectivity is unavailable, the bounded local session remains available for automatic retry or JSON export.
 
 This Manifest V3 extension records approved browser interactions and runs the controlled local report workflow. Run `npm run build:extension`, then load this folder as an unpacked Chrome extension.
 
@@ -11,6 +11,9 @@ This Manifest V3 extension records approved browser interactions and runs the co
 - It injects the recorder into the current approved tab only and keeps at most 50 local, value-free interaction summaries.
 - It accepts HTTPS origins and the local DoOnce demo (`localhost`/`127.0.0.1`) only.
 - Recording can be paused, resumed, or cleared explicitly from the popup.
+- Production bundles require an explicitly configured HTTPS API origin; loopback transport is development-only.
+- Remotely received WorkflowSpec is bounded declarative data. All executable logic and action kinds ship in the extension bundle.
+- Every action and assertion revalidates the exact tab domain. Reversible writes pause unless that step has fresh per-run approval.
 
 Each summary contains a bounded relative path, event kind, stable locator candidate, and optional supported action hint. The service worker validates the sender origin and path before saving it. Query strings, typed values, and page content are never part of the capture contract.
 
@@ -23,5 +26,6 @@ Users can explicitly export `doonce.local-run-receipt.v1` receipts for dashboard
 ## Build and verification
 
 - `npm run build:extension` creates browser-ready bundles in `extension/dist`.
+- `DOONCE_EXTENSION_API_BASE_URL=https://api.example npm run build:extension:release` enforces encrypted release transport.
 - `npm run typecheck` validates the dashboard and strict extension TypeScript projects.
 - `npm run test:extension` builds the extension, runs module tests, and replays the controlled browser bundle harness.

@@ -9,7 +9,7 @@ export interface RunTransport {
   heartbeat(runId: string, leaseToken: string): Promise<ExecutionRunView | undefined>;
   checkpoint(runId: string, leaseToken: string, checkpoint: InterpreterCheckpoint): Promise<boolean>;
   finish(runId: string, leaseToken: string, result: RunResult): Promise<boolean>;
-  uploadArtifact(runId: string, input: { fileName: string; contentType: string; retentionClass: "debug" | "workflow-output" | "publication-evidence" | "pinned"; stepId?: string; base64: string }): Promise<boolean>;
+  uploadArtifact(runId: string, leaseToken: string, input: { fileName: string; contentType: string; retentionClass: "debug" | "workflow-output" | "publication-evidence" | "pinned"; stepId?: string; base64: string }): Promise<boolean>;
 }
 
 export function createHttpRunTransport(apiBaseUrl: string, token: string, extensionVersion: string): RunTransport {
@@ -31,7 +31,7 @@ export function createHttpRunTransport(apiBaseUrl: string, token: string, extens
     },
     async checkpoint(runId, leaseToken, checkpoint) { return (await request(`/api/v1/extension/runs/${runId}/checkpoint`, { leaseToken, checkpoint })).ok; },
     async finish(runId, leaseToken, result) { return (await request(`/api/v1/extension/runs/${runId}/result`, { leaseToken, result })).ok; },
-    async uploadArtifact(runId, input) { return (await request(`/api/v1/runs/${runId}/artifacts`, input)).ok; },
+    async uploadArtifact(runId, leaseToken, input) { return (await request(`/api/v1/runs/${runId}/artifacts`, { ...input, leaseToken })).ok; },
   };
 }
 

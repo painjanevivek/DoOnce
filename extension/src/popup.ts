@@ -4,7 +4,7 @@ import { isRecording, removeOriginData, setRecording } from "./recording-state";
 import { canRunDemo, canStartDemoRun, isConsentableWebOrigin } from "./run-eligibility";
 import { compileRecordedActions } from "./workflow-compiler";
 import type { CaptureSession, RecordedAction } from "../../contracts/protocol";
-import { loadCaptureSession } from "./capture-storage";
+import { discardCaptureSession, loadCaptureSession } from "./capture-storage";
 
 const consentButton = element<HTMLButtonElement>("#consent");
 const recordingButton = element<HTMLButtonElement>("#recording");
@@ -181,6 +181,8 @@ revokeButton.addEventListener("click", async () => {
     "doonce.demoRunReceipts": removeOriginData(demoRunReceipts["doonce.demoRunReceipts"], currentOrigin),
   });
   await chrome.permissions.remove({ origins: [`${currentOrigin}/*`] });
+  const session = await loadCaptureSession(chrome.storage.local);
+  if (session?.approvedOrigins.includes(currentOrigin)) await discardCaptureSession(chrome.storage.local);
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (tab?.id) await chrome.tabs.sendMessage(tab.id, { type: "doonce.stop-capture" }).catch(() => undefined);
   revokeButton.disabled = true;

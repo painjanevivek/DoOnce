@@ -1,6 +1,7 @@
 import type { CapturedValue, ElementEvidence, PageState, RecordedAction } from "../../contracts/protocol";
 import { classifyCapturedValue, createElementEvidence, fingerprint, normalizeUrlPattern } from "./capture-evidence";
 import { normalizeRecordedPath } from "./capture-eligibility";
+import { isProtectedCaptureTarget } from "./capture-target-policy";
 
 export type CaptureObservation = Omit<RecordedAction, "schemaVersion" | "id" | "sequence" | "tabId" | "frameId">;
 
@@ -11,7 +12,11 @@ const pendingInputs = new Map<Element, number>();
 function observeEvent(event: Event): void {
   if (!recording) return;
   const target = event.composedPath().find((item): item is HTMLElement => item instanceof HTMLElement);
-  if (!target || isHiddenControl(target)) return;
+  if (!target || isHiddenControl(target) || isProtectedCaptureTarget({
+    isContentEditable: target.isContentEditable,
+    tagName: target.tagName,
+    ...(target instanceof HTMLInputElement ? { inputType: target.type, autocomplete: target.autocomplete, name: target.name, id: target.id } : {}),
+  })) return;
   const eventKind = semanticEventKind(event.type, target);
   if (!eventKind) return;
   if (eventKind === "input") {

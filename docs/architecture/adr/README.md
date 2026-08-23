@@ -6,3 +6,4 @@
 - [ADR-0004: Use AI for authoring and repair](0004-ai-boundary.md)
 - [ADR-0005: Use PostgreSQL-backed durable jobs](0005-postgresql-jobs.md)
 - [ADR-0006: Build video authoring after the core workflow](0006-video-sequencing.md)
+- [ADR-0007: Keep WorkflowSpec declarative under Manifest V3](0007-manifest-v3-workflow-data.md)

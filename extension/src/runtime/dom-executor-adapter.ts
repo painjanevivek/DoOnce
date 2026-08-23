@@ -2,6 +2,7 @@ import type { AssertionResult, ElementTarget, LocatorCandidate, LocatorSpec, Pag
 import type { ActionExecutionResult, ExecutionContext, ExecutorAdapter, ExecutorCapabilities } from "./executor-adapter";
 import { resolveLocator } from "./locator-resolution";
 import { evaluateAssertions, type DownloadObservation } from "./assertion-evaluator";
+import { matchesBoundedPattern } from "./bounded-pattern";
 
 const supportedActions: WorkflowActionKind[] = ["navigate", "wait", "read", "select", "type", "download", "compare", "ask-approval", "stop", "branch"];
 
@@ -125,7 +126,7 @@ async function waitFor(check: () => ReturnType<typeof resolveLocator<Element>>, 
 function pageState(): PageState { return { capturedAt: new Date().toISOString(), origin: location.origin, path: location.pathname, urlPattern: `${location.origin}${location.pathname}`, navigationId: String(performance.timeOrigin), titleHint: document.title.slice(0, 200) }; }
 function setValue(element: Element, value: string): boolean { if (element instanceof HTMLSelectElement) { element.value = value; element.dispatchEvent(new Event("change", { bubbles: true })); return element.value === value; } if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) { element.focus(); element.value = value; element.dispatchEvent(new Event("input", { bubbles: true })); element.dispatchEvent(new Event("change", { bubbles: true })); return element.value === value; } return false; }
 function readValue(element: Element): string { if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) return element.value; return (element.textContent ?? "").trim().slice(0, 10_000); }
-function compare(actual: string, operator: "equals" | "contains" | "matches", expected: string): boolean { if (operator === "equals") return actual === expected; if (operator === "contains") return actual.includes(expected); try { return new RegExp(expected).test(actual); } catch { return false; } }
+function compare(actual: string, operator: "equals" | "contains" | "matches", expected: string): boolean { if (operator === "equals") return actual === expected; if (operator === "contains") return actual.includes(expected); return matchesBoundedPattern(expected, actual); }
 function isVisible(element: Element): boolean { const rect = element.getBoundingClientRect(); const style = getComputedStyle(element); return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none"; }
 function normalized(value: string | null | undefined): string { return (value ?? "").trim().replace(/\s+/g, " ").toLowerCase(); }
 function paused(reasonCode: string): ActionExecutionResult { return { status: "paused", reasonCode }; }

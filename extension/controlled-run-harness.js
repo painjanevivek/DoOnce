@@ -29,7 +29,10 @@ function readExtensionScript(filename) {
 }
 
 function sourceDigests() {
-  return Object.fromEntries(sourceFiles.map((filename) => [`extension/${filename}`, createHash("sha256").update(fs.readFileSync(path.join(extensionDirectory, filename), "utf8")).digest("hex")]));
+  return Object.fromEntries(sourceFiles.map((filename) => {
+    const source = fs.readFileSync(path.join(extensionDirectory, filename), "utf8").replace(/\r\n/g, "\n");
+    return [`extension/${filename}`, createHash("sha256").update(source, "utf8").digest("hex")];
+  }));
 }
 
 function createStorage() {

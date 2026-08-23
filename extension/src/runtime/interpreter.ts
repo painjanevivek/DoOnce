@@ -1,5 +1,6 @@
 import type { AssertionResult, RunRequest, RunResult, StepResult, WorkflowAssertion, WorkflowSpec, WorkflowStep } from "../../../contracts/protocol";
 import type { ExecutionContext, ExecutorAdapter } from "./executor-adapter";
+import { matchesBoundedPattern } from "./bounded-pattern";
 
 export interface InterpreterCheckpoint {
   currentStepIndex: number;
@@ -15,6 +16,7 @@ export interface InterpreterOptions {
   isCancellationRequested?: () => boolean | Promise<boolean>;
   onCheckpoint?: (checkpoint: InterpreterCheckpoint) => void | Promise<void>;
   now?: () => Date;
+  approvedWriteStepIds?: readonly string[];
 }
 
 export async function executeWorkflow(request: RunRequest, workflow: WorkflowSpec, adapter: ExecutorAdapter, options: InterpreterOptions = {}): Promise<RunResult> {
@@ -51,6 +53,13 @@ export async function executeWorkflow(request: RunRequest, workflow: WorkflowSpe
         const stoppedAt = now().toISOString();
         stepResults.push({ schemaVersion: 1, stepId: step.id, status: "paused", reasonCode: "workflow.stopped", startedAt: stoppedAt, finishedAt: stoppedAt, retryCount: 0 });
         finalStatus = "paused"; reasonCode = "workflow.stopped"; break;
+      }
+      if ((step.action === "type" || step.action === "select") && !options.approvedWriteStepIds?.includes(step.id)) {
+        const pausedAt = now().toISOString();
+        stepResults.push({ schemaVersion: 1, stepId: step.id, status: "paused", reasonCode: "approval.run-required", startedAt: pausedAt, finishedAt: pausedAt, retryCount: 0 });
+        finalStatus = "paused";
+        reasonCode = "approval.run-required";
+        break;
       }
 
       const started = now().toISOString();
@@ -113,7 +122,7 @@ async function checkpoint(options: InterpreterOptions, currentStepIndex: number,
 }
 
 function context(runId: string, inputs: Record<string, string>, variables: Record<string, string>): ExecutionContext { return { runId, inputs, variables }; }
-function compare(actual: string, operator: "equals" | "contains" | "matches", expected: string): boolean { if (operator === "equals") return actual === expected; if (operator === "contains") return actual.includes(expected); try { return new RegExp(expected).test(actual); } catch { return false; } }
+function compare(actual: string, operator: "equals" | "contains" | "matches", expected: string): boolean { if (operator === "equals") return actual === expected; if (operator === "contains") return actual.includes(expected); return matchesBoundedPattern(expected, actual); }
 function interpolate(value: string, variables: Record<string, string>): string { return value.replace(/\$\{([a-zA-Z][a-zA-Z0-9_-]{0,63})\}/g, (_match, name: string) => variables[name] ?? ""); }
 function interpolateStep(step: WorkflowStep, variables: Record<string, string>): WorkflowStep { const clone = structuredClone(step); if ("expected" in clone) clone.expected = interpolate(clone.expected, variables); if (clone.action === "ask-approval") clone.prompt = interpolate(clone.prompt, variables); return clone; }
 function interpolateAssertions(assertions: readonly WorkflowAssertion[], variables: Record<string, string>): WorkflowAssertion[] { return assertions.map((assertion) => { const clone = structuredClone(assertion); if ("expected" in clone) clone.expected = interpolate(clone.expected, variables); if (clone.kind === "user-confirmation") clone.prompt = interpolate(clone.prompt, variables); if (clone.kind === "file-downloaded" && clone.fileNamePattern) clone.fileNamePattern = interpolate(clone.fileNamePattern, variables); return clone; }); }

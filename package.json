@@ -10,6 +10,7 @@
     "dev": "next dev",
     "build": "npm run build:extension && next build",
     "build:extension": "node extension/build.mjs",
+    "build:extension:release": "node extension/build.mjs --release",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "npm run contracts:verify && tsc --noEmit && tsc --noEmit -p extension/tsconfig.json",

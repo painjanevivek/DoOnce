@@ -76,6 +76,17 @@ test("honors cancellation before the next side effect", async () => {
   assert.equal(adapter.cancelled, true);
 });
 
+test("requires a fresh per-run approval before reversible writes", async () => {
+  const step: WorkflowStep = { id: ids[2]!, action: "type", name: "Enter region", expectedOutcome: "Region entered", target: { domain: "example.test", path: "/", locator: { schemaVersion: 1, primary: { strategy: "id", value: "region", confidence: 1 }, fallbacks: [] } }, inputName: "region" };
+  const blockedAdapter = new FakeAdapter();
+  const blocked = await executeWorkflow(request, spec([step]), blockedAdapter);
+  assert.equal(blocked.status, "paused");
+  assert.equal(blocked.reasonCode, "approval.run-required");
+  assert.deepEqual(blockedAdapter.calls, []);
+  const approvedAdapter = new FakeAdapter();
+  assert.equal((await executeWorkflow(request, spec([step]), approvedAdapter, { approvedWriteStepIds: [step.id] })).status, "completed");
+});
+
 test("pauses an interrupted in-flight action instead of duplicating its side effect", async () => {
   const adapter = new FakeAdapter();
   const result = await executeWorkflow(request, spec([navigate(ids[2]!)]), adapter, { checkpoint: { currentStepIndex: 0, stepResults: [], variables: {}, inFlightStepId: ids[2]! } });
