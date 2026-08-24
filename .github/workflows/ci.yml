@@ -25,15 +25,28 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test:extension
-      - run: npm run build:extension:release
+      - name: Build and package deterministic release extension
+        run: npm run package:extension:release
         env:
           DOONCE_EXTENSION_API_BASE_URL: https://api.example.invalid
           DOONCE_EXTENSION_PILOT_ALLOWED_ORIGIN: https://reports.example.invalid
+          DOONCE_EXTENSION_VERSION: 0.4.0
       - run: npm run verify:controlled-runs
       - run: npm run build
       - run: docker build --tag doonce-frontend:ci .
       - name: Generate CycloneDX software bill of materials
         run: npm sbom --sbom-format cyclonedx > doonce-frontend.sbom.json
+      - name: Generate extension dependency SBOM
+        run: npm sbom --sbom-format cyclonedx > extension/release/doonce-extension-0.4.0.sbom.json
+      - name: Scan packaged extension dependencies
+        id: extension-scan
+        continue-on-error: true
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
+        with:
+          path: extension/release
+          fail-build: true
+          severity-cutoff: high
+          only-fixed: true
       - name: Scan production container
         id: image-scan
         continue-on-error: true
@@ -52,6 +65,18 @@ jobs:
           name: doonce-frontend-sbom
           path: doonce-frontend.sbom.json
           retention-days: 30
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: always()
+        with:
+          name: doonce-extension-release
+          path: |
+            extension/release/
+            ${{ steps.extension-scan.outputs.sarif }}
+          if-no-files-found: error
+          retention-days: 30
+      - name: Enforce high extension vulnerability gate
+        if: steps.extension-scan.outcome == 'failure'
+        run: exit 1
       - name: Enforce critical container vulnerability gate
         if: steps.image-scan.outcome == 'failure'
         run: exit 1

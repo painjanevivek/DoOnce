@@ -2,7 +2,7 @@
 
 Version 0.4 records explicit, recoverable capture sessions with semantic element and page evidence. Pair it from the signed-in dashboard, approve a site, demonstrate the task, review the progressive timeline, stop, synchronize, and finalize the session. If connectivity is unavailable, the bounded local session remains available for automatic retry or JSON export.
 
-This Manifest V3 extension records approved browser interactions and runs the controlled local report workflow. Run `npm run build:extension`, then load this folder as an unpacked Chrome extension.
+This Manifest V3 extension records approved browser interactions and runs the attended report workflow. Development builds retain the controlled local fixture; production packages omit its runner and contain only the pilot runtime.
 
 ## Current boundary
 
@@ -19,7 +19,7 @@ Each summary contains a bounded relative path, event kind, stable locator candid
 
 `src/capture-eligibility.ts` is the fail-closed capture boundary. It rejects password, OTP/security-code, payment, hidden, and file fields. Cloud sync requires a separate reviewed extension-to-API contract.
 
-The current runner is limited to the local `/demo/reports` CSV fixture. The user approves each run, the extension verifies the expected confirmation, and at most 20 redacted receipts are retained locally. Notifications use fixed text and never reflect raw page or error data.
+The production runner is limited to the exact HTTPS pilot origin compiled into the package. The user approves each run, the extension verifies the declared download, and at most 20 redacted receipts are retained locally. Notifications use fixed text and never reflect raw page or error data.
 
 Users can explicitly export `doonce.local-run-receipt.v1` receipts for dashboard review. New capture exports use `doonce.capture.v2`. The parser continues to read `doonce.safe-capture.v1` during one migration window, but the extension never writes the legacy format.
 
@@ -27,5 +27,8 @@ Users can explicitly export `doonce.local-run-receipt.v1` receipts for dashboard
 
 - `npm run build:extension` creates browser-ready bundles in `extension/dist`.
 - `DOONCE_EXTENSION_API_BASE_URL=https://api.example DOONCE_EXTENSION_PILOT_ALLOWED_ORIGIN=https://reports.example npm run build:extension:release` enforces encrypted API transport and one exact release recording origin.
+- `DOONCE_EXTENSION_API_BASE_URL=https://api.example DOONCE_EXTENSION_PILOT_ALLOWED_ORIGIN=https://reports.example DOONCE_EXTENSION_VERSION=0.4.0 npm run package:extension:release` verifies the controlled-run ledger, builds twice, rejects dirty/mismatched inputs and development files, and emits a deterministic versioned ZIP, checksum, manifest diff, and provenance manifest in `extension/release`.
 - `npm run typecheck` validates the dashboard and strict extension TypeScript projects.
 - `npm run test:extension` builds the extension, runs module tests, and replays the controlled browser bundle harness.
+
+The exact distribution and clean-profile verification procedure is in `docs/reliability/extension-release.md`. Never send an unpacked working tree to a pilot; distribute only the checksum-verified ZIP to named users when the unlisted Chrome Web Store path is unavailable.

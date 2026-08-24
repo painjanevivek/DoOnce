@@ -13,7 +13,7 @@ Global and route error boundaries show a content-free retry state. They log only
 
 ## Extension
 
-Follow the backend operations handbook’s extension release and browser compatibility procedure. Keep host access optional and user-granted; any manifest permission change requires an explicit diff review and a plain-language release note. Build artifacts and controlled-run evidence must come from the same commit.
+Follow [the extension release and controlled-distribution procedure](extension-release.md). Keep host access exact, optional, and user-granted; any manifest permission change requires an explicit diff review and a plain-language release note. Build artifacts and controlled-run evidence must come from the same clean commit.
 
 ## Release evidence
 

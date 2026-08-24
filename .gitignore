@@ -5,6 +5,7 @@ out/
 !.env.example
 coverage/
 extension/dist/
+extension/release/
 .worktrees/
 *.tsbuildinfo
 

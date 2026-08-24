@@ -1,4 +1,5 @@
 import { build } from "esbuild";
+import { rm } from "node:fs/promises";
 import path from "node:path";
 
 const release = process.argv.includes("--release");
@@ -13,12 +14,14 @@ if (pilotAllowedOrigin) {
   }
 }
 
+await rm("extension/dist", { recursive: true, force: true });
+
 const extensionValidationPlugin = {
   name: "extension-runtime-validation",
   setup(buildContext) {
     buildContext.onResolve(
-      { filter: /^\.\.\/\.\.\/contracts\/validation$/ },
-      () => ({ path: path.resolve("contracts/validation-runtime.ts") }),
+      { filter: /^\.\.\/\.\.\/contracts\/validation-runtime$/ },
+      () => ({ path: path.resolve("contracts/validation.ts") }),
     );
   },
 };
@@ -39,32 +42,34 @@ await build({
   entryPoints: {
     "service-worker": "extension/src/service-worker.ts",
     "content-capture": "extension/src/content-capture.ts",
-    "demo-runner": "extension/src/demo-runner.ts",
     "content-runner": "extension/src/content-runner.ts",
     popup: "extension/src/popup.ts",
+    ...(!release ? { "demo-runner": "extension/src/demo-runner.ts" } : {}),
   },
   format: "iife",
   outdir: "extension/dist",
   platform: "browser",
-  sourcemap: true,
+  sourcemap: !release,
 });
 
-await build({
-  ...shared,
-  entryPoints: {
-    "capture-eligibility": "extension/src/capture-eligibility.ts",
-    "capture-export": "extension/src/capture-export.ts",
-    "recording-state": "extension/src/recording-state.ts",
-    "run-eligibility": "extension/src/run-eligibility.ts",
-    "run-notification": "extension/src/run-notification.ts",
-    "receipt-view": "extension/src/receipt-view.ts",
-    "workflow-compiler": "extension/src/workflow-compiler.ts",
-    "runtime/interpreter": "extension/src/runtime/interpreter.ts",
-    "runtime/locator-resolution": "extension/src/runtime/locator-resolution.ts",
-    "runtime/run-transport": "extension/src/runtime/run-transport.ts",
-  },
-  format: "cjs",
-  outdir: "extension/dist/test",
-  outExtension: { ".js": ".cjs" },
-  platform: "node",
-});
+if (!release) {
+  await build({
+    ...shared,
+    entryPoints: {
+      "capture-eligibility": "extension/src/capture-eligibility.ts",
+      "capture-export": "extension/src/capture-export.ts",
+      "recording-state": "extension/src/recording-state.ts",
+      "run-eligibility": "extension/src/run-eligibility.ts",
+      "run-notification": "extension/src/run-notification.ts",
+      "receipt-view": "extension/src/receipt-view.ts",
+      "workflow-compiler": "extension/src/workflow-compiler.ts",
+      "runtime/interpreter": "extension/src/runtime/interpreter.ts",
+      "runtime/locator-resolution": "extension/src/runtime/locator-resolution.ts",
+      "runtime/run-transport": "extension/src/runtime/run-transport.ts",
+    },
+    format: "cjs",
+    outdir: "extension/dist/test",
+    outExtension: { ".js": ".cjs" },
+    platform: "node",
+  });
+}
