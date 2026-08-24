@@ -121,7 +121,7 @@ export default function WorkflowLibrary() {
       pilotOrigin={capabilities?.mvp.pilotOrigin ?? null}
       operations={
         <>
-          <RunHistoryPanel apiBaseUrl={apiBaseUrl} />
+          <RunHistoryPanel apiBaseUrl={apiBaseUrl} mvpMode={capabilities?.mvp.enabled === true} />
           <BetaEvidencePanel apiBaseUrl={apiBaseUrl} workflows={workflows} />
         </>
       }

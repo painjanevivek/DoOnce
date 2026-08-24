@@ -20,6 +20,8 @@ export function WorkflowRunPanel({ apiBaseUrl, workflow, onClose, mvpMode = fals
   const [run, setRun] = useState<RunView | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "starting" | "error">("loading");
   const [message, setMessage] = useState("");
+  const [extensionVersion, setExtensionVersion] = useState<string | null>(null);
+  const [approvalConfirmed, setApprovalConfirmed] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -43,6 +45,19 @@ export function WorkflowRunPanel({ apiBaseUrl, workflow, onClose, mvpMode = fals
   }, [apiBaseUrl, workflow]);
 
   useEffect(() => {
+    if (!mvpMode) return;
+    const controller = new AbortController();
+    void fetch(`${apiBaseUrl}/api/v1/capture-sessions/connection`, { credentials: "include", headers: { Accept: "application/json" }, signal: controller.signal })
+      .then(async (response) => {
+        const body: unknown = await response.json();
+        const connection = body && typeof body === "object" ? (body as { connection?: unknown }).connection : undefined;
+        if (response.ok && connection && typeof connection === "object" && (connection as { connected?: unknown }).connected === true && typeof (connection as { extensionVersion?: unknown }).extensionVersion === "string") setExtensionVersion((connection as { extensionVersion: string }).extensionVersion);
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [apiBaseUrl, mvpMode]);
+
+  useEffect(() => {
     if (!run || terminalStatus(run.status)) return;
     const timer = window.setInterval(() => {
       void fetch(`${apiBaseUrl}/api/v1/runs/${run.id}`, { credentials: "include", headers: { Accept: "application/json" } })
@@ -58,16 +73,30 @@ export function WorkflowRunPanel({ apiBaseUrl, workflow, onClose, mvpMode = fals
     setState("starting");
     setMessage("");
     try {
+      let approvalToken: string | undefined;
+      if (mvpMode) {
+        if (!approvalConfirmed || !extensionVersion) throw new Error("Connect the extension and explicitly approve this one production run.");
+        const approvalResponse = await fetch(`${apiBaseUrl}/api/v1/run-approvals`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ workflowId: workflow.id, inputs, extensionVersion }),
+        });
+        const approvalBody: unknown = await approvalResponse.json();
+        if (!approvalResponse.ok || !isApproval(approvalBody)) throw new Error(readError(approvalBody));
+        approvalToken = approvalBody.approvalToken;
+      }
       const response = await fetch(`${apiBaseUrl}/api/v1/runs`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ workflowId: workflow.id, inputs, idempotencyKey: `dashboard:${crypto.randomUUID()}`, triggerKind: "manual", sessionLocation: "user-browser" }),
+        body: JSON.stringify({ workflowId: workflow.id, inputs, idempotencyKey: `dashboard:${crypto.randomUUID()}`, triggerKind: "manual", sessionLocation: "user-browser", ...(approvalToken ? { approvalToken } : {}) }),
       });
       const body: unknown = await response.json();
       if (!response.ok || !isCreatedRun(body)) throw new Error(readError(body));
       setRun(body.run);
-      setMessage("Run queued. Keep Chrome open on an approved workflow page; the connected extension will claim it automatically.");
+      setApprovalConfirmed(false);
+      setMessage("Fresh approval consumed. Keep Chrome open on the approved workflow page; only the bound extension version can claim this run.");
       setState("ready");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "The run could not be queued.");
@@ -89,7 +118,8 @@ export function WorkflowRunPanel({ apiBaseUrl, workflow, onClose, mvpMode = fals
       {state === "loading" && <p aria-busy="true">Loading published inputs...</p>}
       {spec && <>
         <div className="test-inputs">{spec.inputs.map((input) => <label key={input.name}><span>{input.label}{input.required ? " *" : ""}</span>{input.kind === "select" ? <select value={inputs[input.name] ?? ""} onChange={(event) => setInputs((current) => ({ ...current, [input.name]: event.target.value }))}><option value="">Choose...</option>{input.options?.map((option) => <option key={option}>{option}</option>)}</select> : <input type={input.secret ? "password" : input.kind === "date" ? "date" : "text"} value={inputs[input.name] ?? ""} onChange={(event) => setInputs((current) => ({ ...current, [input.name]: event.target.value }))} />}</label>)}</div>
-        <div className="run-launcher__actions"><button className="primary-button" disabled={state === "starting" || Boolean(run && !terminal)} onClick={() => void start()} type="button">{state === "starting" ? "Queueing run..." : terminal ? "Run again" : "Queue extension run"}</button>{run && !terminal && <button className="secondary-button" onClick={() => void cancel()} type="button">Cancel run</button>}</div>
+        {mvpMode && <label className="run-approval-confirmation"><input checked={approvalConfirmed} disabled={!extensionVersion || state === "starting" || Boolean(run && !terminal)} onChange={(event) => setApprovalConfirmed(event.target.checked)} type="checkbox" /><span><strong>I approve this one production run.</strong><small>{extensionVersion ? `Bound to connected extension v${extensionVersion}, this workflow version, these inputs, and ${pilotOrigin}. Approval expires in five minutes and cannot be reused.` : "Connect the Chrome extension before approving a run."}</small></span></label>}
+        <div className="run-launcher__actions"><button className="primary-button" disabled={state === "starting" || Boolean(run && !terminal) || (mvpMode && (!approvalConfirmed || !extensionVersion))} onClick={() => void start()} type="button">{state === "starting" ? "Approving and queueing..." : terminal ? "Approve and run again" : mvpMode ? "Approve and queue one run" : "Queue extension run"}</button>{run && !terminal && <button className="secondary-button" onClick={() => void cancel()} type="button">Cancel run</button>}</div>
         {!mvpMode ? <WorkflowSchedulePanel apiBaseUrl={apiBaseUrl} inputs={inputs} workflowId={workflow.id} /> : null}
       </>}
       {run && <div className="run-progress" data-status={run.status}><span>{run.executor === "hosted-browser" ? "Hosted" : "Extension"} run {run.id.slice(0, 8)}</span><strong>{run.status}</strong><small>{run.currentStepIndex} step{run.currentStepIndex === 1 ? "" : "s"} checkpointed{run.result?.reasonCode ? ` - ${run.result.reasonCode}` : ""}</small></div>}
@@ -103,4 +133,5 @@ function isVersions(value: unknown): value is { versions: WorkflowVersion[] } { 
 function isRun(value: unknown): value is RunView { return Boolean(value && typeof value === "object" && typeof (value as RunView).id === "string" && ["queued", "running", "paused", "completed", "failed", "cancelled"].includes((value as RunView).status)); }
 function isRunResponse(value: unknown): value is { run: RunView } { return Boolean(value && typeof value === "object" && isRun((value as { run?: unknown }).run)); }
 function isCreatedRun(value: unknown): value is { created: boolean; run: RunView } { return Boolean(value && typeof value === "object" && typeof (value as { created?: unknown }).created === "boolean" && isRun((value as { run?: unknown }).run)); }
+function isApproval(value: unknown): value is { approvalToken: string; expiresAt: string } { return Boolean(value && typeof value === "object" && typeof (value as { approvalToken?: unknown }).approvalToken === "string" && typeof (value as { expiresAt?: unknown }).expiresAt === "string"); }
 function readError(value: unknown): string { return value && typeof value === "object" && typeof (value as { error?: unknown }).error === "string" ? (value as { error: string }).error : "The run request failed."; }

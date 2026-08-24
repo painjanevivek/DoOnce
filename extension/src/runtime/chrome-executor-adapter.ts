@@ -6,22 +6,30 @@ const actions: WorkflowActionKind[] = ["navigate", "wait", "read", "select", "ty
 
 export class ChromeExecutorAdapter implements ExecutorAdapter {
   private tabId: number | undefined;
+  private windowId: number | undefined;
   private cancelled = false;
+  private unexpectedTabActivity = false;
   private readonly downloads: DownloadObservation[] = [];
-  public constructor(private readonly allowedDomains: readonly string[]) {}
+  private readonly onTabCreated = (tab: chrome.tabs.Tab) => { if (this.tabId !== undefined && (tab.openerTabId === this.tabId || tab.windowId === this.windowId)) this.unexpectedTabActivity = true; };
+  private readonly onTabActivated = (info: { tabId: number; windowId: number }) => { if (this.tabId !== undefined && info.windowId === this.windowId && info.tabId !== this.tabId) this.unexpectedTabActivity = true; };
+  public constructor(private readonly allowedDomains: readonly string[], private readonly exactOrigin?: string) {}
   public capabilities(): ExecutorCapabilities { return { executor: "extension", actions, maxSteps: 500, supportsDownloads: true, features: ["workflow-spec-v1", "semantic-locators", "event-waits", "checkpoints", "navigation-reinjection"] }; }
   public async prepare(): Promise<void> {
     const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!active?.id || !isAllowedExtensionUrl(active.url, this.allowedDomains)) throw new TypeError("Open an allowed workflow page before running.");
+    if (!active?.id || !isAllowedExtensionUrl(active.url, this.allowedDomains, this.exactOrigin)) throw new TypeError("Open an allowed workflow page before running.");
     this.tabId = active.id;
+    this.windowId = active.windowId;
+    chrome.tabs.onCreated.addListener(this.onTabCreated);
+    chrome.tabs.onActivated.addListener(this.onTabActivated);
   }
   public async cancel(): Promise<void> { this.cancelled = true; }
-  public async close(): Promise<void> {}
+  public async close(): Promise<void> { chrome.tabs.onCreated.removeListener(this.onTabCreated); chrome.tabs.onActivated.removeListener(this.onTabActivated); }
   public async verify(assertions: readonly WorkflowAssertion[], context: ExecutionContext): Promise<AssertionResult[]> {
     const tabId = this.tabId;
+    if (this.unexpectedTabActivity) return assertions.map((assertion) => ({ schemaVersion: 1, assertionId: assertion.id, status: "failed", reasonCode: "tab.unexpected-change", verifiedAt: new Date().toISOString() }));
     if (!tabId) return assertions.map((assertion) => ({ schemaVersion: 1, assertionId: assertion.id, status: "failed", reasonCode: "tab.not-owned", verifiedAt: new Date().toISOString() }));
     const tab = await chrome.tabs.get(tabId);
-    if (!isAllowedExtensionUrl(tab.url, this.allowedDomains)) return assertions.map((assertion) => ({ schemaVersion: 1, assertionId: assertion.id, status: "failed", reasonCode: "navigation.unexpected-domain", verifiedAt: new Date().toISOString() }));
+    if (!isAllowedExtensionUrl(tab.url, this.allowedDomains, this.exactOrigin)) return assertions.map((assertion) => ({ schemaVersion: 1, assertionId: assertion.id, status: "failed", reasonCode: "navigation.unexpected-domain", verifiedAt: new Date().toISOString() }));
     try { return await chrome.tabs.sendMessage(tabId, { type: "doonce.verify-assertions", assertions, context, downloads: this.downloads }); }
     catch {
       await chrome.scripting.executeScript({ target: { tabId, allFrames: false }, files: ["dist/content-runner.js"] });
@@ -31,11 +39,12 @@ export class ChromeExecutorAdapter implements ExecutorAdapter {
   }
   public async execute(step: WorkflowStep, context: ExecutionContext): Promise<ActionExecutionResult> {
     if (this.cancelled) return { status: "paused", reasonCode: "run.cancelled" };
+    if (this.unexpectedTabActivity) return { status: "paused", reasonCode: "tab.unexpected-change" };
     const tabId = this.tabId;
     if (!tabId) return { status: "failed", reasonCode: "tab.not-owned" };
     if (step.action === "navigate") return this.navigate(tabId, step.target.domain, step.target.path);
     const tab = await chrome.tabs.get(tabId);
-    if (!isAllowedExtensionUrl(tab.url, this.allowedDomains) || ("target" in step && tab.url && new URL(tab.url).hostname !== step.target.domain)) {
+    if (!isAllowedExtensionUrl(tab.url, this.allowedDomains, this.exactOrigin) || ("target" in step && tab.url && new URL(tab.url).hostname !== step.target.domain)) {
       return { status: "paused", reasonCode: "navigation.unexpected-domain" };
     }
     if (step.action === "download") return this.download(tabId, step, context);
@@ -55,7 +64,7 @@ export class ChromeExecutorAdapter implements ExecutorAdapter {
   private async download(tabId: number, step: Extract<WorkflowStep, { action: "download" }>, context: ExecutionContext): Promise<ActionExecutionResult> {
     const initiatingTab = await chrome.tabs.get(tabId);
     if (!initiatingTab.url) return { status: "paused", reasonCode: "download.context-unavailable" };
-    const event = waitForDownload(15_000, () => this.cancelled, step.target.domain, initiatingTab.url, Date.now());
+    const event = waitForDownload(15_000, () => this.cancelled, step.target.domain, initiatingTab.url, Date.now(), this.exactOrigin);
     const action = await this.executeInTab(tabId, step, context);
     if (action.status !== "verified") return action;
     const item = await event;
@@ -80,26 +89,27 @@ export class ChromeExecutorAdapter implements ExecutorAdapter {
     const loaded = await waitForTabComplete(tabId, 30_000, () => this.cancelled);
     if (!loaded) return { status: "paused", reasonCode: this.cancelled ? "run.cancelled" : "navigation.timeout", retryable: !this.cancelled };
     const tab = await chrome.tabs.get(tabId);
-    if (!tab.url || new URL(tab.url).hostname !== domain) return { status: "paused", reasonCode: "navigation.unexpected-domain" };
+    if (!isAllowedExtensionUrl(tab.url, this.allowedDomains, this.exactOrigin) || !tab.url || new URL(tab.url).hostname !== domain) return { status: "paused", reasonCode: "navigation.unexpected-domain" };
     return { status: "verified", evidenceRefs: [`navigation:${tabId}:${Date.now()}`] };
   }
 }
 
-function waitForDownload(timeoutMs: number, cancelled: () => boolean, expectedDomain: string, initiatingUrl: string, startedAt: number): Promise<chrome.downloads.DownloadItem | undefined> {
+function waitForDownload(timeoutMs: number, cancelled: () => boolean, expectedDomain: string, initiatingUrl: string, startedAt: number, exactOrigin?: string): Promise<chrome.downloads.DownloadItem | undefined> {
   return new Promise((resolve) => {
     let settled = false;
     const finish = (value?: chrome.downloads.DownloadItem) => { if (settled) return; settled = true; clearTimeout(timer); chrome.downloads.onCreated.removeListener(listener); resolve(value); };
-    const listener = (item: chrome.downloads.DownloadItem) => { if (downloadMatchesAction(item, expectedDomain, initiatingUrl, startedAt)) finish(cancelled() ? undefined : item); };
+    const listener = (item: chrome.downloads.DownloadItem) => { if (downloadMatchesAction(item, expectedDomain, initiatingUrl, startedAt, exactOrigin)) finish(cancelled() ? undefined : item); };
     const timer = setTimeout(() => finish(), timeoutMs);
     chrome.downloads.onCreated.addListener(listener);
   });
 }
 
-export function isAllowedExtensionUrl(value: string | undefined, allowedDomains: readonly string[]): boolean {
+export function isAllowedExtensionUrl(value: string | undefined, allowedDomains: readonly string[], exactOrigin?: string): boolean {
   if (!value) return false;
   try {
     const url = new URL(value);
-    return allowedDomains.includes(url.hostname)
+    return (!exactOrigin || url.origin === exactOrigin)
+      && allowedDomains.includes(url.hostname)
       && (url.protocol === "https:" || (url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname)));
   } catch {
     return false;
@@ -111,16 +121,17 @@ export function downloadMatchesAction(
   expectedDomain: string,
   initiatingUrl: string,
   startedAt: number,
+  exactOrigin?: string,
 ): boolean {
   const destinationMatches = [item.url, item.finalUrl].some((value) => {
     if (!value) return false;
-    try { return new URL(value).hostname === expectedDomain; } catch { return false; }
+    try { const url = new URL(value); return url.hostname === expectedDomain && (!exactOrigin || url.origin === exactOrigin); } catch { return false; }
   });
   if (!destinationMatches || !item.referrer || Date.parse(item.startTime) < startedAt - 1_000) return false;
   try {
     const expected = new URL(initiatingUrl);
     const observed = new URL(item.referrer);
-    return observed.origin === expected.origin && observed.pathname === expected.pathname;
+    return observed.origin === expected.origin && observed.pathname === expected.pathname && (!exactOrigin || observed.origin === exactOrigin);
   } catch {
     return false;
   }

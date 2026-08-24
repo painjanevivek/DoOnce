@@ -6,6 +6,7 @@ import { compileRecordedActions } from "./workflow-compiler";
 import type { CaptureSession, RecordedAction } from "../../contracts/protocol";
 import { discardCaptureSession, loadCaptureSession } from "./capture-storage";
 import { isPilotOrigin, pilotAllowedOrigin } from "./pilot-config";
+import { extensionApiBaseUrl } from "./api-config";
 
 const consentButton = element<HTMLButtonElement>("#consent");
 const recordingButton = element<HTMLButtonElement>("#recording");
@@ -119,8 +120,17 @@ async function loadCurrentOrigin(): Promise<void> {
 
 consentButton.addEventListener("click", async () => {
   if (!currentOrigin || !isPilotOrigin(currentOrigin)) return;
+  const identity = await chrome.storage.local.get("doonce.captureToken");
+  const token = identity["doonce.captureToken"];
+  if (typeof token !== "string") return displayStatus("Connect the recorder to your workspace before approving this site.");
   const permissionGranted = await chrome.permissions.request({ origins: [`${currentOrigin}/*`] });
   if (!permissionGranted) { displayStatus("Browser access was not granted for this site."); return; }
+  const consentResponse = await extensionRequest("/api/v1/extension/consents", "POST", token, { origin: currentOrigin }).catch(() => undefined);
+  if (!consentResponse?.ok) {
+    await chrome.permissions.remove({ origins: [`${currentOrigin}/*`] });
+    displayStatus("Workspace consent could not be confirmed. No site access was retained.");
+    return;
+  }
   const stored = await chrome.storage.local.get("doonce.consentedOrigins");
   const allowedOrigins = new Set(stringArray(stored["doonce.consentedOrigins"]));
   allowedOrigins.add(currentOrigin);
@@ -180,7 +190,14 @@ recordingButton.addEventListener("click", async () => {
 
 revokeButton.addEventListener("click", async () => {
   if (!currentOrigin) return;
-  const stored = await chrome.storage.local.get("doonce.consentedOrigins");
+  const stored = await chrome.storage.local.get(["doonce.consentedOrigins", "doonce.captureToken", "doonce.pendingConsentRevocations"]);
+  const token = stored["doonce.captureToken"];
+  const serverRevoked = typeof token === "string" && (await extensionRequest("/api/v1/extension/consents", "DELETE", token, { origin: currentOrigin }).catch(() => undefined))?.ok === true;
+  if (!serverRevoked) {
+    const pending = new Set(stringArray(stored["doonce.pendingConsentRevocations"]));
+    pending.add(currentOrigin);
+    await chrome.storage.local.set({ "doonce.pendingConsentRevocations": [...pending] });
+  }
   const allowedOrigins = stringArray(stored["doonce.consentedOrigins"]).filter((origin) => origin !== currentOrigin);
   const [captures, recordingOrigins, demoRunReceipts] = await Promise.all([chrome.storage.local.get("doonce.capturedSummaries"), chrome.storage.local.get("doonce.recordingOrigins"), chrome.storage.local.get("doonce.demoRunReceipts")]);
   await chrome.storage.local.set({
@@ -201,7 +218,7 @@ revokeButton.addEventListener("click", async () => {
   runDemoButton.disabled = true;
   runApprovalInput.checked = false;
   runApprovalInput.disabled = true;
-  displayStatus("Site approval removed. Local captures and run receipts for this site were cleared.");
+  displayStatus(serverRevoked ? "Site approval removed. Origin-scoped local data and workspace consent were cleared." : "Local site access and origin-scoped data were removed. Workspace revocation will retry when the API reconnects.");
   await updateCaptureCount();
 });
 
@@ -252,7 +269,7 @@ pairExtensionButton.addEventListener("click", async () => {
   if (!/^[A-Z0-9_-]{12,32}$/.test(code)) return displayStatus("Enter the complete pairing code from the dashboard.");
   pairExtensionButton.disabled = true;
   try {
-    const response = await fetch("http://127.0.0.1:4000/api/v1/capture-sessions/pair", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ code }) });
+    const response = await fetch(`${extensionApiBaseUrl}/api/v1/capture-sessions/pair`, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json", "X-DoOnce-Extension-Version": chrome.runtime.getManifest().version }, body: JSON.stringify({ code, extensionVersion: chrome.runtime.getManifest().version }) });
     const body: unknown = await response.json();
     if (!response.ok || !isRecord(body) || typeof body.token !== "string") throw new TypeError("Pairing was rejected.");
     await chrome.storage.local.set({ "doonce.captureToken": body.token });
@@ -272,7 +289,7 @@ disconnectExtensionButton.addEventListener("click", async () => {
   if (typeof token !== "string") return;
   disconnectExtensionButton.disabled = true;
   try {
-    await fetch("http://127.0.0.1:4000/api/v1/capture-sessions/unpair", { method: "POST", headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } });
+    await fetch(`${extensionApiBaseUrl}/api/v1/capture-sessions/unpair`, { method: "POST", headers: { Authorization: `Bearer ${token}`, Accept: "application/json", "X-DoOnce-Extension-Version": chrome.runtime.getManifest().version } });
   } finally {
     await chrome.storage.local.remove("doonce.captureToken");
     displayStatus("Recorder disconnected. Existing local capture data was retained.");
@@ -323,6 +340,14 @@ function receiptList(value: unknown): LocalReceipt[] {
 
 function stringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function extensionRequest(path: string, method: "POST" | "DELETE", token: string, body: unknown): Promise<Response> {
+  return fetch(`${extensionApiBaseUrl}${path}`, {
+    method,
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json", "X-DoOnce-Extension-Version": chrome.runtime.getManifest().version },
+    body: JSON.stringify(body),
+  });
 }
 
 function element<T extends Element>(selector: string): T {

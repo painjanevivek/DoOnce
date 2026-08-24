@@ -589,6 +589,14 @@ th:nth-child(3), th:nth-child(4), td:nth-child(3), td:nth-child(4) { text-align:
 .workflow-pairing output { display: grid; width: fit-content; margin-top: .75rem; border: 1px dashed #78a5c2; border-radius: .4rem; padding: .6rem .75rem; background: #fff; }
 .workflow-pairing output strong { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .08em; }
 .workflow-pairing output small { color: var(--muted); }
+.pairing-connected { display: grid; gap: .2rem; margin-top: .75rem; border: 1px solid #9fc8b4; border-radius: .5rem; padding: .75rem .85rem; background: linear-gradient(135deg, #edf8f2, #f8fbf9); }
+.pairing-connected strong { color: #245b45; }
+.pairing-connected small { color: var(--muted); line-height: 1.45; }
+.run-approval-confirmation { display: grid; grid-template-columns: auto 1fr; gap: .7rem; align-items: start; margin: 1rem 0; border: 1px solid #9bb9c8; border-radius: .6rem; padding: .85rem; background: linear-gradient(135deg, #eef6fa, #fbfbf5); }
+.run-approval-confirmation input { width: 1.1rem; height: 1.1rem; margin-top: .15rem; accent-color: #315b79; }
+.run-approval-confirmation span { display: grid; gap: .25rem; }
+.run-approval-confirmation strong { color: var(--accent-dark); }
+.run-approval-confirmation small { color: var(--muted); line-height: 1.45; }
 .workflow-capture-inbox { margin: 0 0 1.5rem; border: 1px solid #a9bdcc; border-radius: .65rem; padding: 1rem; background: linear-gradient(135deg, #f8fbfd 0%, #edf5f8 100%); }
 .workflow-capture-inbox > header, .workflow-compilation > header { display: flex; align-items: start; justify-content: space-between; gap: 1rem; }
 .workflow-capture-inbox h3, .workflow-compilation h3 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.35rem; letter-spacing: -.025em; }

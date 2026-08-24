@@ -57,10 +57,7 @@ export function normalizeUrlPattern(input: string): string | undefined {
   try {
     const url = new URL(input);
     if (url.protocol !== "https:" && url.protocol !== "http:") return undefined;
-    const ignored = /^(utm_|fbclid$|gclid$|_ga$|cache|nonce|token|session|sid|timestamp|ts$)/i;
-    const keys = [...new Set([...url.searchParams.keys()].filter((key) => !ignored.test(key)))].sort().slice(0, 20);
-    const query = keys.length ? `?${keys.map((key) => `${encodeURIComponent(key)}={value}`).join("&")}` : "";
-    return `${url.origin}${url.pathname}${query}`.slice(0, 2048);
+    return `${url.origin}${url.pathname}`.slice(0, 2048);
   } catch {
     return undefined;
   }

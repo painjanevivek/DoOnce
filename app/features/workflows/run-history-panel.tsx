@@ -35,7 +35,7 @@ interface Timeline {
   }>;
 }
 
-export function RunHistoryPanel({ apiBaseUrl }: { apiBaseUrl: string }) {
+export function RunHistoryPanel({ apiBaseUrl, mvpMode = false }: { apiBaseUrl: string; mvpMode?: boolean }) {
   const [runs, setRuns] = useState<RunItem[]>([]);
   const [timeline, setTimeline] = useState<Timeline | null>(null);
   const [message, setMessage] = useState("");
@@ -88,6 +88,31 @@ export function RunHistoryPanel({ apiBaseUrl }: { apiBaseUrl: string }) {
     } else setMessage("Artifact download link could not be created.");
   }
 
+  function exportReceipt() {
+    if (!timeline) return;
+    const receipt = {
+      format: "doonce.attended-run-receipt.v1",
+      run: {
+        id: timeline.run.id,
+        workflowId: timeline.run.workflowId,
+        workflowVersion: timeline.run.workflowVersion,
+        workflowChecksum: timeline.run.workflowChecksum,
+        mode: timeline.run.mode,
+        status: timeline.run.status,
+        requestedAt: timeline.run.requestedAt,
+        ...(timeline.run.result?.reasonCode ? { reasonCode: timeline.run.result.reasonCode } : {}),
+      },
+      steps: timeline.steps.map((step) => ({ stepId: step.stepId, status: step.status, ...(step.reasonCode ? { reasonCode: step.reasonCode } : {}), assertions: step.assertionResults?.map(({ assertionId, status, reasonCode, verifiedAt }) => ({ assertionId, status, ...(reasonCode ? { reasonCode } : {}), verifiedAt })) ?? [] })),
+      artifacts: timeline.artifacts.map(({ id, fileName, contentType, byteSize, checksumSha256, createdAt }) => ({ id, fileName, contentType, byteSize, checksumSha256, createdAt })),
+    };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(receipt, null, 2)], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `doonce-receipt-${timeline.run.id}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <details className="run-history">
       <summary>
@@ -131,6 +156,7 @@ export function RunHistoryPanel({ apiBaseUrl }: { apiBaseUrl: string }) {
                   Checksum {timeline.run.workflowChecksum.slice(0, 12)}
                 </small>
               </header>
+              <button className="secondary-button" onClick={exportReceipt} type="button">Export redacted receipt</button>
               <ol>
                 {timeline.steps.map((step, index) => (
                   <li key={step.stepId}>
@@ -155,7 +181,7 @@ export function RunHistoryPanel({ apiBaseUrl }: { apiBaseUrl: string }) {
                   </li>
                 ))}
               </ol>
-              {["paused", "failed"].includes(timeline.run.status) && <RepairProposalCard apiBaseUrl={apiBaseUrl} runId={timeline.run.id} />}
+              {!mvpMode && ["paused", "failed"].includes(timeline.run.status) && <RepairProposalCard apiBaseUrl={apiBaseUrl} runId={timeline.run.id} />}
               {timeline.artifacts.length > 0 && (
                 <div className="artifact-list">
                   <h4>Artifacts</h4>

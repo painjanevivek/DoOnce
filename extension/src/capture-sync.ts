@@ -9,7 +9,7 @@ export interface CaptureTransport {
 
 export const extensionCaptureHandshake: CaptureHandshake = {
   schemaVersion: 1,
-  extensionVersion: "0.3.0",
+  extensionVersion: "0.4.0",
   capabilities: ["semantic-elements", "frames", "shadow-dom", "navigation", "downloads", "tabs", "offline-buffer"],
   maxBatchSize: 50,
 };
@@ -36,8 +36,8 @@ export async function synchronizeCaptureSession(session: CaptureSession, transpo
   }
 }
 
-export function createHttpCaptureTransport(apiBaseUrl: string, token?: string): CaptureTransport {
-  const headers = (includeAuthorization: boolean): Record<string, string> => ({ "Content-Type": "application/json", Accept: "application/json", ...(includeAuthorization && token ? { Authorization: `Bearer ${token}` } : {}) });
+export function createHttpCaptureTransport(apiBaseUrl: string, token?: string, extensionVersion = extensionCaptureHandshake.extensionVersion): CaptureTransport {
+  const headers = (includeAuthorization: boolean): Record<string, string> => ({ "Content-Type": "application/json", Accept: "application/json", "X-DoOnce-Extension-Version": extensionVersion, ...(includeAuthorization && token ? { Authorization: `Bearer ${token}` } : {}) });
   return {
     async handshake(handshake) {
       const response = await fetch(`${apiBaseUrl}/api/v1/capture-sessions/handshake`, { method: "POST", credentials: "include", headers: headers(false), body: JSON.stringify(handshake) });

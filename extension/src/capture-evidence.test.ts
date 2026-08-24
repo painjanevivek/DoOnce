@@ -17,7 +17,7 @@ test("classifies entered data without persisting its raw value", () => {
 });
 
 test("removes transient URL values and produces stable fingerprints", () => {
-  assert.equal(normalizeUrlPattern("https://example.com/reports?utm_source=mail&year=2026&token=secret"), "https://example.com/reports?year={value}");
+  assert.equal(normalizeUrlPattern("https://example.com/reports?utm_source=mail&year=2026&token=secret"), "https://example.com/reports");
   assert.equal(fingerprint("same"), fingerprint("same"));
   assert.notEqual(fingerprint("same"), fingerprint("different"));
 });

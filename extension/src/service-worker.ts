@@ -9,10 +9,10 @@ import { discardCaptureSession, loadCaptureSession, saveCaptureSession } from ".
 import { createHttpCaptureTransport, synchronizeCaptureSession } from "./capture-sync";
 import { ChromeExecutorAdapter } from "./runtime/chrome-executor-adapter";
 import { executeWorkflow } from "./runtime/interpreter";
-import { createHttpRunTransport } from "./runtime/run-transport";
+import { createHttpRunTransport, redactRunResult } from "./runtime/run-transport";
 import type { RunResult as ProtocolRunResult } from "../../contracts/protocol";
 import { extensionApiBaseUrl } from "./api-config";
-import { isPilotOrigin, isPilotWorkflowSpec } from "./pilot-config";
+import { isPilotOrigin, isPilotWorkflowSpec, pilotAllowedOrigin } from "./pilot-config";
 
 interface CaptureMessage {
   type: "doonce.capture";
@@ -34,11 +34,11 @@ chrome.runtime.onInstalled.addListener(async () => {
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === "doonce.capture-sync") void synchronizeStoredCapture(false);
+  if (alarm.name === "doonce.capture-sync") { void retryPendingConsentRevocations(); void synchronizeStoredCapture(false); }
   if (alarm.name === "doonce.run-poll") void pollForWorkflowRun();
 });
 
-chrome.runtime.onStartup.addListener(() => { void synchronizeStoredCapture(false); void pollForWorkflowRun(); });
+chrome.runtime.onStartup.addListener(() => { void retryPendingConsentRevocations(); void synchronizeStoredCapture(false); void pollForWorkflowRun(); });
 
 chrome.downloads.onCreated.addListener(() => { void recordBrowserEvent("download-start"); });
 chrome.downloads.onChanged.addListener((delta) => {
@@ -48,6 +48,7 @@ chrome.tabs.onCreated.addListener((tab) => { void recordBrowserEvent("tab-create
 chrome.tabs.onActivated.addListener((activeInfo) => { void recordBrowserEvent("tab-switch", activeInfo.tabId); });
 
 chrome.runtime.onMessage.addListener((message: unknown, sender) => {
+  if (pilotAllowedOrigin !== undefined) return;
   if (!isCaptureMessage(message) || !sender.tab?.id || !sender.url) return;
   const senderUrl = new URL(sender.url);
   void storeCaptureSummary(message, senderUrl.origin, senderUrl.pathname);
@@ -151,7 +152,7 @@ async function synchronizeStoredCapture(final: boolean): Promise<CaptureSession 
 async function synchronizeAndStore(session: CaptureSession, final: boolean): Promise<CaptureSession> {
   const stored = await chrome.storage.local.get("doonce.captureToken");
   const token = typeof stored["doonce.captureToken"] === "string" ? stored["doonce.captureToken"] : undefined;
-  const updated = await synchronizeCaptureSession(session, createHttpCaptureTransport(extensionApiBaseUrl, token), final);
+  const updated = await synchronizeCaptureSession(session, createHttpCaptureTransport(extensionApiBaseUrl, token, chrome.runtime.getManifest().version), final);
   await saveCaptureSession(chrome.storage.local, updated);
   return updated;
 }
@@ -262,6 +263,25 @@ function stringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
+async function retryPendingConsentRevocations(): Promise<void> {
+  const stored = await chrome.storage.local.get(["doonce.captureToken", "doonce.pendingConsentRevocations"]);
+  const token = stored["doonce.captureToken"];
+  const pending = stringArray(stored["doonce.pendingConsentRevocations"]);
+  if (typeof token !== "string" || pending.length === 0) return;
+  const remaining: string[] = [];
+  for (const origin of pending) {
+    try {
+      const response = await fetch(`${extensionApiBaseUrl}/api/v1/extension/consents`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json", "X-DoOnce-Extension-Version": chrome.runtime.getManifest().version },
+        body: JSON.stringify({ origin }),
+      });
+      if (!response.ok) remaining.push(origin);
+    } catch { remaining.push(origin); }
+  }
+  await chrome.storage.local.set({ "doonce.pendingConsentRevocations": remaining });
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -279,6 +299,8 @@ async function pollForWorkflowRun(): Promise<void> {
     const lease = await transport.claim();
     if (!lease) return;
     const checkpointKey = `doonce.run.${lease.run.id}.checkpoint`;
+    const localCheckpointValue = (await chrome.storage.session.get(checkpointKey))[checkpointKey];
+    const recoveryCheckpoint = isStoredCheckpoint(localCheckpointValue) ? localCheckpointValue : lease.checkpoint;
     let cancellationRequested = false;
     let leaseValid = true;
     const heartbeat = async () => {
@@ -292,8 +314,8 @@ async function pollForWorkflowRun(): Promise<void> {
     let result: ProtocolRunResult;
     try {
       if (!isPilotWorkflowSpec(lease.workflow)) throw new TypeError("The leased workflow is outside the extension pilot boundary.");
-      result = await executeWorkflow(lease.request, lease.workflow, new ChromeExecutorAdapter(lease.workflow.allowedDomains), {
-        ...(lease.checkpoint ? { checkpoint: lease.checkpoint } : {}),
+      result = await executeWorkflow(lease.request, lease.workflow, new ChromeExecutorAdapter(lease.workflow.allowedDomains, pilotAllowedOrigin), {
+        ...(recoveryCheckpoint ? { checkpoint: recoveryCheckpoint } : {}),
         isCancellationRequested: () => cancellationRequested || !leaseValid,
         onCheckpoint: async (checkpoint) => {
           await chrome.storage.session.set({ [checkpointKey]: checkpoint });
@@ -302,11 +324,12 @@ async function pollForWorkflowRun(): Promise<void> {
       });
     } catch {
       const now = new Date().toISOString();
-      result = { schemaVersion: 1, format: "doonce.run-result.v1", runId: lease.request.runId, workflowId: lease.request.workflowId, workflowVersion: lease.request.workflowVersion, status: "paused", reasonCode: "extension.attention-required", stepResults: lease.checkpoint?.stepResults ?? [], startedAt: now, finishedAt: now };
+      result = { schemaVersion: 1, format: "doonce.run-result.v1", runId: lease.request.runId, workflowId: lease.request.workflowId, workflowVersion: lease.request.workflowVersion, status: "paused", reasonCode: "extension.attention-required", stepResults: recoveryCheckpoint?.stepResults ?? [], startedAt: now, finishedAt: now };
     } finally { globalThis.clearInterval(heartbeatTimer); }
     if (leaseValid) {
-      await transport.finish(lease.run.id, lease.leaseToken, result);
-      const evidence = new TextEncoder().encode(JSON.stringify(result));
+      const redactedResult = redactRunResult(result);
+      await transport.finish(lease.run.id, lease.leaseToken, redactedResult);
+      const evidence = new TextEncoder().encode(JSON.stringify(redactedResult));
       await transport.uploadArtifact(lease.run.id, lease.leaseToken, { fileName: `run-${lease.run.id}-receipt.json`, contentType: "application/json", retentionClass: "debug", base64: bytesToBase64(evidence) });
     }
     await chrome.storage.session.remove(checkpointKey);
@@ -319,3 +342,7 @@ async function notifyWorkflowRun(result: ProtocolRunResult): Promise<void> {
   await notifyDemoRun(normalized);
 }
 function bytesToBase64(bytes: Uint8Array): string { let binary = ""; for (const byte of bytes) binary += String.fromCharCode(byte); return btoa(binary); }
+
+function isStoredCheckpoint(value: unknown): value is NonNullable<import("./runtime/run-transport").RunLease["checkpoint"]> {
+  return isRecord(value) && Number.isInteger(value.currentStepIndex) && Array.isArray(value.stepResults) && isRecord(value.variables);
+}
