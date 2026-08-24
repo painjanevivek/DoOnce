@@ -4,6 +4,20 @@ import { useCallback, useEffect, useState } from "react";
 import { RepairProposalCard } from "./repair-proposal-card";
 import type { StepResult } from "../../../contracts/protocol";
 
+interface ReleaseIdentity {
+  schemaVersion: 1;
+  deploymentId: string;
+  environment: string;
+  backendCommit: string;
+  frontendCommit: string;
+  backendImageDigest: string;
+  frontendImageDigest: string;
+  extensionId: string;
+  extensionVersion: string;
+  extensionPackageSha256: string;
+  protocolSchemaSha256: string;
+  migrationSetSha256: string;
+}
 interface RunItem {
   id: string;
   workflowId: string;
@@ -15,8 +29,9 @@ interface RunItem {
   requestedAt: string;
   currentStepIndex: number;
   result?: { reasonCode?: string };
+  releaseIdentity?: ReleaseIdentity;
 }
-interface Timeline {
+export interface RedactedRunTimeline {
   run: RunItem;
   steps: StepResult[];
   events: Array<{
@@ -37,7 +52,7 @@ interface Timeline {
 
 export function RunHistoryPanel({ apiBaseUrl, mvpMode = false }: { apiBaseUrl: string; mvpMode?: boolean }) {
   const [runs, setRuns] = useState<RunItem[]>([]);
-  const [timeline, setTimeline] = useState<Timeline | null>(null);
+  const [timeline, setTimeline] = useState<RedactedRunTimeline | null>(null);
   const [message, setMessage] = useState("");
   const loadRuns = useCallback(async () => {
     const response = await fetch(`${apiBaseUrl}/api/v1/runs`, {
@@ -90,21 +105,7 @@ export function RunHistoryPanel({ apiBaseUrl, mvpMode = false }: { apiBaseUrl: s
 
   function exportReceipt() {
     if (!timeline) return;
-    const receipt = {
-      format: "doonce.attended-run-receipt.v1",
-      run: {
-        id: timeline.run.id,
-        workflowId: timeline.run.workflowId,
-        workflowVersion: timeline.run.workflowVersion,
-        workflowChecksum: timeline.run.workflowChecksum,
-        mode: timeline.run.mode,
-        status: timeline.run.status,
-        requestedAt: timeline.run.requestedAt,
-        ...(timeline.run.result?.reasonCode ? { reasonCode: timeline.run.result.reasonCode } : {}),
-      },
-      steps: timeline.steps.map((step) => ({ stepId: step.stepId, status: step.status, ...(step.reasonCode ? { reasonCode: step.reasonCode } : {}), assertions: step.assertionResults?.map(({ assertionId, status, reasonCode, verifiedAt }) => ({ assertionId, status, ...(reasonCode ? { reasonCode } : {}), verifiedAt })) ?? [] })),
-      artifacts: timeline.artifacts.map(({ id, fileName, contentType, byteSize, checksumSha256, createdAt }) => ({ id, fileName, contentType, byteSize, checksumSha256, createdAt })),
-    };
+    const receipt = createRedactedReceipt(timeline);
     const url = URL.createObjectURL(new Blob([JSON.stringify(receipt, null, 2)], { type: "application/json" }));
     const link = document.createElement("a");
     link.href = url;
@@ -157,6 +158,16 @@ export function RunHistoryPanel({ apiBaseUrl, mvpMode = false }: { apiBaseUrl: s
                 </small>
               </header>
               <button className="secondary-button" onClick={exportReceipt} type="button">Export redacted receipt</button>
+              {timeline.run.releaseIdentity ? (
+                <details className="release-evidence">
+                  <summary>Exact release evidence</summary>
+                  <dl>
+                    <div><dt>Deployment</dt><dd>{timeline.run.releaseIdentity.deploymentId}</dd></div>
+                    <div><dt>Extension</dt><dd>{timeline.run.releaseIdentity.extensionVersion}</dd></div>
+                    <div><dt>Package</dt><dd><code>{timeline.run.releaseIdentity.extensionPackageSha256.slice(0, 16)}</code></dd></div>
+                  </dl>
+                </details>
+              ) : null}
               <ol>
                 {timeline.steps.map((step, index) => (
                   <li key={step.stepId}>
@@ -235,6 +246,25 @@ export function RunHistoryPanel({ apiBaseUrl, mvpMode = false }: { apiBaseUrl: s
   );
 }
 
+export function createRedactedReceipt(timeline: RedactedRunTimeline) {
+  return {
+    format: "doonce.attended-run-receipt.v1",
+    run: {
+      id: timeline.run.id,
+      workflowId: timeline.run.workflowId,
+      workflowVersion: timeline.run.workflowVersion,
+      workflowChecksum: timeline.run.workflowChecksum,
+      mode: timeline.run.mode,
+      status: timeline.run.status,
+      requestedAt: timeline.run.requestedAt,
+      ...(timeline.run.result?.reasonCode ? { reasonCode: timeline.run.result.reasonCode } : {}),
+    },
+    ...(timeline.run.releaseIdentity ? { release: timeline.run.releaseIdentity } : {}),
+    steps: timeline.steps.map((step) => ({ stepId: step.stepId, status: step.status, ...(step.reasonCode ? { reasonCode: step.reasonCode } : {}), assertions: step.assertionResults?.map(({ assertionId, status, reasonCode, verifiedAt }) => ({ assertionId, status, ...(reasonCode ? { reasonCode } : {}), verifiedAt })) ?? [] })),
+    artifacts: timeline.artifacts.map(({ id, fileName, contentType, byteSize, checksumSha256, createdAt }) => ({ id, fileName, contentType, byteSize, checksumSha256, createdAt })),
+  };
+}
+
 function isRun(value: unknown): value is RunItem {
   return Boolean(
     value &&
@@ -242,7 +272,8 @@ function isRun(value: unknown): value is RunItem {
     typeof (value as RunItem).id === "string" &&
     typeof (value as RunItem).workflowChecksum === "string" &&
     ((value as RunItem).mode === "test" ||
-      (value as RunItem).mode === "production"),
+      (value as RunItem).mode === "production") &&
+    ((value as RunItem).releaseIdentity === undefined || isReleaseIdentity((value as RunItem).releaseIdentity)),
   );
 }
 function isRunList(value: unknown): value is { runs: RunItem[] } {
@@ -253,7 +284,7 @@ function isRunList(value: unknown): value is { runs: RunItem[] } {
     (value as { runs: unknown[] }).runs.every(isRun),
   );
 }
-function isTimelineResponse(value: unknown): value is { timeline: Timeline } {
+function isTimelineResponse(value: unknown): value is { timeline: RedactedRunTimeline } {
   const timeline =
     value && typeof value === "object"
       ? (value as { timeline?: unknown }).timeline
@@ -261,11 +292,27 @@ function isTimelineResponse(value: unknown): value is { timeline: Timeline } {
   return Boolean(
     timeline &&
     typeof timeline === "object" &&
-    isRun((timeline as Timeline).run) &&
-    Array.isArray((timeline as Timeline).steps) &&
-    Array.isArray((timeline as Timeline).events) &&
-    Array.isArray((timeline as Timeline).artifacts),
+    isRun((timeline as RedactedRunTimeline).run) &&
+    Array.isArray((timeline as RedactedRunTimeline).steps) &&
+    Array.isArray((timeline as RedactedRunTimeline).events) &&
+    Array.isArray((timeline as RedactedRunTimeline).artifacts),
   );
+}
+function isReleaseIdentity(value: unknown): value is ReleaseIdentity {
+  if (!value || typeof value !== "object") return false;
+  const release = value as Partial<ReleaseIdentity>;
+  return release.schemaVersion === 1
+    && typeof release.deploymentId === "string"
+    && typeof release.environment === "string"
+    && typeof release.backendCommit === "string"
+    && typeof release.frontendCommit === "string"
+    && typeof release.backendImageDigest === "string"
+    && typeof release.frontendImageDigest === "string"
+    && typeof release.extensionId === "string"
+    && typeof release.extensionVersion === "string"
+    && typeof release.extensionPackageSha256 === "string"
+    && typeof release.protocolSchemaSha256 === "string"
+    && typeof release.migrationSetSha256 === "string";
 }
 function isDownloadGrant(value: unknown): value is { url: string } {
   return Boolean(

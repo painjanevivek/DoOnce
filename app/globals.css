@@ -216,6 +216,12 @@
 .run-timeline > ol > li { display: grid; grid-template-columns: 34px 1fr auto; gap: .7rem; align-items: center; border-top: 1px solid var(--line); padding: .7rem 0; }
 .run-timeline > ol > li > span { color: var(--blue); font: 800 .75rem ui-monospace, monospace; }
 .run-timeline > ol > li > div { display: grid; }
+.release-evidence { margin: .75rem 0; border: 1px solid var(--line); border-radius: .5rem; background: #fafaf6; }
+.release-evidence > summary { padding: .65rem .75rem; color: var(--accent-dark); font-weight: 750; cursor: pointer; }
+.release-evidence dl { display: grid; gap: .4rem; margin: 0; border-top: 1px solid var(--line); padding: .7rem .75rem; }
+.release-evidence dl div { display: grid; grid-template-columns: minmax(90px, .4fr) 1fr; gap: .7rem; }
+.release-evidence dt { color: var(--muted); }
+.release-evidence dd { margin: 0; overflow-wrap: anywhere; }
 .artifact-list { display: grid; gap: .45rem; border-top: 1px solid var(--line); padding: .9rem 0; }
 .artifact-list h4 { margin: 0; }
 .artifact-list button { display: flex; justify-content: space-between; border: 1px solid var(--line); border-radius: .45rem; padding: .65rem .75rem; text-align: left; background: #fafaf6; }
