@@ -31,6 +31,7 @@ jobs:
           DOONCE_EXTENSION_API_BASE_URL: https://api.example.invalid
           DOONCE_EXTENSION_PILOT_ALLOWED_ORIGIN: https://reports.example.invalid
           DOONCE_EXTENSION_VERSION: 0.4.0
+      - run: npm run security:verify -- --release
       - run: npm run verify:controlled-runs
       - run: npm run build
       - run: docker build --tag doonce-frontend:ci .
@@ -72,6 +73,13 @@ jobs:
           path: |
             extension/release/
             ${{ steps.extension-scan.outputs.sarif }}
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: always()
+        with:
+          name: doonce-frontend-security-evidence
+          path: security-evidence/
           if-no-files-found: error
           retention-days: 30
       - name: Enforce high extension vulnerability gate

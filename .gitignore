@@ -6,6 +6,7 @@ out/
 coverage/
 extension/dist/
 extension/release/
+security-evidence/
 .worktrees/
 *.tsbuildinfo
 

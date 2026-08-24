@@ -21,7 +21,9 @@
     "test:extension": "npm run build:extension && tsx --test extension/src/*.test.ts extension/src/runtime/*.test.ts app/features/site/*.test.ts app/features/workflows/*.test.ts && node --test extension/controlled-run-harness.test.js extension/release-package.test.mjs",
     "test:e2e": "npm run verify:controlled-runs",
     "report:controlled-runs": "npm run build:extension && node extension/controlled-run-harness.js",
-    "verify:controlled-runs": "npm run build:extension && node extension/verify-controlled-run-evidence.js"
+    "verify:controlled-runs": "npm run build:extension && node extension/verify-controlled-run-evidence.js",
+    "secrets:scan": "node scripts/scan-tracked-secrets.mjs",
+    "security:verify": "node scripts/run-security-regressions.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
