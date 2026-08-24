@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import type { WorkflowSummary } from "./authoring-types";
+import { isSystemCapabilities, type SystemCapabilities, type WorkflowSummary } from "./authoring-types";
 import { BetaEvidencePanel } from "./beta-evidence-panel";
 import { CapturePairingPanel } from "./capture-pairing-panel";
 import { CaptureSessionInbox } from "./capture-session-inbox";
@@ -26,21 +26,23 @@ export default function WorkflowLibrary() {
   const [message, setMessage] = useState("");
   const [activeMode, setActiveMode] = useState<AuthoringMode>("record");
   const [selectedRun, setSelectedRun] = useState<WorkflowSummary | null>(null);
+  const [capabilities, setCapabilities] = useState<SystemCapabilities | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/v1/workflow-specs`, {
-        credentials: "include",
-        headers: { Accept: "application/json" },
-      });
-      const body: unknown = await response.json();
+      const [response, capabilitiesResponse] = await Promise.all([
+        fetch(`${apiBaseUrl}/api/v1/workflow-specs`, { credentials: "include", headers: { Accept: "application/json" } }),
+        fetch(`${apiBaseUrl}/api/v1/system/capabilities`, { headers: { Accept: "application/json" } }),
+      ]);
+      const [body, capabilitiesBody]: unknown[] = await Promise.all([response.json(), capabilitiesResponse.json()]);
 
       if (response.status === 401) return setState("signed-out");
-      if (!response.ok || !isWorkflowList(body)) {
+      if (!response.ok || !isWorkflowList(body) || !capabilitiesResponse.ok || !isSystemCapabilities(capabilitiesBody)) {
         throw new Error("Workflow list unavailable.");
       }
 
       setWorkflows(body.workflows);
+      setCapabilities(capabilitiesBody);
       setState("ready");
     } catch {
       setState("error");
@@ -95,6 +97,7 @@ export default function WorkflowLibrary() {
   return (
     <WorkflowLibraryView
       activeMode={activeMode}
+      availableModes={availableModes(capabilities)}
       authoringPanels={{
         record: (
           <>
@@ -114,6 +117,8 @@ export default function WorkflowLibrary() {
       onOpenWorkflow={(workflow) => void openEditor(workflow)}
       onRefresh={() => void load()}
       onRun={setSelectedRun}
+      mvpMode={capabilities?.mvp.enabled === true}
+      pilotOrigin={capabilities?.mvp.pilotOrigin ?? null}
       operations={
         <>
           <RunHistoryPanel apiBaseUrl={apiBaseUrl} />
@@ -124,7 +129,9 @@ export default function WorkflowLibrary() {
         selectedRun ? (
           <WorkflowRunPanel
             apiBaseUrl={apiBaseUrl}
+            mvpMode={capabilities?.mvp.enabled === true}
             onClose={() => setSelectedRun(null)}
+            pilotOrigin={capabilities?.mvp.pilotOrigin ?? null}
             workflow={selectedRun}
           />
         ) : null
@@ -133,6 +140,11 @@ export default function WorkflowLibrary() {
       workflows={workflows}
     />
   );
+}
+
+function availableModes(capabilities: SystemCapabilities | null): AuthoringMode[] {
+  if (!capabilities) return ["record"];
+  return capabilities.mvp.authoringModes.map((mode) => mode === "text" ? "describe" : mode);
 }
 
 function isWorkflowList(

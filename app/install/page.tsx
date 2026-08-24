@@ -3,6 +3,7 @@ import { InstallPanel } from "../features/site/install-panel";
 import { resolveInstallDestination } from "../features/site/install-destination";
 import { SiteFooter } from "../features/site/site-footer";
 import { SiteHeader } from "../features/site/site-header";
+import { PilotBoundaryNote } from "../features/site/pilot-boundary-note";
 
 export const metadata: Metadata = {
   title: "Install DoOnce for Chrome",
@@ -29,6 +30,7 @@ export default function InstallPage() {
             <li>Connect the extension to your DoOnce workspace.</li>
             <li>Record one careful browser task.</li>
           </ol>
+          <PilotBoundaryNote />
         </div>
         <InstallPanel destination={destination} />
       </main>

@@ -41,7 +41,7 @@ export function ScenarioCarousel() {
           </div>
         </dl>
       </article>
-      <div className="scenario-carousel__controls">
+      {exampleScenarios.length > 1 ? <div className="scenario-carousel__controls">
         <button
           aria-label="Previous example scenario"
           onClick={() => selectRelative(-1)}
@@ -69,7 +69,7 @@ export function ScenarioCarousel() {
         >
           Next
         </button>
-      </div>
+      </div> : null}
     </div>
   );
 }

@@ -18,12 +18,16 @@ export function WorkflowTestPanel({
   spec,
   disabled,
   onPassingTest,
+  mvpMode = false,
+  pilotOrigin = null,
 }: {
   apiBaseUrl: string;
   workflowId: string;
   spec: WorkflowSpec;
   disabled: boolean;
   onPassingTest(): void;
+  mvpMode?: boolean;
+  pilotOrigin?: string | null;
 }) {
   const [executor, setExecutor] = useState<"extension" | "hosted-browser">(
     "extension",
@@ -170,8 +174,9 @@ export function WorkflowTestPanel({
             Validate the exact input and step plan before publication. Published
             extension runs are queued from the workflow library.
           </p>
+          {mvpMode && pilotOrigin ? <p className="test-origin"><strong>Approved site:</strong> {pilotOrigin}<br /><strong>Runtime:</strong> attended local Chrome only.</p> : null}
         </div>
-        <label className="runtime-select">
+        {!mvpMode ? <label className="runtime-select">
           <span>Runtime</span>
           <select
             value={executor}
@@ -182,7 +187,7 @@ export function WorkflowTestPanel({
             <option value="extension">Local Chrome extension</option>
             <option value="hosted-browser">Hosted browser</option>
           </select>
-        </label>
+        </label> : <span className="status-pill" data-status="active">Local Chrome extension</span>}
       </div>
       {spec.inputs.length > 0 && (
         <div className="test-inputs">

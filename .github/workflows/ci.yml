@@ -28,6 +28,7 @@ jobs:
       - run: npm run build:extension:release
         env:
           DOONCE_EXTENSION_API_BASE_URL: https://api.example.invalid
+          DOONCE_EXTENSION_PILOT_ALLOWED_ORIGIN: https://reports.example.invalid
       - run: npm run verify:controlled-runs
       - run: npm run build
       - run: docker build --tag doonce-frontend:ci .

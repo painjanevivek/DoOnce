@@ -18,9 +18,12 @@ interface WorkflowLibraryViewProps {
   workflows: WorkflowSummary[];
   message: string;
   activeMode: AuthoringMode;
+  availableModes: AuthoringMode[];
   authoringPanels: Record<AuthoringMode, ReactNode>;
   operations: ReactNode;
   runDialog: ReactNode;
+  mvpMode: boolean;
+  pilotOrigin: string | null;
   onModeChange(mode: AuthoringMode): void;
   onRefresh(): void;
   onOpenWorkflow(workflow: WorkflowSummary): void;
@@ -54,14 +57,18 @@ export function WorkflowLibraryView({
   workflows,
   message,
   activeMode,
+  availableModes,
   authoringPanels,
   operations,
   runDialog,
+  mvpMode,
+  pilotOrigin,
   onModeChange,
   onRefresh,
   onOpenWorkflow,
   onRun,
 }: WorkflowLibraryViewProps) {
+  const visibleAuthoringModes = authoringModes.filter((mode) => availableModes.includes(mode.id));
   if (state === "loading") {
     return (
       <section className="product-state" aria-busy="true">
@@ -119,22 +126,34 @@ export function WorkflowLibraryView({
       </header>
 
       <FirstWorkflowGuide
+        mvpMode={mvpMode}
         onChooseRecording={() => onModeChange("record")}
         onOpenWorkflow={onOpenWorkflow}
         onRun={onRun}
+        pilotOrigin={pilotOrigin}
         workflows={workflows}
       />
+
+      {mvpMode && pilotOrigin ? (
+        <aside className="pilot-boundary" aria-label="MVP pilot boundary">
+          <div>
+            <p className="product-kicker">Approved pilot boundary</p>
+            <h2>{new URL(pilotOrigin).hostname}</h2>
+          </div>
+          <p>Only an attended Chrome recording on <strong>{pilotOrigin}</strong> can be published or run. Success means one report file is downloaded and verified.</p>
+        </aside>
+      ) : null}
 
       <section className="library-create" aria-labelledby="create-workflow-title">
         <div className="library-create__heading">
           <div>
             <p className="product-kicker">Create workflow</p>
-            <h2 id="create-workflow-title">Start from the clearest input.</h2>
+            <h2 id="create-workflow-title">{mvpMode ? "Show the report download in Chrome." : "Start from the clearest input."}</h2>
           </div>
-          <p>Each path produces the same editable WorkflowSpec draft.</p>
+          <p>{mvpMode ? "The MVP accepts one recorded demonstration on the approved origin." : "Each path produces the same editable WorkflowSpec draft."}</p>
         </div>
         <div className="library-mode-switch" aria-label="Workflow creation mode">
-          {authoringModes.map((mode) => (
+          {visibleAuthoringModes.map((mode) => (
             <button
               aria-pressed={mode.id === activeMode}
               key={mode.id}
@@ -146,7 +165,7 @@ export function WorkflowLibraryView({
             </button>
           ))}
         </div>
-        {authoringModes.map((mode) => (
+        {visibleAuthoringModes.map((mode) => (
           <div
             className="library-authoring-panel"
             hidden={mode.id !== activeMode}
@@ -191,7 +210,7 @@ export function WorkflowLibraryView({
         {workflows.length === 0 ? (
           <div className="product-empty">
             <strong>No workflow drafts yet</strong>
-            <p>Choose an authoring path above to create the first draft.</p>
+            <p>{mvpMode ? "Record the approved report download above to create the first draft." : "Choose an authoring path above to create the first draft."}</p>
           </div>
         ) : (
           <div className="workflow-list-table">

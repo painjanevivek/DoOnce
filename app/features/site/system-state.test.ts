@@ -27,6 +27,7 @@ test("associates account feedback with labelled credential fields", () => {
   const html = renderToStaticMarkup(createElement(AccountForm));
 
   assert.match(html, /<label for="tenantName">Workspace name<\/label>/);
+  assert.match(html, /<label for="invitationToken">Invitation code<\/label>/);
   assert.match(html, /<label for="email">Work email<\/label>/);
   assert.match(html, /<label for="password">Password<\/label>/);
   assert.match(html, /autocomplete="organization"/i);
@@ -34,5 +35,7 @@ test("associates account feedback with labelled credential fields", () => {
   assert.match(html, /autocomplete="new-password"/i);
   assert.match(html, /id="account-feedback"/);
   assert.equal(html.match(/aria-describedby="account-feedback"/g)?.length, 3);
+  assert.match(html, /aria-describedby="invitation-hint account-feedback"/);
+  assert.match(html, /autocomplete="one-time-code"/i);
   assert.match(html, /Create secure workspace/);
 });

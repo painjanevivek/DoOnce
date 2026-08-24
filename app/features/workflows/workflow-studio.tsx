@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { WorkflowSpec } from "../../../contracts/protocol";
 import { validateContract } from "../../../contracts/validation";
-import type { WorkflowDraft, WorkflowVersion } from "./authoring-types";
+import { isSystemCapabilities, type SystemCapabilities, type WorkflowDraft, type WorkflowVersion } from "./authoring-types";
 import {
   applyEditorChange,
   createEditorHistory,
@@ -43,6 +43,7 @@ export default function WorkflowStudio({ workflowId }: { workflowId: string }) {
   const [conflict, setConflict] = useState<WorkflowDraft | null>(null);
   const [message, setMessage] = useState("");
   const [testEvidenceVerified, setTestEvidenceVerified] = useState(false);
+  const [capabilities, setCapabilities] = useState<SystemCapabilities | null>(null);
   const revision = useRef(0);
   const saving = useRef(false);
   const [saveTick, setSaveTick] = useState(0);
@@ -53,7 +54,7 @@ export default function WorkflowStudio({ workflowId }: { workflowId: string }) {
     const controller = new AbortController();
     async function load() {
       try {
-        const [draftResponse, versionsResponse] = await Promise.all([
+        const [draftResponse, versionsResponse, capabilitiesResponse] = await Promise.all([
           fetch(`${apiBaseUrl}/api/v1/workflow-specs/${workflowId}`, {
             credentials: "include",
             headers: { Accept: "application/json" },
@@ -64,21 +65,25 @@ export default function WorkflowStudio({ workflowId }: { workflowId: string }) {
             headers: { Accept: "application/json" },
             signal: controller.signal,
           }),
+          fetch(`${apiBaseUrl}/api/v1/system/capabilities`, { headers: { Accept: "application/json" }, signal: controller.signal }),
         ]);
         if (draftResponse.status === 404) return setState("missing");
         const draftBody: unknown = await draftResponse.json();
-        const versionsBody: unknown = await versionsResponse.json();
+        const [versionsBody, capabilitiesBody]: unknown[] = await Promise.all([versionsResponse.json(), capabilitiesResponse.json()]);
         if (
           !draftResponse.ok ||
           !isDraftResponse(draftBody) ||
           !versionsResponse.ok ||
           !isVersionsResponse(versionsBody)
+          || !capabilitiesResponse.ok
+          || !isSystemCapabilities(capabilitiesBody)
         )
           throw new Error("Workflow editor unavailable.");
         setHistory(createEditorHistory(draftBody.workflow.spec));
         setChecksum(draftBody.workflow.checksum);
         setVersion(draftBody.workflow.version);
         setVersions(versionsBody.versions);
+        setCapabilities(capabilitiesBody);
         setTestEvidenceVerified(
           Boolean(draftBody.workflow.testEvidenceVerified),
         );
@@ -450,7 +455,7 @@ export default function WorkflowStudio({ workflowId }: { workflowId: string }) {
         }
         onViewChange={setView}
         panels={{
-          overview: <WorkflowOverview spec={spec} onChange={edit} />,
+          overview: <WorkflowOverview spec={spec} onChange={edit} pilotOrigin={capabilities?.mvp.enabled ? capabilities.mvp.pilotOrigin : null} />,
           steps: (
             <WorkflowStepEditor issues={issues} onChange={edit} spec={spec} />
           ),
@@ -463,6 +468,8 @@ export default function WorkflowStudio({ workflowId }: { workflowId: string }) {
               disabled={dirty || issues.length > 0}
               key={`${checksum}-${spec.inputs.map((input) => input.name).join()}`}
               onPassingTest={markPassingTest}
+              mvpMode={capabilities?.mvp.enabled === true}
+              pilotOrigin={capabilities?.mvp.pilotOrigin ?? null}
               spec={spec}
               workflowId={workflowId}
             />
@@ -497,9 +504,11 @@ export default function WorkflowStudio({ workflowId }: { workflowId: string }) {
 function WorkflowOverview({
   spec,
   onChange,
+  pilotOrigin,
 }: {
   spec: WorkflowSpec;
   onChange(spec: WorkflowSpec): void;
+  pilotOrigin?: string | null;
 }) {
   return (
     <section className="studio-section overview-editor">
@@ -536,7 +545,7 @@ function WorkflowOverview({
           }
         />
       </label>
-      <label>
+      {pilotOrigin ? <div className="pilot-origin-lock"><span>Approved pilot origin</span><strong>{pilotOrigin}</strong><small>Publication and execution fail closed if this draft targets any other domain.</small></div> : <label>
         <span>Approved domains (one per line)</span>
         <textarea
           value={spec.allowedDomains.join("\n")}
@@ -551,7 +560,7 @@ function WorkflowOverview({
             })
           }
         />
-      </label>
+      </label>}
       <div className="overview-facts">
         <div>
           <span>Trigger</span>

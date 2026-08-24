@@ -5,6 +5,7 @@ import { canRunDemo, canStartDemoRun, isConsentableWebOrigin } from "./run-eligi
 import { compileRecordedActions } from "./workflow-compiler";
 import type { CaptureSession, RecordedAction } from "../../contracts/protocol";
 import { discardCaptureSession, loadCaptureSession } from "./capture-storage";
+import { isPilotOrigin, pilotAllowedOrigin } from "./pilot-config";
 
 const consentButton = element<HTMLButtonElement>("#consent");
 const recordingButton = element<HTMLButtonElement>("#recording");
@@ -22,6 +23,8 @@ const pairingCodeInput = element<HTMLInputElement>("#pairing-code");
 const pairExtensionButton = element<HTMLButtonElement>("#pair-extension");
 const disconnectExtensionButton = element<HTMLButtonElement>("#disconnect-extension");
 const originElement = element<HTMLElement>("#origin");
+const pilotOriginElement = element<HTMLElement>("#pilot-origin");
+const demoRunPreviewElement = element<HTMLElement>("#demo-run-preview");
 const statusElement = element<HTMLElement>("#status");
 const captureCountElement = element<HTMLElement>("#capture-count");
 const runCountElement = element<HTMLElement>("#run-count");
@@ -29,6 +32,11 @@ const lastRunElement = element<HTMLElement>("#last-run");
 let currentOrigin: string | undefined;
 let currentTab: chrome.tabs.Tab | undefined;
 let recording = false;
+
+pilotOriginElement.textContent = pilotAllowedOrigin ?? "Development mode: no pilot origin is configured.";
+demoRunPreviewElement.hidden = pilotAllowedOrigin !== undefined;
+runDemoButton.hidden = pilotAllowedOrigin !== undefined;
+exportReceiptsButton.hidden = pilotAllowedOrigin !== undefined;
 
 function displayStatus(message: string): void {
   statusElement.textContent = message;
@@ -98,18 +106,19 @@ async function loadCurrentOrigin(): Promise<void> {
   const stored = await chrome.storage.local.get(["doonce.consentedOrigins", "doonce.recordingOrigins", "doonce.captureToken"]);
   disconnectExtensionButton.disabled = typeof stored["doonce.captureToken"] !== "string";
   const allowedOrigins = stringArray(stored["doonce.consentedOrigins"]);
+  const pilotTab = isPilotOrigin(currentOrigin);
   recording = isRecording(stored["doonce.recordingOrigins"], currentOrigin) && await isCurrentTabRecording(tab);
-  consentButton.disabled = false;
-  recordingButton.disabled = !allowedOrigins.includes(currentOrigin);
+  consentButton.disabled = !pilotTab;
+  recordingButton.disabled = !pilotTab || !allowedOrigins.includes(currentOrigin);
   recordingButton.textContent = recording ? "Pause recording" : "Resume recording";
   updateDemoRunAvailability(allowedOrigins);
   revokeButton.disabled = !allowedOrigins.includes(currentOrigin);
-  displayStatus(allowedOrigins.includes(currentOrigin) ? (recording ? "This site is approved and recording is active for this tab." : "This site is approved; recording is paused.") : "This site is not approved.");
+  displayStatus(!pilotTab ? `This site is outside the pilot. Open ${pilotAllowedOrigin}.` : allowedOrigins.includes(currentOrigin) ? (recording ? "This site is approved and recording is active for this tab." : "This site is approved; recording is paused.") : "This pilot site is not approved yet.");
   await Promise.all([updateCaptureCount(), updateRunCount()]);
 }
 
 consentButton.addEventListener("click", async () => {
-  if (!currentOrigin) return;
+  if (!currentOrigin || !isPilotOrigin(currentOrigin)) return;
   const permissionGranted = await chrome.permissions.request({ origins: [`${currentOrigin}/*`] });
   if (!permissionGranted) { displayStatus("Browser access was not granted for this site."); return; }
   const stored = await chrome.storage.local.get("doonce.consentedOrigins");

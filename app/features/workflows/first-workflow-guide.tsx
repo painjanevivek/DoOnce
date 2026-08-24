@@ -13,6 +13,8 @@ interface FirstWorkflowProgress {
 
 interface FirstWorkflowGuideProps {
   workflows: WorkflowSummary[];
+  mvpMode?: boolean;
+  pilotOrigin?: string | null;
   onChooseRecording(): void;
   onOpenWorkflow(workflow: WorkflowSummary): void;
   onRun(workflow: WorkflowSummary): void;
@@ -60,6 +62,8 @@ export function deriveFirstWorkflowProgress(
 
 export function FirstWorkflowGuide({
   workflows,
+  mvpMode = false,
+  pilotOrigin = null,
   onChooseRecording,
   onOpenWorkflow,
   onRun,
@@ -87,6 +91,7 @@ export function FirstWorkflowGuide({
             ? "The published workflow has produced a recorded run. Review the receipt before treating it as recurring work."
             : "DoOnce keeps browser setup, authoring, exact-draft testing, and the verified run as separate decisions."}
         </p>
+        {mvpMode && pilotOrigin ? <p className="first-workflow-guide__boundary"><strong>One approved site:</strong> {pilotOrigin}<br /><strong>One proof:</strong> a verified report download.</p> : null}
         <div className="first-workflow-guide__actions">
           {progress.stage === "teach" ? (
             <button onClick={onChooseRecording} type="button">
@@ -110,6 +115,9 @@ export function FirstWorkflowGuide({
 
       <ol className="first-workflow-guide__steps" aria-label="First workflow progress">
         {steps.map((step, index) => {
+          const note = mvpMode && step.id === "teach" && pilotOrigin
+            ? `Record one careful report download on ${pilotOrigin}. Other authoring paths are outside this pilot.`
+            : step.note;
           const complete = index < progress.completed;
           const current = !isComplete && index === progress.completed;
           return (
@@ -117,7 +125,7 @@ export function FirstWorkflowGuide({
               <span aria-hidden="true">{index + 1}</span>
               <div>
                 <strong>{step.label}</strong>
-                <p>{step.note}</p>
+                <p>{note}</p>
               </div>
               <small>{complete ? "Complete" : current ? "Next" : "Later"}</small>
             </li>

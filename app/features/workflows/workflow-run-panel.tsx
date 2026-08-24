@@ -14,7 +14,7 @@ interface RunView {
   result?: { reasonCode?: string };
 }
 
-export function WorkflowRunPanel({ apiBaseUrl, workflow, onClose }: { apiBaseUrl: string; workflow: WorkflowSummary; onClose(): void }) {
+export function WorkflowRunPanel({ apiBaseUrl, workflow, onClose, mvpMode = false, pilotOrigin = null }: { apiBaseUrl: string; workflow: WorkflowSummary; onClose(): void; mvpMode?: boolean; pilotOrigin?: string | null }) {
   const [spec, setSpec] = useState<WorkflowSpec | null>(null);
   const [inputs, setInputs] = useState<Record<string, string>>({});
   const [run, setRun] = useState<RunView | null>(null);
@@ -85,12 +85,12 @@ export function WorkflowRunPanel({ apiBaseUrl, workflow, onClose }: { apiBaseUrl
   const terminal = run ? terminalStatus(run.status) : false;
   return (
     <section className="run-launcher" aria-labelledby="run-launcher-title">
-      <div className="studio-section__heading"><div><p className="eyebrow">Attended extension run</p><h2 id="run-launcher-title">Run {workflow.title}</h2><p>The dashboard queues one immutable published version. The extension executes deterministic steps in your open Chrome tab and checkpoints after every verified action.</p></div><button className="text-button" onClick={onClose} type="button">Close</button></div>
+      <div className="studio-section__heading"><div><p className="eyebrow">Attended extension run</p><h2 id="run-launcher-title">Run {workflow.title}</h2><p>The dashboard queues one immutable published version. The extension executes deterministic steps in your open Chrome tab and checkpoints after every verified action.</p>{mvpMode && pilotOrigin ? <p className="run-origin"><strong>Approved site:</strong> {pilotOrigin}<br /><strong>Expected result:</strong> one verified report download.</p> : null}</div><button className="text-button" onClick={onClose} type="button">Close</button></div>
       {state === "loading" && <p aria-busy="true">Loading published inputs...</p>}
       {spec && <>
         <div className="test-inputs">{spec.inputs.map((input) => <label key={input.name}><span>{input.label}{input.required ? " *" : ""}</span>{input.kind === "select" ? <select value={inputs[input.name] ?? ""} onChange={(event) => setInputs((current) => ({ ...current, [input.name]: event.target.value }))}><option value="">Choose...</option>{input.options?.map((option) => <option key={option}>{option}</option>)}</select> : <input type={input.secret ? "password" : input.kind === "date" ? "date" : "text"} value={inputs[input.name] ?? ""} onChange={(event) => setInputs((current) => ({ ...current, [input.name]: event.target.value }))} />}</label>)}</div>
         <div className="run-launcher__actions"><button className="primary-button" disabled={state === "starting" || Boolean(run && !terminal)} onClick={() => void start()} type="button">{state === "starting" ? "Queueing run..." : terminal ? "Run again" : "Queue extension run"}</button>{run && !terminal && <button className="secondary-button" onClick={() => void cancel()} type="button">Cancel run</button>}</div>
-        <WorkflowSchedulePanel apiBaseUrl={apiBaseUrl} inputs={inputs} workflowId={workflow.id} />
+        {!mvpMode ? <WorkflowSchedulePanel apiBaseUrl={apiBaseUrl} inputs={inputs} workflowId={workflow.id} /> : null}
       </>}
       {run && <div className="run-progress" data-status={run.status}><span>{run.executor === "hosted-browser" ? "Hosted" : "Extension"} run {run.id.slice(0, 8)}</span><strong>{run.status}</strong><small>{run.currentStepIndex} step{run.currentStepIndex === 1 ? "" : "s"} checkpointed{run.result?.reasonCode ? ` - ${run.result.reasonCode}` : ""}</small></div>}
       <p className="test-message" role="status">{message}</p>

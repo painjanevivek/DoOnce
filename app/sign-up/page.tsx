@@ -1,6 +1,7 @@
 import AccountForm from "../components/account-form";
 import { SiteFooter } from "../features/site/site-footer";
 import { SiteHeader } from "../features/site/site-header";
+import { PilotBoundaryNote } from "../features/site/pilot-boundary-note";
 
 export default function SignUpPage() {
   return (
@@ -22,6 +23,7 @@ export default function SignUpPage() {
             <li>Signed, expiring sessions stored in HttpOnly cookies</li>
             <li>Recording, review, testing, and publishing in one place</li>
           </ul>
+          <PilotBoundaryNote />
         </div>
         <AccountForm />
       </main>

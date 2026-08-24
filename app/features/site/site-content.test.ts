@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { authoringPaths, exampleScenarios, taskExamples } from "./site-content";
 
-test("publishes three distinct authoring paths without fabricated proof", () => {
+test("publishes only the MVP recording path without fabricated proof", () => {
   assert.deepEqual(
     authoringPaths.map((item) => item.id),
-    ["record", "describe", "video"],
+    ["record"],
   );
-  assert.equal(new Set(authoringPaths.map((item) => item.title)).size, 3);
+  assert.equal(new Set(authoringPaths.map((item) => item.title)).size, 1);
+  assert.equal(exampleScenarios.length, 1);
   assert.ok(exampleScenarios.every((item) => item.kind === "example"));
   assert.ok(taskExamples.length >= 5);
 });

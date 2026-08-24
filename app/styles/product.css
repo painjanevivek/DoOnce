@@ -295,6 +295,83 @@
   text-transform: uppercase;
 }
 
+.pilot-boundary,
+.pilot-boundary-note,
+.pilot-origin-lock,
+.run-origin,
+.test-origin,
+.first-workflow-guide__boundary {
+  border: 1px solid color-mix(in srgb, var(--success) 45%, var(--line));
+  border-radius: var(--radius-md);
+  background: var(--success-soft);
+}
+
+.pilot-boundary {
+  display: grid;
+  grid-template-columns: minmax(14rem, 0.7fr) minmax(0, 1.3fr);
+  gap: var(--space-6);
+  align-items: center;
+  padding: clamp(1.1rem, 3vw, 1.8rem);
+  box-shadow: inset 0.22rem 0 0 var(--signal-strong);
+}
+
+.pilot-boundary h2 {
+  margin: 0;
+  font: 650 clamp(1.35rem, 3vw, 2.2rem)/1 var(--font-satoshi);
+  letter-spacing: -0.04em;
+}
+
+.pilot-boundary > p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.pilot-boundary-note {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-6);
+  padding: var(--space-4);
+  color: var(--ink);
+}
+
+.pilot-boundary-note > span,
+.pilot-origin-lock > span {
+  color: var(--success);
+  font: 800 0.68rem/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.pilot-boundary-note > strong,
+.pilot-origin-lock > strong {
+  overflow-wrap: anywhere;
+  font-size: 0.95rem;
+}
+
+.pilot-boundary-note > small,
+.pilot-origin-lock > small {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.pilot-origin-lock {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+}
+
+.run-origin,
+.test-origin,
+.first-workflow-guide__intro > .first-workflow-guide__boundary {
+  width: fit-content;
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
 .library-create h2,
 .library-workflows h2 {
   margin: 0;
@@ -939,6 +1016,11 @@
 
   .library-mode-switch {
     grid-template-columns: 1fr;
+  }
+
+  .pilot-boundary {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
   }
 
   .library-mode-switch button {

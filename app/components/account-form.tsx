@@ -8,8 +8,9 @@ type FormState = "idle" | "submitting" | "success" | "error";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:4000";
 
-function errorMessageFor(status: number): string {
-  if (status === 400) return "Check the required fields and try again.";
+function errorMessageFor(status: number, body: unknown): string {
+  if (isApiError(body) && body.code === "auth.invitation_rejected") return "This invitation is invalid, expired, already used, or assigned to another email.";
+  if (status === 400) return "Check the invitation and required fields, then try again.";
   if (status === 401) return "Email or password is incorrect.";
   if (status === 409) return "Unable to create this account. Try signing in instead.";
   if (status === 403) return "This browser origin is not approved for authentication.";
@@ -30,7 +31,7 @@ export default function AccountForm() {
 
     const data = new FormData(form);
     const payload = mode === "sign-up"
-      ? { email: data.get("email"), password: data.get("password"), tenantName: data.get("tenantName") }
+      ? { email: data.get("email"), password: data.get("password"), tenantName: data.get("tenantName"), invitationToken: data.get("invitationToken") }
       : { email: data.get("email"), password: data.get("password") };
 
     setState("submitting");
@@ -43,8 +44,9 @@ export default function AccountForm() {
         body: JSON.stringify(payload),
       });
       if (!response.ok) {
+        const body: unknown = await response.json().catch(() => undefined);
         setState("error");
-        setMessage(errorMessageFor(response.status));
+        setMessage(errorMessageFor(response.status, body));
         return;
       }
       setState("success");
@@ -70,15 +72,22 @@ export default function AccountForm() {
       <div className="account-card-intro">
         <p className="eyebrow">Secure account access</p>
         <h2 id="account-form-title">{mode === "sign-up" ? "Create your workspace." : "Continue to your workspace."}</h2>
-        <p>{mode === "sign-up" ? "Create the first owner account. Workflow publication requires server capability checks and a verified local test." : "Use the account that owns your DoOnce workspace."}</p>
+        <p>{mode === "sign-up" ? "Use the single-use invitation issued for your work email. It is consumed only when the workspace is created." : "Use the account that owns your DoOnce workspace."}</p>
       </div>
 
       <form className="account-form" onSubmit={submit}>
         {mode === "sign-up" && (
-          <p className="field">
-            <label htmlFor="tenantName">Workspace name</label>
-            <input aria-describedby="account-feedback" autoComplete="organization" id="tenantName" maxLength={120} minLength={1} name="tenantName" placeholder="Example: Acme reporting" required type="text" />
-          </p>
+          <>
+            <p className="field">
+              <label htmlFor="invitationToken">Invitation code</label>
+              <input aria-describedby="invitation-hint account-feedback" autoCapitalize="none" autoComplete="one-time-code" id="invitationToken" maxLength={43} minLength={43} name="invitationToken" placeholder="Paste the 43-character code" required spellCheck={false} type="text" />
+              <span className="field-hint" id="invitation-hint">Codes expire and can be used once. The email below must match the invitation.</span>
+            </p>
+            <p className="field">
+              <label htmlFor="tenantName">Workspace name</label>
+              <input aria-describedby="account-feedback" autoComplete="organization" id="tenantName" maxLength={120} minLength={1} name="tenantName" placeholder="Example: Acme reporting" required type="text" />
+            </p>
+          </>
         )}
         <p className="field">
           <label htmlFor="email">Work email</label>
@@ -101,4 +110,8 @@ export default function AccountForm() {
       <p className="account-note">Your browser receives an HttpOnly session cookie. DoOnce does not place authentication tokens in local storage.</p>
     </section>
   );
+}
+
+function isApiError(value: unknown): value is { code?: string } {
+  return typeof value === "object" && value !== null && (typeof (value as { code?: unknown }).code === "string" || (value as { code?: unknown }).code === undefined);
 }

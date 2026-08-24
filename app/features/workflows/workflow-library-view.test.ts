@@ -8,6 +8,7 @@ test("prioritizes workflow status and progressively discloses operations", () =>
   const html = renderToStaticMarkup(
     createElement(WorkflowLibraryView, {
       activeMode: "record",
+      availableModes: ["record", "describe", "video"],
       authoringPanels: {
         record: createElement("div", null, "Recorder panel"),
         describe: createElement("div", null, "Description panel"),
@@ -20,6 +21,8 @@ test("prioritizes workflow status and progressively discloses operations", () =>
       onRun() {},
       operations: createElement("div", null, "Audit scheduling beta support"),
       runDialog: null,
+      mvpMode: false,
+      pilotOrigin: null,
       state: "ready",
       workflows: [
         {
@@ -45,4 +48,34 @@ test("prioritizes workflow status and progressively discloses operations", () =>
   assert.match(html, />Upload a video</);
   assert.match(html, /<details class="library-disclosure"/);
   assert.doesNotMatch(html, /<details[^>]* open/);
+});
+
+test("removes excluded authoring paths from the MVP render tree", () => {
+  const html = renderToStaticMarkup(
+    createElement(WorkflowLibraryView, {
+      activeMode: "record",
+      availableModes: ["record"],
+      authoringPanels: {
+        record: createElement("div", null, "Recorder panel"),
+        describe: createElement("div", null, "Forbidden description panel"),
+        video: createElement("div", null, "Forbidden video panel"),
+      },
+      message: "",
+      mvpMode: true,
+      pilotOrigin: "https://reports.example.com",
+      onModeChange() {},
+      onOpenWorkflow() {},
+      onRefresh() {},
+      onRun() {},
+      operations: null,
+      runDialog: null,
+      state: "ready",
+      workflows: [],
+    }),
+  );
+
+  assert.match(html, /Approved pilot boundary/);
+  assert.match(html, /https:\/\/reports\.example\.com/);
+  assert.match(html, />Show it in Chrome</);
+  assert.doesNotMatch(html, /Describe the task|Upload a video|Forbidden description panel|Forbidden video panel/);
 });

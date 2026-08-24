@@ -12,6 +12,7 @@ import { executeWorkflow } from "./runtime/interpreter";
 import { createHttpRunTransport } from "./runtime/run-transport";
 import type { RunResult as ProtocolRunResult } from "../../contracts/protocol";
 import { extensionApiBaseUrl } from "./api-config";
+import { isPilotOrigin, isPilotWorkflowSpec } from "./pilot-config";
 
 interface CaptureMessage {
   type: "doonce.capture";
@@ -23,8 +24,10 @@ interface CaptureMessage {
 chrome.runtime.onInstalled.addListener(async () => {
   const stored = await chrome.storage.local.get(["doonce.consentedOrigins", "doonce.recordingOrigins"]);
   const initialValues: Record<string, string[]> = {};
-  if (!Array.isArray(stored["doonce.consentedOrigins"])) initialValues["doonce.consentedOrigins"] = [];
-  if (!Array.isArray(stored["doonce.recordingOrigins"])) initialValues["doonce.recordingOrigins"] = [];
+  const consentedOrigins = stringArray(stored["doonce.consentedOrigins"]).filter(isPilotOrigin);
+  const recordingOrigins = stringArray(stored["doonce.recordingOrigins"]).filter(isPilotOrigin);
+  if (!Array.isArray(stored["doonce.consentedOrigins"]) || consentedOrigins.length !== stored["doonce.consentedOrigins"].length) initialValues["doonce.consentedOrigins"] = consentedOrigins;
+  if (!Array.isArray(stored["doonce.recordingOrigins"]) || recordingOrigins.length !== stored["doonce.recordingOrigins"].length) initialValues["doonce.recordingOrigins"] = recordingOrigins;
   if (Object.keys(initialValues).length > 0) await chrome.storage.local.set(initialValues);
   await chrome.alarms.create("doonce.capture-sync", { periodInMinutes: 1 });
   await chrome.alarms.create("doonce.run-poll", { periodInMinutes: 0.5 });
@@ -80,6 +83,7 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
 });
 
 async function setRecording(tabId: number, origin: string, enabled: boolean): Promise<boolean> {
+  if (!isPilotOrigin(origin)) return false;
   const stored = await chrome.storage.local.get(["doonce.consentedOrigins", "doonce.recordingOrigins"]);
   if (!stringArray(stored["doonce.consentedOrigins"]).includes(origin)) return false;
   const tab = await chrome.tabs.get(tabId);
@@ -115,7 +119,7 @@ async function updateCaptureSession(origin: string, enabled: boolean): Promise<v
 }
 
 async function storeCaptureObservation(observation: CaptureObservation, tabId: number, frameId: number, senderUrl: URL): Promise<void> {
-  if (observation.origin !== senderUrl.origin || observation.path !== senderUrl.pathname) return;
+  if (!isPilotOrigin(senderUrl.origin) || observation.origin !== senderUrl.origin || observation.path !== senderUrl.pathname) return;
   const session = await loadCaptureSession(chrome.storage.local);
   if (!session || session.status !== "recording" || !session.approvedOrigins.includes(senderUrl.origin)) return;
   const candidate: RecordedAction = { schemaVersion: 1, id: crypto.randomUUID(), sequence: session.actions.length, ...observation, tabId, frameId };
@@ -221,7 +225,7 @@ async function storeDemoReceipt(origin: string, result: RunResult): Promise<void
 }
 
 async function storeCaptureSummary(message: CaptureMessage, senderOrigin: string, senderPath: string): Promise<void> {
-  if (message.origin !== senderOrigin || normalizeRecordedPath(message.path) === undefined || senderPath !== message.path) return;
+  if (!isPilotOrigin(senderOrigin) || message.origin !== senderOrigin || normalizeRecordedPath(message.path) === undefined || senderPath !== message.path) return;
   const stored = await chrome.storage.local.get(["doonce.consentedOrigins", "doonce.capturedSummaries"]);
   if (!stringArray(stored["doonce.consentedOrigins"]).includes(senderOrigin)) return;
   const summaries = Array.isArray(stored["doonce.capturedSummaries"]) ? stored["doonce.capturedSummaries"] : [];
@@ -287,6 +291,7 @@ async function pollForWorkflowRun(): Promise<void> {
     const heartbeatTimer = globalThis.setInterval(() => { void heartbeat(); }, 15_000);
     let result: ProtocolRunResult;
     try {
+      if (!isPilotWorkflowSpec(lease.workflow)) throw new TypeError("The leased workflow is outside the extension pilot boundary.");
       result = await executeWorkflow(lease.request, lease.workflow, new ChromeExecutorAdapter(lease.workflow.allowedDomains), {
         ...(lease.checkpoint ? { checkpoint: lease.checkpoint } : {}),
         isCancellationRequested: () => cancellationRequested || !leaseValid,

@@ -3,7 +3,15 @@ import path from "node:path";
 
 const release = process.argv.includes("--release");
 const apiBaseUrl = process.env.DOONCE_EXTENSION_API_BASE_URL ?? "http://127.0.0.1:4000";
+const pilotAllowedOrigin = process.env.DOONCE_EXTENSION_PILOT_ALLOWED_ORIGIN ?? "";
 if (release && !apiBaseUrl.startsWith("https://")) throw new Error("Release extension builds require an HTTPS DOONCE_EXTENSION_API_BASE_URL.");
+if (release && !pilotAllowedOrigin) throw new Error("Release extension builds require DOONCE_EXTENSION_PILOT_ALLOWED_ORIGIN.");
+if (pilotAllowedOrigin) {
+  const parsedPilotOrigin = new URL(pilotAllowedOrigin);
+  if (parsedPilotOrigin.protocol !== "https:" || parsedPilotOrigin.origin !== pilotAllowedOrigin || parsedPilotOrigin.pathname !== "/" || parsedPilotOrigin.search || parsedPilotOrigin.hash || parsedPilotOrigin.port || parsedPilotOrigin.username || parsedPilotOrigin.password) {
+    throw new Error("DOONCE_EXTENSION_PILOT_ALLOWED_ORIGIN must be one exact HTTPS origin.");
+  }
+}
 
 const extensionValidationPlugin = {
   name: "extension-runtime-validation",
@@ -20,7 +28,10 @@ const shared = {
   logLevel: "info",
   plugins: [extensionValidationPlugin],
   target: ["chrome120"],
-  define: { __DOONCE_API_BASE_URL__: JSON.stringify(apiBaseUrl) },
+  define: {
+    __DOONCE_API_BASE_URL__: JSON.stringify(apiBaseUrl),
+    __DOONCE_PILOT_ALLOWED_ORIGIN__: JSON.stringify(pilotAllowedOrigin),
+  },
 };
 
 await build({

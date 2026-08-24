@@ -169,12 +169,12 @@ export function LandingPage() {
           >
             <div className="section-intro section-intro--split">
               <div>
-                <p className="site-kicker">One artifact, three ways in</p>
-                <h2 id="authoring-title">Start with what you already have.</h2>
+                <p className="site-kicker">One bounded authoring path</p>
+                <h2 id="authoring-title">Show the report download in Chrome.</h2>
               </div>
               <p>
-                Demonstrate the task live, describe it in plain language, or
-                upload a walkthrough. Every path pauses for your review.
+                Demonstrate the approved task live. The captured draft still
+                pauses for exact-step review and a verified test.
               </p>
             </div>
             <AuthoringAccordion />
@@ -199,12 +199,12 @@ export function LandingPage() {
           >
             <div className="section-intro section-intro--split">
               <div>
-                <p className="site-kicker">Concrete starting points</p>
-                <h2 id="scenario-title">Picture the task, not the tool.</h2>
+                <p className="site-kicker">One concrete starting point</p>
+                <h2 id="scenario-title">A report download, not generic automation.</h2>
               </div>
               <p>
-                These are illustrative workflows for recurring operational
-                work. They are examples, not customer claims.
+                This is the pilot workflow pattern. It is an example, not a
+                customer claim or support for arbitrary websites.
               </p>
             </div>
             <ScenarioCarousel />

@@ -26,6 +26,6 @@ Users can explicitly export `doonce.local-run-receipt.v1` receipts for dashboard
 ## Build and verification
 
 - `npm run build:extension` creates browser-ready bundles in `extension/dist`.
-- `DOONCE_EXTENSION_API_BASE_URL=https://api.example npm run build:extension:release` enforces encrypted release transport.
+- `DOONCE_EXTENSION_API_BASE_URL=https://api.example DOONCE_EXTENSION_PILOT_ALLOWED_ORIGIN=https://reports.example npm run build:extension:release` enforces encrypted API transport and one exact release recording origin.
 - `npm run typecheck` validates the dashboard and strict extension TypeScript projects.
 - `npm run test:extension` builds the extension, runs module tests, and replays the controlled browser bundle harness.

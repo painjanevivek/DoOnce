@@ -7,6 +7,7 @@ import { WorkflowInputEditor } from "./workflow-input-editor";
 import { WorkflowStepEditor } from "./workflow-step-editor";
 import { TextAuthoringPanel } from "./text-authoring-panel";
 import { RepairProposalCard } from "./repair-proposal-card";
+import { WorkflowTestPanel } from "./workflow-test-panel";
 
 const spec: WorkflowSpec = { schemaVersion: 1, format: "doonce.workflow-spec.v1", title: "Accessible editor", allowedDomains: ["example.com"], inputs: [{ name: "query", label: "Search query", kind: "text", required: true, secret: true }], steps: [{ id: "10000000-0000-4000-8000-000000000001", action: "type", name: "Enter query", expectedOutcome: "Query is entered", inputName: "query", target: { domain: "example.com", path: "/search", locator: { schemaVersion: 1, primary: { strategy: "label", value: "Search", confidence: .7 }, fallbacks: [] } } }] };
 
@@ -41,6 +42,21 @@ test("renders text authoring with plain-language progressive disclosure", () => 
   assert.match(html, /What should the browser do/);
   assert.match(html, /Reusable inputs and technical details/);
   assert.match(html, /Create editable draft/);
+});
+
+test("removes hosted execution from the MVP test controls", () => {
+  const html = renderToStaticMarkup(createElement(WorkflowTestPanel, {
+    apiBaseUrl: "http://127.0.0.1:4000",
+    workflowId: "10000000-0000-4000-8000-000000000001",
+    spec,
+    disabled: false,
+    mvpMode: true,
+    pilotOrigin: "https://reports.example.com",
+    onPassingTest() {},
+  }));
+  assert.match(html, /Approved site:<\/strong> https:\/\/reports\.example\.com/);
+  assert.match(html, /attended local Chrome only/);
+  assert.doesNotMatch(html, /Hosted browser|value="hosted-browser"/);
 });
 
 test("explains repair analysis without implying an automatic workflow change", () => {
