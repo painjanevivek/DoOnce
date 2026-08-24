@@ -1,5 +1,8 @@
 .git
 .github
 .next
+.worktrees
+coverage
+extension/dist
 node_modules
 npm-debug.log
