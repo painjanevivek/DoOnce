@@ -1138,7 +1138,14 @@
   }
 
   .workflow-workspace {
-    grid-template-columns: 12rem minmax(0, 1fr) 14rem;
+    grid-template-columns: 12rem minmax(0, 1fr);
+  }
+
+  .workspace-inspector {
+    position: static;
+    grid-column: 1 / -1;
+    max-height: none;
+    overflow: visible;
   }
 }
 

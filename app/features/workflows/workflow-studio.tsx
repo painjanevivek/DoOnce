@@ -18,6 +18,7 @@ import { WorkflowInputEditor } from "./workflow-input-editor";
 import { WorkflowStepEditor } from "./workflow-step-editor";
 import { WorkflowTestPanel } from "./workflow-test-panel";
 import { WorkflowVersionHistory } from "./workflow-version-history";
+import { PilotProofRail } from "../../components/pilot-proof-rail";
 import {
   WorkflowWorkspace,
   type StudioView,
@@ -377,6 +378,38 @@ export default function WorkflowStudio({ workflowId }: { workflowId: string }) {
           </span>
         </div>
       )}
+      <PilotProofRail
+        title="Draft proof path"
+        steps={[
+          {
+            label: "Approved scope",
+            description: capabilities?.mvp.enabled && capabilities.mvp.pilotOrigin
+              ? capabilities.mvp.pilotOrigin
+              : "Review the workflow scope before publication.",
+            state: capabilities?.mvp.enabled && capabilities.mvp.pilotOrigin ? "complete" : "pending",
+          },
+          {
+            label: "Draft saved",
+            description: saveLabel(saveState),
+            state: !dirty && saveState === "saved" ? "complete" : saveState === "error" || saveState === "conflict" ? "blocked" : "current",
+          },
+          {
+            label: "Fields valid",
+            description: issues.length === 0 ? "No blocking validation issues." : `${issues.length} issue${issues.length === 1 ? "" : "s"} need attention.`,
+            state: issues.length === 0 ? "complete" : "blocked",
+          },
+          {
+            label: "Draft test",
+            description: testEvidenceVerified ? "This exact saved draft passed." : "A passing exact-draft test is required.",
+            state: testEvidenceVerified ? "complete" : "current",
+          },
+          {
+            label: "Publication",
+            description: "Publication remains an explicit reviewer decision.",
+            state: "pending",
+          },
+        ]}
+      />
       <WorkflowWorkspace
         activeView={view}
         inspector={

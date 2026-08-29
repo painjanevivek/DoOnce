@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { RepairProposalCard } from "./repair-proposal-card";
+import { presentAttendedRun } from "./attended-run-presentation";
 import type { StepResult } from "../../../contracts/protocol";
 
 interface ReleaseIdentity {
@@ -139,7 +140,7 @@ export function RunHistoryPanel({ apiBaseUrl, mvpMode = false }: { apiBaseUrl: s
                     </strong>
                     <small>{new Date(run.requestedAt).toLocaleString()}</small>
                   </span>
-                  <b data-status={run.status}>{run.status}</b>
+                  <b data-status={run.status}>{presentAttendedRun(run.status, run.result?.reasonCode).title}</b>
                 </button>
               </li>
             ))
@@ -151,12 +152,29 @@ export function RunHistoryPanel({ apiBaseUrl, mvpMode = false }: { apiBaseUrl: s
               <header>
                 <div>
                   <p className="eyebrow">Run {timeline.run.id.slice(0, 8)}</p>
-                  <h3>{timeline.run.status}</h3>
+                  <h3>{presentAttendedRun(timeline.run.status, timeline.run.result?.reasonCode).title}</h3>
                 </div>
                 <small>
                   Checksum {timeline.run.workflowChecksum.slice(0, 12)}
                 </small>
               </header>
+              <section className="receipt-proof-summary" aria-label="Receipt proof summary">
+                <div>
+                  <span>What ran</span>
+                  <strong>Version {timeline.run.workflowVersion}</strong>
+                  <small>{timeline.run.mode === "test" ? "Exact saved draft test" : "Approved production run"}</small>
+                </div>
+                <div>
+                  <span>What downloaded</span>
+                  <strong>{timeline.artifacts.length ? `${timeline.artifacts.length} recorded artifact${timeline.artifacts.length === 1 ? "" : "s"}` : "No artifact metadata"}</strong>
+                  <small>Artifact details are listed below when the server returned them.</small>
+                </div>
+                <div>
+                  <span>Why it verified</span>
+                  <strong>{timeline.steps.filter((step) => step.assertionResults?.some((result) => result.status === "verified")).length} step assertion record{timeline.steps.filter((step) => step.assertionResults?.some((result) => result.status === "verified")).length === 1 ? "" : "s"}</strong>
+                  <small>Review assertions and receipt metadata. This panel does not infer verification from status alone.</small>
+                </div>
+              </section>
               <button className="secondary-button" onClick={exportReceipt} type="button">Export redacted receipt</button>
               {timeline.run.releaseIdentity ? (
                 <details className="release-evidence">

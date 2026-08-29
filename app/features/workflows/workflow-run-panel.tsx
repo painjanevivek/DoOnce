@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { WorkflowSpec } from "../../../contracts/protocol";
 import type { WorkflowSummary, WorkflowVersion } from "./authoring-types";
 import { WorkflowSchedulePanel } from "./workflow-schedule-panel";
+import { presentAttendedRun } from "./attended-run-presentation";
 
 interface RunView {
   id: string;
@@ -112,9 +113,12 @@ export function WorkflowRunPanel({ apiBaseUrl, workflow, onClose, mvpMode = fals
   }
 
   const terminal = run ? terminalStatus(run.status) : false;
+  const runPresentation = run
+    ? presentAttendedRun(run.status, run.result?.reasonCode)
+    : null;
   return (
-    <section className="run-launcher" aria-labelledby="run-launcher-title">
-      <div className="studio-section__heading"><div><p className="eyebrow">Attended extension run</p><h2 id="run-launcher-title">Run {workflow.title}</h2><p>The dashboard queues one immutable published version. The extension executes deterministic steps in your open Chrome tab and checkpoints after every verified action.</p>{mvpMode && pilotOrigin ? <p className="run-origin"><strong>Approved site:</strong> {pilotOrigin}<br /><strong>Expected result:</strong> one verified report download.</p> : null}</div><button className="text-button" onClick={onClose} type="button">Close</button></div>
+    <section className="run-launcher run-sheet" aria-labelledby="run-launcher-title">
+      <div className="studio-section__heading"><div><p className="eyebrow">Attended extension run</p><h2 id="run-launcher-title">Review and approve {workflow.title}</h2><p>One immutable published version is queued to your open Chrome tab. The participant remains present for sign-in, MFA, and any interruption.</p>{mvpMode && pilotOrigin ? <p className="run-origin"><strong>Approved site:</strong> {pilotOrigin}<br /><strong>Expected result:</strong> one report file checked against the approved contract.</p> : null}</div><button className="text-button" onClick={onClose} type="button">Close run sheet</button></div>
       {state === "loading" && <p aria-busy="true">Loading published inputs...</p>}
       {spec && <>
         <div className="test-inputs">{spec.inputs.map((input) => <label key={input.name}><span>{input.label}{input.required ? " *" : ""}</span>{input.kind === "select" ? <select value={inputs[input.name] ?? ""} onChange={(event) => setInputs((current) => ({ ...current, [input.name]: event.target.value }))}><option value="">Choose...</option>{input.options?.map((option) => <option key={option}>{option}</option>)}</select> : <input type={input.secret ? "password" : input.kind === "date" ? "date" : "text"} value={inputs[input.name] ?? ""} onChange={(event) => setInputs((current) => ({ ...current, [input.name]: event.target.value }))} />}</label>)}</div>
@@ -122,7 +126,7 @@ export function WorkflowRunPanel({ apiBaseUrl, workflow, onClose, mvpMode = fals
         <div className="run-launcher__actions"><button className="primary-button" disabled={state === "starting" || Boolean(run && !terminal) || (mvpMode && (!approvalConfirmed || !extensionVersion))} onClick={() => void start()} type="button">{state === "starting" ? "Approving and queueing..." : terminal ? "Approve and run again" : mvpMode ? "Approve and queue one run" : "Queue extension run"}</button>{run && !terminal && <button className="secondary-button" onClick={() => void cancel()} type="button">Cancel run</button>}</div>
         {!mvpMode ? <WorkflowSchedulePanel apiBaseUrl={apiBaseUrl} inputs={inputs} workflowId={workflow.id} /> : null}
       </>}
-      {run && <div className="run-progress" data-status={run.status}><span>{run.executor === "hosted-browser" ? "Hosted" : "Extension"} run {run.id.slice(0, 8)}</span><strong>{run.status}</strong><small>{run.currentStepIndex} step{run.currentStepIndex === 1 ? "" : "s"} checkpointed{run.result?.reasonCode ? ` - ${run.result.reasonCode}` : ""}</small></div>}
+      {run && runPresentation && <section className="run-result" data-tone={runPresentation.tone} aria-live="polite"><div><span>{run.executor === "hosted-browser" ? "Hosted" : "Extension"} run {run.id.slice(0, 8)}</span><strong>{runPresentation.title}</strong></div><p>{runPresentation.nextAction}</p><small>{run.currentStepIndex} step{run.currentStepIndex === 1 ? "" : "s"} checkpointed</small></section>}
       <p className="test-message" role="status">{message}</p>
     </section>
   );
