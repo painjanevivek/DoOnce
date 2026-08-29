@@ -22,6 +22,12 @@ export interface SystemCapabilities {
   };
 }
 
+export interface ExtensionConnection {
+  connected: boolean;
+  extensionVersion?: string;
+  lastSeenAt?: string;
+}
+
 export function isSystemCapabilities(value: unknown): value is SystemCapabilities {
   if (!isRecord(value) || typeof value.workflowChangesEnabled !== "boolean" || !isRecord(value.mvp)) return false;
   const mvp = value.mvp;
@@ -33,6 +39,16 @@ export function isSystemCapabilities(value: unknown): value is SystemCapabilitie
     && Array.isArray(mvp.executionModes)
     && mvp.executionModes.every((mode) => mode === "attended-extension" || mode === "hosted" || mode === "schedule" || mode === "webhook")
     && (mvp.outcome === null || mvp.outcome === "verified-report-download");
+}
+
+export function isExtensionConnectionResponse(
+  value: unknown,
+): value is { connection: ExtensionConnection } {
+  if (!isRecord(value) || !isRecord(value.connection)) return false;
+  const connection = value.connection;
+  return typeof connection.connected === "boolean"
+    && (connection.extensionVersion === undefined || typeof connection.extensionVersion === "string")
+    && (connection.lastSeenAt === undefined || typeof connection.lastSeenAt === "string");
 }
 
 function isExactHttpsOrigin(value: unknown): value is string {

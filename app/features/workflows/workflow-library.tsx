@@ -2,7 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { isSystemCapabilities, type SystemCapabilities, type WorkflowSummary } from "./authoring-types";
+import {
+  isExtensionConnectionResponse,
+  isSystemCapabilities,
+  type ExtensionConnection,
+  type SystemCapabilities,
+  type WorkflowSummary,
+} from "./authoring-types";
 import { BetaEvidencePanel } from "./beta-evidence-panel";
 import { CapturePairingPanel } from "./capture-pairing-panel";
 import { CaptureSessionInbox } from "./capture-session-inbox";
@@ -27,12 +33,15 @@ export default function WorkflowLibrary() {
   const [activeMode, setActiveMode] = useState<AuthoringMode>("record");
   const [selectedRun, setSelectedRun] = useState<WorkflowSummary | null>(null);
   const [capabilities, setCapabilities] = useState<SystemCapabilities | null>(null);
+  const [extensionConnection, setExtensionConnection] = useState<ExtensionConnection | null>(null);
+  const [extensionConnectionState, setExtensionConnectionState] = useState<"confirmed" | "unavailable">("unavailable");
 
   const load = useCallback(async () => {
     try {
-      const [response, capabilitiesResponse] = await Promise.all([
+      const [response, capabilitiesResponse, connectionResult] = await Promise.all([
         fetch(`${apiBaseUrl}/api/v1/workflow-specs`, { credentials: "include", headers: { Accept: "application/json" } }),
         fetch(`${apiBaseUrl}/api/v1/system/capabilities`, { headers: { Accept: "application/json" } }),
+        loadExtensionConnection(),
       ]);
       const [body, capabilitiesBody]: unknown[] = await Promise.all([response.json(), capabilitiesResponse.json()]);
 
@@ -43,6 +52,8 @@ export default function WorkflowLibrary() {
 
       setWorkflows(body.workflows);
       setCapabilities(capabilitiesBody);
+      setExtensionConnection(connectionResult.connection);
+      setExtensionConnectionState(connectionResult.state);
       setState("ready");
     } catch {
       setState("error");
@@ -119,6 +130,8 @@ export default function WorkflowLibrary() {
       onRun={setSelectedRun}
       mvpMode={capabilities?.mvp.enabled === true}
       pilotOrigin={capabilities?.mvp.pilotOrigin ?? null}
+      extensionConnection={extensionConnection}
+      extensionConnectionState={extensionConnectionState}
       operations={
         <>
           <RunHistoryPanel apiBaseUrl={apiBaseUrl} mvpMode={capabilities?.mvp.enabled === true} />
@@ -140,6 +153,25 @@ export default function WorkflowLibrary() {
       workflows={workflows}
     />
   );
+}
+
+async function loadExtensionConnection(): Promise<{
+  connection: ExtensionConnection | null;
+  state: "confirmed" | "unavailable";
+}> {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/capture-sessions/connection`, {
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    });
+    const body: unknown = await response.json();
+    if (response.ok && isExtensionConnectionResponse(body)) {
+      return { connection: body.connection, state: "confirmed" };
+    }
+  } catch {
+    // The view must not turn an unconfirmed connection into a connected one.
+  }
+  return { connection: null, state: "unavailable" };
 }
 
 function availableModes(capabilities: SystemCapabilities | null): AuthoringMode[] {
