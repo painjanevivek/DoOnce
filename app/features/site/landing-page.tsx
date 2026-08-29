@@ -53,14 +53,14 @@ export function LandingPage() {
         <main id="main-content">
           <section className="guided-hero" aria-labelledby="page-title">
             <div className="guided-hero__copy">
-              <p className="site-kicker">Browser work, made repeatable</p>
+              <p className="site-kicker">One attended report workflow</p>
               <h1 className="hero-title--wide" id="page-title">
-                Teach the browser once.
-                <span>Keep the workflow.</span>
+                Keep one report
+                <span>download verifiable.</span>
               </h1>
               <p>
-                Show or describe one recurring browser task. DoOnce turns it
-                into an editable workflow you can test, publish, and run again.
+                An invited participant approves and attends each Chrome run.
+                DoOnce verifies one approved report download and records a receipt.
               </p>
               <div className="guided-hero__actions">
                 <ExtensionInstallCta />
@@ -84,8 +84,8 @@ export function LandingPage() {
               <p className="site-kicker">From action to evidence</p>
               <h2 id="proof-title">The workflow is the product.</h2>
               <p>
-                Recording, text, and video all produce the same reviewable
-                artifact. Normal runs follow the published version.
+                One Chrome recording produces a reviewable artifact. Each attended
+                run follows the published version and produces a receipt.
               </p>
             </div>
             <div className="guided-proof-bento">
@@ -124,8 +124,8 @@ export function LandingPage() {
               </article>
               <article className="proof-card proof-card--compile" data-proof-media>
                 <header>
-                  <span>Compile</span>
-                  <small>Editable WorkflowSpec</small>
+                  <span>Review</span>
+                  <small>Editable workflow draft</small>
                 </header>
                 <div className="compile-preview">
                   <code>download_invoice</code>
@@ -214,11 +214,11 @@ export function LandingPage() {
             <p className="site-kicker">Your first workflow starts in Chrome</p>
             <h2 id="action-title">Show the task once. Keep the useful part.</h2>
             <p>
-              Install the extension, connect a workspace, and record one
-              bounded browser routine for review.
+              Install the extension, connect a workspace, and record one approved
+              report download for review.
             </p>
             <div>
-              <ExtensionInstallCta label="Install and record the first task" />
+              <ExtensionInstallCta label="Install and record the report" />
               <Link href="/sign-up">Create a workspace first</Link>
             </div>
           </section>

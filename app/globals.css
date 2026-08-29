@@ -1,8 +1,9 @@
 @import "./styles/tokens.css";
 @import "./styles/foundation.css";
-@import "./styles/marketing.css";
+@import "./styles/public.css";
 @import "./styles/states.css";
 @import "./styles/product.css";
+@import "./styles/components.css";
 
 /* Canonical workflow library */
 .workflow-main { width: min(1180px, calc(100% - 2rem)); }
