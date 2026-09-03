@@ -9,43 +9,89 @@
   </head>
   <body>
     <main class="panel" aria-labelledby="title">
-      <p class="eyebrow">DoOnce browser workflow</p>
-      <h1 id="title">Approve a site, then record the task</h1>
-      <p id="origin" class="origin" aria-live="polite">Checking the current tab…</p>
-      <p class="boundary"><strong>Approved pilot site:</strong> <span id="pilot-origin">Checking release boundary…</span><br><strong>Expected result:</strong> one verified report download.</p>
-      <p class="explanation">DoOnce records only value-free interaction summaries after your explicit consent. The only available execution is the verified local report download; nothing is sent automatically.</p>
-      <p class="boundary"><strong>Never captured:</strong> passwords, OTPs, payment details, or hidden page content.</p>
-      <section class="run-preview" aria-labelledby="pair-title">
-        <p class="eyebrow" id="pair-title">Connect synchronization</p>
+      <header class="panel-header">
+        <p class="eyebrow">DoOnce browser workflow</p>
+        <h1 id="title">Complete one attended report task</h1>
+        <p class="panel-intro">The extension guides a single approved action in your open Chrome tab. Sign-in, MFA, and any CAPTCHA stay manual.</p>
+      </header>
+      <p id="status" class="status" role="status" aria-live="polite" aria-atomic="true"></p>
+
+      <section id="connection-card" class="popup-card connection-card" data-state="disconnected" aria-labelledby="pair-title">
+        <div class="popup-card__heading">
+          <div><p class="eyebrow" id="pair-title">1. Connect</p><h2>Connect the recorder</h2></div>
+          <span id="connection-state" class="state-label">Not connected</span>
+        </div>
+        <p id="pairing-help">Use the one-time code generated in the DoOnce dashboard. It cannot be reused.</p>
         <label for="pairing-code">One-time dashboard code</label>
-        <input id="pairing-code" type="text" autocomplete="off" autocapitalize="characters" maxlength="32" placeholder="Paste pairing code">
-        <button id="pair-extension" type="button" class="secondary">Connect recorder</button>
-        <button id="disconnect-extension" type="button" class="secondary" disabled>Disconnect recorder</button>
+        <input id="pairing-code" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="32" placeholder="Paste pairing code" aria-describedby="pairing-help status" aria-invalid="false">
+        <div class="button-row"><button id="pair-extension" type="button">Connect recorder</button><button id="disconnect-extension" type="button" class="secondary" disabled>Disconnect</button></div>
       </section>
-      <section class="run-preview" id="demo-run-preview" aria-labelledby="run-preview-title">
-        <p class="eyebrow" id="run-preview-title">Pre-run review</p>
-        <p><strong>Action:</strong> download the local weekly-report CSV.</p>
-        <p><strong>Expected result:</strong> a visible download confirmation. DoOnce pauses if it cannot verify it.</p>
-        <label><input id="run-approval" type="checkbox" disabled> I reviewed this local action and approve one run.</label>
+
+      <section id="boundary-card" class="popup-card boundary-card" data-state="no-tab" aria-labelledby="boundary-title">
+        <div class="popup-card__heading">
+          <div><p class="eyebrow">2. Confirm site</p><h2 id="boundary-title">Use the approved pilot site</h2></div>
+          <span id="boundary-state" class="state-label">Waiting for tab</span>
+        </div>
+        <p id="origin" class="origin" aria-live="polite">Checking the current tab...</p>
+        <p class="boundary"><strong>Approved pilot site:</strong> <span id="pilot-origin">Checking release boundary...</span></p>
+        <p id="boundary-detail" class="card-note">The expected outcome is one verified report download. No second origin or redirect is accepted.</p>
+        <p id="privacy-note" class="privacy-note"><strong>Never captured:</strong> passwords, OTPs, payment details, or hidden page content.</p>
+        <button id="consent" type="button" aria-describedby="boundary-detail privacy-note" disabled>Allow recording on this site</button>
       </section>
-      <div class="actions">
-        <button id="consent" type="button" disabled>Allow recording on this site</button>
-        <button id="recording" type="button" class="secondary" disabled>Pause recording</button>
-        <button id="stop-capture" type="button" class="secondary" disabled>Stop capture session</button>
-        <button id="sync-capture" type="button" class="secondary" disabled>Synchronize buffered capture</button>
-        <button id="finalize-capture" type="button" class="secondary" disabled>Finalize capture</button>
-        <button id="discard-capture" type="button" class="secondary" disabled>Discard capture</button>
-        <button id="run-demo" type="button" class="secondary" disabled>Approve and run local demo download</button>
+
+      <section id="capture-card" class="popup-card capture-card" data-state="unavailable" aria-labelledby="capture-title">
+        <div class="popup-card__heading">
+          <div><p class="eyebrow">3. Record</p><h2 id="capture-title">Review a bounded capture</h2></div>
+          <span id="capture-state" class="state-label">Unavailable</span>
+        </div>
+        <p id="capture-count" class="card-note">No local events ready for review.</p>
+        <div class="button-stack">
+          <button id="recording" type="button" class="secondary" disabled>Pause recording</button>
+          <button id="stop-capture" type="button" class="secondary" disabled>Stop capture session</button>
+          <button id="sync-capture" type="button" class="secondary" disabled>Synchronize buffered capture</button>
+          <button id="finalize-capture" type="button" class="secondary" disabled>Finalize capture</button>
+          <button id="export" type="button" class="secondary" disabled>Export local capture for review</button>
+          <button id="discard-capture" type="button" class="danger-button" disabled>Discard capture</button>
+        </div>
+        <details class="timeline"><summary>Review captured timeline</summary><ol id="capture-timeline"><li>No structured events yet.</li></ol></details>
+      </section>
+
+      <section id="demo-run-preview" class="popup-card run-card" data-state="unavailable" aria-labelledby="run-preview-title">
+        <div class="popup-card__heading">
+          <div><p class="eyebrow">4. Approve</p><h2 id="run-preview-title">Approve one local run</h2></div>
+          <span id="run-state" class="state-label">Unavailable</span>
+        </div>
+        <p id="run-action"><strong>Action:</strong> download the local weekly-report CSV.</p>
+        <p id="run-result"><strong>Expected result:</strong> visible download confirmation. DoOnce pauses if it cannot verify it.</p>
+        <label class="approval-check"><input id="run-approval" type="checkbox" disabled><span>I reviewed this local action and approve one run.</span></label>
+        <button id="run-demo" type="button" aria-describedby="run-action run-result" disabled>Approve and run local demo download</button>
+      </section>
+
+      <section id="receipt-card" class="popup-card receipt-card" data-state="empty" aria-labelledby="receipt-title">
+        <div class="popup-card__heading">
+          <div><p class="eyebrow">5. Receipt</p><h2 id="receipt-title">Keep the verified receipt</h2></div>
+          <span id="receipt-state" class="state-label">No receipt yet</span>
+        </div>
+        <p id="run-count" class="card-note">No local demo run receipts.</p>
+        <p id="last-run" class="receipt-summary" aria-live="polite">No verified local receipt is available.</p>
         <button id="export-receipts" type="button" class="secondary" disabled>Export local receipts for dashboard review</button>
-        <button id="revoke" type="button" class="secondary" disabled>Remove consent</button>
-        <button id="export" type="button" class="secondary" disabled>Export local capture for review</button>
-      </div>
-      <p id="capture-count" class="capture-count">No local events ready for review.</p>
-      <details class="timeline"><summary>Review captured timeline</summary><ol id="capture-timeline"><li>No structured events yet.</li></ol></details>
-      <p id="run-count" class="capture-count">No local demo run receipts.</p>
-      <p id="last-run" class="receipt-summary" aria-live="polite">No verified local receipt is available.</p>
-      <p id="status" class="status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="popup-card safety-card" aria-labelledby="safety-title">
+        <div class="popup-card__heading"><div><p class="eyebrow">Access</p><h2 id="safety-title">Remove local access</h2></div></div>
+        <p class="card-note">Removing consent clears this origin's local capture data and receipts. Workspace revocation retries when connectivity returns.</p>
+        <button id="revoke" type="button" class="danger-button" disabled>Remove consent and local data</button>
+      </section>
+
     </main>
+    <dialog id="destructive-confirmation" class="confirmation-dialog" aria-labelledby="confirmation-title" aria-describedby="confirmation-message">
+      <form method="dialog">
+        <p class="eyebrow">Confirm action</p>
+        <h2 id="confirmation-title">Confirm removal</h2>
+        <p id="confirmation-message"></p>
+        <div class="button-row"><button id="confirmation-cancel" type="button" class="secondary">Cancel</button><button id="confirmation-action" type="button" class="danger-button">Continue</button></div>
+      </form>
+    </dialog>
     <script src="dist/popup.js"></script>
   </body>
 </html>

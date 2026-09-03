@@ -7,6 +7,7 @@ import type { CaptureSession, RecordedAction } from "../../contracts/protocol";
 import { discardCaptureSession, loadCaptureSession } from "./capture-storage";
 import { isPilotOrigin, pilotAllowedOrigin } from "./pilot-config";
 import { extensionApiBaseUrl } from "./api-config";
+import { derivePopupControls, derivePopupStates, popupStateLabel, type PopupStateInput } from "./popup-state";
 
 const consentButton = element<HTMLButtonElement>("#consent");
 const recordingButton = element<HTMLButtonElement>("#recording");
@@ -30,47 +31,126 @@ const statusElement = element<HTMLElement>("#status");
 const captureCountElement = element<HTMLElement>("#capture-count");
 const runCountElement = element<HTMLElement>("#run-count");
 const lastRunElement = element<HTMLElement>("#last-run");
+const connectionCard = element<HTMLElement>("#connection-card");
+const connectionStateElement = element<HTMLElement>("#connection-state");
+const boundaryCard = element<HTMLElement>("#boundary-card");
+const boundaryStateElement = element<HTMLElement>("#boundary-state");
+const boundaryDetailElement = element<HTMLElement>("#boundary-detail");
+const captureCard = element<HTMLElement>("#capture-card");
+const captureStateElement = element<HTMLElement>("#capture-state");
+const runStateElement = element<HTMLElement>("#run-state");
+const receiptCard = element<HTMLElement>("#receipt-card");
+const receiptStateElement = element<HTMLElement>("#receipt-state");
+const confirmationDialog = element<HTMLDialogElement>("#destructive-confirmation");
+const confirmationMessage = element<HTMLElement>("#confirmation-message");
+const confirmationActionButton = element<HTMLButtonElement>("#confirmation-action");
+const confirmationCancelButton = element<HTMLButtonElement>("#confirmation-cancel");
 let currentOrigin: string | undefined;
 let currentTab: chrome.tabs.Tab | undefined;
 let recording = false;
+let receiptCount = 0;
+let captureSessionStatus: string | undefined;
+let hasOriginCaptureSession = false;
+let hasCaptureData = false;
+let connected = false;
+let currentOriginApproved = false;
+let demoRunAvailable = false;
+let pendingConfirmation: ((confirmed: boolean) => void) | undefined;
 
 pilotOriginElement.textContent = pilotAllowedOrigin ?? "Development mode: no pilot origin is configured.";
 demoRunPreviewElement.hidden = pilotAllowedOrigin !== undefined;
 runDemoButton.hidden = pilotAllowedOrigin !== undefined;
 exportReceiptsButton.hidden = pilotAllowedOrigin !== undefined;
 
-function displayStatus(message: string): void {
+function displayStatus(message: string, tone: "info" | "error" = "info"): void {
   statusElement.textContent = message;
+  statusElement.dataset.tone = tone;
+}
+
+function renderPopupStates(): void {
+  const input: PopupStateInput = {
+    isConnected: connected,
+    hasConsentableTab: Boolean(currentTab?.url && isConsentableWebOrigin(currentTab.url)),
+    isPilotOrigin: Boolean(currentOrigin && isPilotOrigin(currentOrigin)),
+    isConsented: currentOriginApproved,
+    isRecording: recording,
+    ...(captureSessionStatus ? { sessionStatus: captureSessionStatus } : {}),
+    hasOriginCaptureSession,
+    hasCaptureData,
+    canRun: demoRunAvailable,
+    hasRunApproval: runApprovalInput.checked,
+    receiptCount,
+  };
+  const states = derivePopupStates(input);
+  const controls = derivePopupControls(input);
+  connectionCard.dataset.state = states.connection;
+  connectionStateElement.textContent = popupStateLabel(states.connection);
+  boundaryCard.dataset.state = states.boundary;
+  boundaryStateElement.textContent = popupStateLabel(states.boundary);
+  captureCard.dataset.state = states.capture;
+  captureStateElement.textContent = popupStateLabel(states.capture);
+  demoRunPreviewElement.dataset.state = states.run;
+  runStateElement.textContent = popupStateLabel(states.run);
+  receiptCard.dataset.state = states.receipt;
+  receiptStateElement.textContent = popupStateLabel(states.receipt);
+  boundaryDetailElement.textContent = boundaryDetail(states.boundary);
+  pairingCodeInput.disabled = controls.pairingCodeDisabled;
+  pairExtensionButton.disabled = controls.pairDisabled;
+  disconnectExtensionButton.disabled = controls.disconnectDisabled;
+  consentButton.disabled = controls.consentDisabled;
+  recordingButton.disabled = controls.recordingDisabled;
+  stopCaptureButton.disabled = controls.stopCaptureDisabled;
+  syncCaptureButton.disabled = controls.syncCaptureDisabled;
+  finalizeCaptureButton.disabled = controls.finalizeCaptureDisabled;
+  discardCaptureButton.disabled = controls.discardCaptureDisabled;
+  exportButton.disabled = controls.exportCaptureDisabled;
+  runApprovalInput.disabled = controls.runApprovalDisabled;
+  runDemoButton.disabled = controls.runDisabled;
+  exportReceiptsButton.disabled = controls.exportReceiptsDisabled;
+  revokeButton.disabled = controls.revokeDisabled;
+}
+
+function boundaryDetail(state: "no-tab" | "outside-pilot" | "awaiting-consent" | "approved"): string {
+  if (state === "no-tab") return "Open an HTTPS site or the local DoOnce demo to continue.";
+  if (state === "outside-pilot") return `This tab is outside the approved pilot. Open ${pilotAllowedOrigin ?? "the configured pilot origin"}.`;
+  if (state === "awaiting-consent") return "Connect the recorder, then explicitly allow recording for this exact site.";
+  return "The expected outcome is one verified report download. No second origin or redirect is accepted.";
 }
 
 function updateDemoRunAvailability(allowedOrigins: string[]): void {
   const available = Boolean(currentTab?.url && canRunDemo(currentTab.url, allowedOrigins));
-  runApprovalInput.disabled = !available;
+  demoRunAvailable = available;
+  currentOriginApproved = allowedOrigins.includes(currentOrigin ?? "");
   if (!available) runApprovalInput.checked = false;
-  runDemoButton.disabled = !canStartDemoRun(currentTab?.url, allowedOrigins, runApprovalInput.checked);
+  renderPopupStates();
 }
 
 async function updateCaptureCount(): Promise<void> {
   const stored = await chrome.storage.local.get("doonce.capturedSummaries");
   const session = await loadCaptureSession(chrome.storage.local);
   const summaries = actionSummaries(stored["doonce.capturedSummaries"]).filter((summary) => summary.origin === currentOrigin);
-  const sessionActions = session?.approvedOrigins.includes(currentOrigin ?? "") ? session.actions : [];
+  hasOriginCaptureSession = Boolean(session?.approvedOrigins.includes(currentOrigin ?? ""));
+  const sessionActions = hasOriginCaptureSession && session ? session.actions : [];
+  captureSessionStatus = hasOriginCaptureSession ? session?.status : undefined;
   const count = sessionActions.length || summaries.length;
-  exportButton.disabled = count === 0;
-  stopCaptureButton.disabled = !session || (session.status !== "recording" && session.status !== "paused");
-  syncCaptureButton.disabled = !session || session.status === "discarded" || session.status === "finalized";
-  finalizeCaptureButton.disabled = !session || session.status !== "stopped";
-  discardCaptureButton.disabled = !session;
-  captureCountElement.textContent = count ? `${count} structured event${count === 1 ? "" : "s"} in the ${session?.status ?? "local"} capture session.` : "No local events ready for review.";
+  hasCaptureData = count > 0;
+  captureCountElement.textContent = count ? `${count} structured event${count === 1 ? "" : "s"} in the ${captureSessionStatus ?? "local"} capture session.` : "No local events ready for review.";
   renderTimeline(sessionActions);
+  renderPopupStates();
 }
 
 function renderTimeline(actions: readonly RecordedAction[]): void {
   timelineElement.replaceChildren();
+  if (actions.length === 0) {
+    const emptyItem = document.createElement("li");
+    emptyItem.textContent = "No structured events yet.";
+    timelineElement.append(emptyItem);
+    return;
+  }
   for (const action of actions.slice(-12)) {
     const item = document.createElement("li");
     const name = action.target?.accessibleName ?? action.target?.textHint ?? action.target?.tagName ?? "page";
-    item.textContent = `${action.sequence + 1}. ${action.eventKind.replaceAll("-", " ")} — ${name} (${action.path})`;
+    item.textContent = `${action.sequence + 1}. ${action.eventKind.replaceAll("-", " ")} - ${name} (${action.path})`;
     timelineElement.append(item);
   }
 }
@@ -78,9 +158,10 @@ function renderTimeline(actions: readonly RecordedAction[]): void {
 async function updateRunCount(): Promise<void> {
   const stored = await chrome.storage.local.get("doonce.demoRunReceipts");
   const receipts = receiptList(stored["doonce.demoRunReceipts"]).filter((receipt) => receipt.origin === currentOrigin);
-  exportReceiptsButton.disabled = receipts.length === 0;
+  receiptCount = receipts.length;
   runCountElement.textContent = receipts.length ? `${receipts.length} local demo receipt${receipts.length === 1 ? "" : "s"} ready for review.` : "No local demo run receipts.";
   lastRunElement.textContent = describeReceipt(receipts.at(-1));
+  renderPopupStates();
 }
 
 async function isCurrentTabRecording(tab: chrome.tabs.Tab): Promise<boolean> {
@@ -96,39 +177,58 @@ async function isCurrentTabRecording(tab: chrome.tabs.Tab): Promise<boolean> {
 async function loadCurrentOrigin(): Promise<void> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   currentTab = tab;
+  const connection = await chrome.storage.local.get("doonce.captureToken");
+  connected = typeof connection["doonce.captureToken"] === "string";
   if (!tab?.url || !isConsentableWebOrigin(tab.url)) {
+    currentOrigin = undefined;
+    currentOriginApproved = false;
+    demoRunAvailable = false;
+    recording = false;
+    captureSessionStatus = undefined;
+    hasOriginCaptureSession = false;
+    hasCaptureData = false;
+    receiptCount = 0;
     originElement.textContent = "Open an HTTPS website or the local DoOnce demo to continue.";
     displayStatus("No site has been approved.");
+    renderPopupStates();
     return;
   }
 
   currentOrigin = new URL(tab.url).origin;
   originElement.textContent = currentOrigin;
   const stored = await chrome.storage.local.get(["doonce.consentedOrigins", "doonce.recordingOrigins", "doonce.captureToken"]);
-  disconnectExtensionButton.disabled = typeof stored["doonce.captureToken"] !== "string";
+  connected = typeof stored["doonce.captureToken"] === "string";
   const allowedOrigins = stringArray(stored["doonce.consentedOrigins"]);
   const pilotTab = isPilotOrigin(currentOrigin);
   recording = isRecording(stored["doonce.recordingOrigins"], currentOrigin) && await isCurrentTabRecording(tab);
-  consentButton.disabled = !pilotTab;
-  recordingButton.disabled = !pilotTab || !allowedOrigins.includes(currentOrigin);
   recordingButton.textContent = recording ? "Pause recording" : "Resume recording";
   updateDemoRunAvailability(allowedOrigins);
-  revokeButton.disabled = !allowedOrigins.includes(currentOrigin);
   displayStatus(!pilotTab ? `This site is outside the pilot. Open ${pilotAllowedOrigin}.` : allowedOrigins.includes(currentOrigin) ? (recording ? "This site is approved and recording is active for this tab." : "This site is approved; recording is paused.") : "This pilot site is not approved yet.");
   await Promise.all([updateCaptureCount(), updateRunCount()]);
+  renderPopupStates();
 }
 
 consentButton.addEventListener("click", async () => {
   if (!currentOrigin || !isPilotOrigin(currentOrigin)) return;
+  consentButton.disabled = true;
   const identity = await chrome.storage.local.get("doonce.captureToken");
   const token = identity["doonce.captureToken"];
-  if (typeof token !== "string") return displayStatus("Connect the recorder to your workspace before approving this site.");
+  if (typeof token !== "string") {
+    displayStatus("Connect the recorder to your workspace before approving this site.", "error");
+    renderPopupStates();
+    return;
+  }
   const permissionGranted = await chrome.permissions.request({ origins: [`${currentOrigin}/*`] });
-  if (!permissionGranted) { displayStatus("Browser access was not granted for this site."); return; }
+  if (!permissionGranted) {
+    displayStatus("Browser access was not granted for this site.", "error");
+    renderPopupStates();
+    return;
+  }
   const consentResponse = await extensionRequest("/api/v1/extension/consents", "POST", token, { origin: currentOrigin }).catch(() => undefined);
   if (!consentResponse?.ok) {
     await chrome.permissions.remove({ origins: [`${currentOrigin}/*`] });
-    displayStatus("Workspace consent could not be confirmed. No site access was retained.");
+    displayStatus("Workspace consent could not be confirmed. No site access was retained.", "error");
+    renderPopupStates();
     return;
   }
   const stored = await chrome.storage.local.get("doonce.consentedOrigins");
@@ -138,10 +238,9 @@ consentButton.addEventListener("click", async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const response: unknown = tab?.id ? await chrome.runtime.sendMessage({ type: "doonce.start-capture", origin: currentOrigin, tabId: tab.id }) : undefined;
   recording = isRecord(response) && response.updated === true;
-  recordingButton.disabled = !recording;
+  currentOriginApproved = true;
   recordingButton.textContent = recording ? "Pause recording" : "Resume recording";
   updateDemoRunAvailability([currentOrigin]);
-  revokeButton.disabled = false;
   displayStatus(recording ? "Site approval saved locally. Value-free capture is active for this tab only." : "Site approval was saved, but recording could not start for this tab.");
   await updateCaptureCount();
 });
@@ -186,10 +285,12 @@ recordingButton.addEventListener("click", async () => {
   recording = enabled;
   recordingButton.textContent = recording ? "Pause recording" : "Resume recording";
   displayStatus(recording ? "Recording resumed for this tab. Protected values remain excluded." : "Recording paused. Nothing new will be captured until you resume.");
+  renderPopupStates();
 });
 
 revokeButton.addEventListener("click", async () => {
   if (!currentOrigin) return;
+  if (!await confirmDestructiveAction(`Remove consent and local capture data for ${currentOrigin}?`, "Remove consent")) return;
   const stored = await chrome.storage.local.get(["doonce.consentedOrigins", "doonce.captureToken", "doonce.pendingConsentRevocations"]);
   const token = stored["doonce.captureToken"];
   const serverRevoked = typeof token === "string" && (await extensionRequest("/api/v1/extension/consents", "DELETE", token, { origin: currentOrigin }).catch(() => undefined))?.ok === true;
@@ -211,26 +312,26 @@ revokeButton.addEventListener("click", async () => {
   if (session?.approvedOrigins.includes(currentOrigin)) await discardCaptureSession(chrome.storage.local);
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (tab?.id) await chrome.tabs.sendMessage(tab.id, { type: "doonce.stop-capture" }).catch(() => undefined);
-  revokeButton.disabled = true;
   recording = false;
-  recordingButton.disabled = true;
+  currentOriginApproved = false;
+  demoRunAvailable = false;
   recordingButton.textContent = "Pause recording";
-  runDemoButton.disabled = true;
   runApprovalInput.checked = false;
-  runApprovalInput.disabled = true;
   displayStatus(serverRevoked ? "Site approval removed. Origin-scoped local data and workspace consent were cleared." : "Local site access and origin-scoped data were removed. Workspace revocation will retry when the API reconnects.");
-  await updateCaptureCount();
+  await Promise.all([updateCaptureCount(), updateRunCount()]);
+  renderPopupStates();
 });
 
 exportButton.addEventListener("click", async () => {
   if (!currentOrigin) return;
   const stored = await chrome.storage.local.get("doonce.capturedSummaries");
   const session = await loadCaptureSession(chrome.storage.local);
-  const structured = session?.approvedOrigins.includes(currentOrigin) ? session.actions : [];
+  const originSession = session?.approvedOrigins.includes(currentOrigin) ? session : undefined;
+  const structured = originSession?.actions ?? [];
   const actions = structured.length ? structuredActionSummaries(structured) : actionSummaries(stored["doonce.capturedSummaries"]).filter((summary) => summary.origin === currentOrigin);
   if (actions.length === 0) return;
   const compiled = compileRecordedActions(actions);
-  downloadJson({ ...createCaptureExport(actions), ...(session ? { session } : {}), ...(compiled.ok ? { workflowSpec: compiled.value } : {}) }, "doonce-capture.json");
+  downloadJson({ ...createCaptureExport(actions), ...(originSession ? { session: originSession } : {}), ...(compiled.ok ? { workflowSpec: compiled.value } : {}) }, "doonce-capture.json");
   displayStatus(compiled.ok ? "Capture review file and workflow draft downloaded. Nothing was sent to DoOnce." : "Capture review file downloaded. Nothing was sent to DoOnce.");
 });
 
@@ -258,7 +359,7 @@ finalizeCaptureButton.addEventListener("click", async () => {
 });
 
 discardCaptureButton.addEventListener("click", async () => {
-  if (!window.confirm("Discard this capture session and its local timeline?")) return;
+  if (!await confirmDestructiveAction("Discard this capture session and its local timeline from this browser? This cannot be undone.", "Discard capture")) return;
   await chrome.runtime.sendMessage({ type: "doonce.capture-discard" });
   displayStatus("Capture session discarded from this browser.");
   await updateCaptureCount();
@@ -266,21 +367,33 @@ discardCaptureButton.addEventListener("click", async () => {
 
 pairExtensionButton.addEventListener("click", async () => {
   const code = pairingCodeInput.value.trim().toUpperCase();
-  if (!/^[A-Z0-9_-]{12,32}$/.test(code)) return displayStatus("Enter the complete pairing code from the dashboard.");
+  if (!/^[A-Z0-9_-]{12,32}$/.test(code)) {
+    pairingCodeInput.setAttribute("aria-invalid", "true");
+    displayStatus("Enter the complete pairing code from the dashboard.", "error");
+    return;
+  }
+  pairingCodeInput.setAttribute("aria-invalid", "false");
   pairExtensionButton.disabled = true;
   try {
     const response = await fetch(`${extensionApiBaseUrl}/api/v1/capture-sessions/pair`, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json", "X-DoOnce-Extension-Version": chrome.runtime.getManifest().version }, body: JSON.stringify({ code, extensionVersion: chrome.runtime.getManifest().version }) });
     const body: unknown = await response.json();
     if (!response.ok || !isRecord(body) || typeof body.token !== "string") throw new TypeError("Pairing was rejected.");
     await chrome.storage.local.set({ "doonce.captureToken": body.token });
-    disconnectExtensionButton.disabled = false;
+    connected = true;
     pairingCodeInput.value = "";
     displayStatus("Browser recorder connected. Buffered capture sessions can now synchronize automatically.");
+    renderPopupStates();
   } catch {
-    displayStatus("Pairing failed. Generate a fresh dashboard code and try again.");
+    pairingCodeInput.setAttribute("aria-invalid", "true");
+    displayStatus("Pairing failed. Generate a fresh dashboard code and try again.", "error");
   } finally {
-    pairExtensionButton.disabled = false;
+    renderPopupStates();
   }
+});
+
+pairingCodeInput.addEventListener("input", () => {
+  if (pairingCodeInput.getAttribute("aria-invalid") === "true") displayStatus("");
+  pairingCodeInput.setAttribute("aria-invalid", "false");
 });
 
 disconnectExtensionButton.addEventListener("click", async () => {
@@ -292,13 +405,16 @@ disconnectExtensionButton.addEventListener("click", async () => {
     await fetch(`${extensionApiBaseUrl}/api/v1/capture-sessions/unpair`, { method: "POST", headers: { Authorization: `Bearer ${token}`, Accept: "application/json", "X-DoOnce-Extension-Version": chrome.runtime.getManifest().version } });
   } finally {
     await chrome.storage.local.remove("doonce.captureToken");
+    connected = false;
     displayStatus("Recorder disconnected. Existing local capture data was retained.");
+    renderPopupStates();
   }
 });
 
 void loadCurrentOrigin().catch(() => {
   originElement.textContent = "DoOnce could not read the current tab.";
-  displayStatus("No site has been approved.");
+  displayStatus("DoOnce could not inspect the active tab. Close and reopen the popup to retry.", "error");
+  renderPopupStates();
 });
 
 function downloadJson(value: unknown, filename: string): void {
@@ -341,6 +457,30 @@ function receiptList(value: unknown): LocalReceipt[] {
 function stringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
+
+function confirmDestructiveAction(message: string, actionLabel: string): Promise<boolean> {
+  if (confirmationDialog.open || pendingConfirmation) return Promise.resolve(false);
+  confirmationMessage.textContent = message;
+  confirmationActionButton.textContent = actionLabel;
+  return new Promise((resolve) => {
+    pendingConfirmation = resolve;
+    confirmationDialog.showModal();
+  });
+}
+
+function settleDestructiveConfirmation(confirmed: boolean): void {
+  const resolve = pendingConfirmation;
+  pendingConfirmation = undefined;
+  if (confirmationDialog.open) confirmationDialog.close();
+  resolve?.(confirmed);
+}
+
+confirmationActionButton.addEventListener("click", () => settleDestructiveConfirmation(true));
+confirmationCancelButton.addEventListener("click", () => settleDestructiveConfirmation(false));
+confirmationDialog.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  settleDestructiveConfirmation(false);
+});
 
 function extensionRequest(path: string, method: "POST" | "DELETE", token: string, body: unknown): Promise<Response> {
   return fetch(`${extensionApiBaseUrl}${path}`, {
